@@ -1,0 +1,17 @@
+{
+  "name": "bluemanta-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "npm run check --workspace @bluemanta/core --if-present",
+    "test": "npm run test --workspace @bluemanta/core --if-present",
+    "build": "npm run build --workspace @bluemanta/core --if-present"
+  }
+}

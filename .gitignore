@@ -2,7 +2,13 @@
 node_modules/
 dist/
 lib/
+coverage/
 *.tsbuildinfo
+
+# 本地数据库（测试与冒烟只用临时目录）
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # 本机 agent 设置
 .claude/settings.local.json
