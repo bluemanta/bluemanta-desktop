@@ -56,4 +56,4 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 | 方法与路径 | 结果 |
 |---|---|
 | `GET /api/bluemanta/health` | `{ schemaVersion, dataDir, counts: { projects, tasks, cards } }`。counts 是未进回收站的数量 |
-| `GET /api/bluemanta/cards?cardType=idea&trash=0\|1` | `{ count, cards }`。不带 `trash` 或 `trash=0` 不含回收站；`trash=1` 只返回回收站。`cardType` 可省略。非法参数返回 400 |
+| `GET /api/bluemanta/cards?cardType=idea&trash=0\|1&q=关键词` | `{ count, cards }`。不带 `trash` 或 `trash=0` 不含回收站；`trash=1` 只返回回收站。`cardType` 可省略。带 `q` 时按关键词搜索，每条卡片附带 `field`（命中字段）和 `excerpt`（摘录）。`q` 为空或重复返回 400。其它非法参数也返回 400 |

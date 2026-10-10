@@ -47,7 +47,7 @@ export function idea(overrides: Partial<IdeaInput> = {}): IdeaInput {
     title: '一个想法',
     body: '正文',
     rawInput: { status: 'present', channel: 'web', text: '原始输入' },
-    fields: { category: 'product', categorySource: 'user', captureGroupId: null },
+    fields: { category: 'product', captureGroupId: null },
     ...overrides,
   };
 }

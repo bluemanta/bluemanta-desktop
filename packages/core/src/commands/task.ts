@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { advance } from '../envelope.js';
 import { commandFailure, type CommandResult } from '../errors.js';
 import { applied, appliedPurge, execute } from '../execute.js';
-import { guardRev, requireLiveProject } from '../guards.js';
+import { guardInTrash, guardRev, requireLiveProject } from '../guards.js';
 import { createId } from '../ids.js';
 import { deleteLinksOf, deleteTaskRow, getTask, insertTask, saveTask } from '../rows.js';
 import type { PurgedRecord, Task } from '../types.js';
@@ -241,7 +241,7 @@ export function purgeTask(db: DatabaseSync, raw: unknown): CommandResult<PurgedR
       apply(database, input) {
         const current = getTask(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'any');
+        const problem = guardInTrash(current, input.rev);
         if (problem) return problem;
         deleteLinksOf(database, current.id);
         deleteTaskRow(database, current.id);

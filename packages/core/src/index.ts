@@ -13,6 +13,9 @@ export type {
   Card,
   CardExtension,
   CardListQuery,
+  CardSearchField,
+  CardSearchHit,
+  CardSearchOptions,
   CardType,
   CategorySource,
   DeletedFilter,
@@ -29,6 +32,7 @@ export type {
   ProjectListQuery,
   ProjectLocation,
   ProjectStatus,
+  PurgedCard,
   PurgedRecord,
   RawInput,
   SceneCard,
@@ -39,6 +43,7 @@ export type {
   TaskOrigin,
   TaskPriority,
   TaskStatus,
+  TitleOrigin,
 } from './types.js';
 export type {
   CardAddExtensionInput,

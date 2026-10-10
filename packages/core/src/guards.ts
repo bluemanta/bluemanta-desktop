@@ -13,6 +13,20 @@ export function guardRev(record: Envelope | null, rev: number, mode: RevMode): C
   return null;
 }
 
+/** 回收站中的卡片不能修改、追记或收藏。 */
+export function guardActiveCard(record: Envelope, rev: number): CommandFailure | null {
+  if (record.rev !== rev) return commandFailure('version_conflict', '版本不一致，请重新读取后再写入');
+  if (record.deletedAt !== null) return commandFailure('invalid_input', '卡片在回收站中，请先恢复');
+  return null;
+}
+
+/** 彻底删除只能对回收站中的记录执行。 */
+export function guardInTrash(record: Envelope, rev: number): CommandFailure | null {
+  if (record.rev !== rev) return commandFailure('version_conflict', '版本不一致，请重新读取后再写入');
+  if (record.deletedAt === null) return commandFailure('invalid_input', '不在回收站，不能彻底删除');
+  return null;
+}
+
 export function requireLiveProject(db: DatabaseSync, projectId: string): CommandFailure | null {
   const row = getRow<{ deleted_at: string | null }>(
     db,

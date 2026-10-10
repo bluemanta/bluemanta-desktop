@@ -9,3 +9,11 @@ export function advance<T extends Envelope>(record: T, source: Source, now: stri
     deletedAt,
   };
 }
+
+/** 收藏只推进版本，不改 updatedAt / updatedBy。 */
+export function bumpRev<T extends Envelope>(record: T): T {
+  return {
+    ...record,
+    rev: record.rev + 1,
+  };
+}
