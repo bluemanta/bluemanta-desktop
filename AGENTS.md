@@ -32,7 +32,7 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 1. **每类数据只有一份正本。** 不做双写；迁移只做一次性导入。正本在哪里以 vision.md 的正本归属表为准。
 2. **正式数据只读。** `bluemanta-workbench` 已冻结，数据目录 `~/Library/Application Support/BluemantaOPC/` 只能读。Notion ContentHub 在迁移完成前仍是内容线正本，不写入。
 3. **私人数据不进仓库。** 灵感、内容、账号信息、客户资料都不能进入代码、fixtures、测试快照或构建产物。测试用虚构样例，运行数据放在仓库外或已被 gitignore 的目录。
-4. **客户资料默认视为机密。** 数云及其客户的任何资料，在敏感分级方案确定之前，不进入任何模型请求，也不接入 Desktop。
+4. **读取不设限，对外时检查。** 工作资料（含 SalesOS、FDE）可以进入 Desktop，agent 默认都能读。凡是把内容变成对外材料的功能（发布、导出 PPT、分享），必须经过对外检查，见 [对象模型](docs/object-model.md) 第 5 节。不要为读取增加分级或权限拦截，除非说明书明确要求。
 5. **dsh 版本锁定为 0.2.0-rc.2。** dsh 的 API 以该版本的文档和源码为准，不凭记忆写：
    - 云端 agent：读上游提交 `c1b47e41fc` 的公开源码 <https://github.com/deepseek-ai/deepseek-harness/tree/c1b47e41fc>，例如 `packages/client/ui-sidebar/README.zh.md`；
    - 本机：`~/Developer/bluemanta-harness` 的 `ref/dsh-0.2.0-rc.2` 分支（同一提交）。
