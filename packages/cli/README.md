@@ -113,7 +113,7 @@ node <仓库>/packages/mcp/dist/mcp.js
 | `bluemanta_idea_search` | `query`、`limit`、`category`、`starredOnly` |
 | `bluemanta_idea_get` | `id` |
 
-`requestId` 由 MCP 请求 id 生成（`mcp:<id>`）。同一次调用重试不会再写一条。工具结果的文本和 T6 的说明文字相同，结构化内容和 T6 的返回对象相同。不能收藏、追记、删除。
+`requestId` 是 `mcp:<启动随机串>:<请求 id>`。随机串在进程启动时生成一次，不同进程不会撞号；同一进程里同一次调用重试不会再写一条。工具结果的文本和 T6 的说明文字相同，结构化内容和 T6 的返回对象相同。不能收藏、追记、删除。
 
 ### Claude Code
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { openCore, type Core, type IdeaCategory } from '@bluemanta/core';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
@@ -32,12 +33,22 @@ export function clientSourceName(name: string | undefined): string {
   return trimmed === '' ? 'mcp' : trimmed;
 }
 
-/** 用 MCP 请求 id 生成稳定的 requestId，同一次调用重试时 core 不会再写一条。 */
-export function mcpCaptureRequestId(requestId: string | number | undefined): string | null {
+/**
+ * 进程启动时生成一次。MCP 请求 id 在每个连接里都从头计数，
+ * 不带这段随机串的话，新会话会撞上旧会话的号。
+ */
+export const mcpProcessToken = randomUUID();
+
+/** 同一进程内，相同请求 id 得到相同 requestId，重试不会再写一条。 */
+export function mcpCaptureRequestId(
+  requestId: string | number | undefined,
+  processToken: string = mcpProcessToken,
+): string | null {
   if (requestId === undefined) return null;
   const text = String(requestId).trim();
-  if (text === '') return null;
-  return `mcp:${text}`;
+  const token = processToken.trim();
+  if (text === '' || token === '') return null;
+  return `mcp:${token}:${text}`;
 }
 
 export function captureWithClient(

@@ -7,7 +7,11 @@
     "node": ">=24"
   },
   "workspaces": [
-    "packages/*"
+    "packages/core",
+    "packages/cli",
+    "packages/dsh-plugin",
+    "packages/importer",
+    "packages/mcp"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
