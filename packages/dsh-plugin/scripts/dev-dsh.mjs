@@ -11,7 +11,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DSH_PACKAGE = '@deepseek-ai/dsh@0.2.0-rc.2';
-const root = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+// 脚本在 packages/dsh-plugin/scripts/，向上四级才是仓库根。
+const root = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const devRoot = join(root, '.dsh-dev');
 const home = join(devRoot, 'home');
 const dataDir = join(devRoot, 'data');
@@ -46,6 +47,12 @@ function ensureDsh(env) {
   }
   mkdirSync(cliDir, { recursive: true });
   return run('npm', ['install', '--prefix', cliDir, DSH_PACKAGE], env);
+}
+
+const rootManifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+if (rootManifest.name !== 'bluemanta-desktop') {
+  console.error(`dev:dsh 找不到仓库根目录，当前解析为 ${root}`);
+  process.exit(1);
 }
 
 const baseEnv = { ...process.env };
