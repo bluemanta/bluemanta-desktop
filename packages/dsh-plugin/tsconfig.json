@@ -4,7 +4,8 @@
     "noEmit": true,
     "types": ["node"],
     "paths": {
-      "@bluemanta/core": ["../core/src/index.ts"]
+      "@bluemanta/core": ["../core/src/index.ts"],
+      "@bluemanta/cli/idea-tools": ["../cli/src/idea-tools.ts"]
     }
   },
   "include": ["src/**/*.ts", "test/**/*.ts"]

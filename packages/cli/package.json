@@ -1,0 +1,34 @@
+{
+  "name": "@bluemanta/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "bluemanta Desktop 的本机灵感命令。标准输入读 JSON，标准输出打一行 JSON",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "./idea-tools": {
+      "types": "./dist/idea-tools.d.ts",
+      "import": "./dist/idea-tools.js"
+    },
+    "./data-dir": {
+      "types": "./dist/data-dir.d.ts",
+      "import": "./dist/data-dir.js"
+    }
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build --prefix ../.. -w @bluemanta/core && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@bluemanta/core": "file:../core"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

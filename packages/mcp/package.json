@@ -1,0 +1,26 @@
+{
+  "name": "@bluemanta/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "bluemanta Desktop 的灵感 MCP 服务，stdio 传输，复用 T6 工具函数",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build --prefix ../.. -w @bluemanta/core && npm run build --prefix ../.. -w @bluemanta/cli && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@bluemanta/cli": "file:../cli",
+    "@bluemanta/core": "file:../core",
+    "@modelcontextprotocol/sdk": "^1.32.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

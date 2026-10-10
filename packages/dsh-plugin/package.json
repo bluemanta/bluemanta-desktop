@@ -41,6 +41,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
+    "@bluemanta/cli": "file:../cli",
     "@bluemanta/core": "file:../core"
   },
   "peerDependencies": {
