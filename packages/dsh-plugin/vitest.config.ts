@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@bluemanta/core': fileURLToPath(new URL('../core/src/index.ts', import.meta.url)),
+      '@bluemanta/cli/idea-tools': fileURLToPath(new URL('../cli/src/idea-tools.ts', import.meta.url)),
     },
   },
 });

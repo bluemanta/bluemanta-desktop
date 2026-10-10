@@ -7,13 +7,18 @@
     "node": ">=24"
   },
   "workspaces": [
-    "packages/*"
+    "packages/core",
+    "packages/cli",
+    "packages/dsh-plugin",
+    "packages/importer",
+    "packages/mcp"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs",
-    "import:workbench": "node packages/importer/dist/cli.js"
+    "import:workbench": "node packages/importer/dist/cli.js",
+    "idea": "node packages/cli/dist/idea.js"
   }
 }
