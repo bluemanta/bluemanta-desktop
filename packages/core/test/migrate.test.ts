@@ -1,3 +1,4 @@
+import '../src/silence-sqlite.js';
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

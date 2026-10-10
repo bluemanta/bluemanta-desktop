@@ -10,8 +10,9 @@
     "packages/*"
   ],
   "scripts": {
-    "check": "npm run check --workspace @bluemanta/core --if-present",
-    "test": "npm run test --workspace @bluemanta/core --if-present",
-    "build": "npm run build --workspace @bluemanta/core --if-present"
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs"
   }
 }
