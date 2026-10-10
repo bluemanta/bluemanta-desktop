@@ -60,5 +60,6 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 | `docs/decisions/` | 架构决策记录，编号递增，不改写已采纳的记录，变更时新增一条 |
 | `docs/tasks/_template.md` | 任务说明书模板；说明书本身写在 Linear issue 描述里 |
 | `spikes/` | 技术验证用的一次性代码，不作为产品代码复用 |
+| `packages/core` | 产品核心的数据层：对象、存储与写入命令 |
 
 产品代码的目录结构在阶段 1 开始前确定。
