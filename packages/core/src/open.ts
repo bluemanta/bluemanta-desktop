@@ -1,8 +1,9 @@
 import './silence-sqlite.js';
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { backupStamp, copyDatabaseFiles, uniqueBackupFolder } from './backup.js';
 import { Core } from './core.js';
 import { UnsupportedSchemaError } from './errors.js';
 import { applyMigrations, readSchemaVersion, SCHEMA_VERSION } from './migrate.js';
@@ -28,28 +29,9 @@ function prepareConnection(db: DatabaseSync): void {
   db.exec('PRAGMA journal_mode = WAL');
 }
 
-function backupStamp(date: Date): string {
-  const iso = date.toISOString();
-  const [datePart, timePart] = iso.split('T');
-  if (!datePart || !timePart) return iso.replace(/[-:.]/g, '');
-  const time = timePart.replace('Z', '').replace('.', '').replace(/:/g, '');
-  return `${datePart.replace(/-/g, '')}T${time}Z`;
-}
-
 function backupDatabase(dataDir: string, dbPath: string): void {
-  const stamp = backupStamp(new Date());
-  let folder = join(dataDir, 'backups', stamp);
-  let suffix = 2;
-  while (existsSync(folder)) {
-    folder = join(dataDir, 'backups', `${stamp}-${suffix}`);
-    suffix += 1;
-  }
-  mkdirSync(folder, { recursive: true });
-  copyFileSync(dbPath, join(folder, 'store.sqlite'));
-  for (const extra of ['-wal', '-shm']) {
-    const source = `${dbPath}${extra}`;
-    if (existsSync(source)) copyFileSync(source, join(folder, `store.sqlite${extra}`));
-  }
+  const folder = uniqueBackupFolder(dataDir, backupStamp(new Date()));
+  copyDatabaseFiles(dbPath, folder);
 }
 
 function openDatabase(dbPath: string): DatabaseSync {

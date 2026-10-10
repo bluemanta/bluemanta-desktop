@@ -39,7 +39,7 @@ core.close();
 - 库版本低于代码时，先把数据库文件复制到 `<数据目录>/backups/<时间戳>/store.sqlite`，再迁移。
 - 库版本高于代码时抛出 `UnsupportedSchemaError`（`code: 'unsupported_schema_version'`），不改文件。
 
-当前 schema 版本是 `SCHEMA_VERSION`（2）。版本 2 给已有卡片补上 `titleOrigin: 'user'`，不改标题。
+当前 schema 版本是 `SCHEMA_VERSION`（3）。版本 2 给已有卡片补上 `titleOrigin: 'user'`，不改标题。版本 3 增加导入台账表 `import_sources`。
 
 ## 类型
 
@@ -51,7 +51,7 @@ core.close();
 | Project | `title`、`area`、`status`（active / paused / done / archived）、`background`、`positioning`、`pinned`、`locations` |
 | Task | `title`、`status`（todo / doing / done / canceled）、`blocked`、`blockedReason`、`projectId`、`due`、`priority`、`origin`、`notes`、`ext` |
 | Card | `cardType` 为 `idea` / `scene` / `note`。卡片带 `titleOrigin`（`user` / `fallback`）。只有 idea 有 `fields`（`category`、`categorySource`、`captureGroupId`） |
-| Attachment | 只有元数据。可以按 id 读取、按回收站筛选，本任务没有写入命令 |
+| Attachment | 只有元数据。可以按 id 读取、按回收站筛选。普通命令不写附件；导入命令会写入元数据 |
 | Link | `from`、`to`、`rel`，并带完整信封 |
 
 追记存在卡片的 JSON 列里，形状是 `{ id, body, createdAt }`。灵感的标题兜底、原始输入补全和自动分类在写入时完成，规则见 `docs/specs/idea-rules.md`。
@@ -94,6 +94,24 @@ core.close();
 | `link.create` / `link.delete` | 新建关联、软删除关联 |
 
 `delete` 写 `deletedAt`。`purge` 删掉该对象，并级联硬删除指向它或由它指出的 links。卡片的追记随卡片行一起删除。
+
+### 导入
+
+`core.importer` 只给导入脚本使用，不经过 dsh。它和普通命令共用字段校验与事务，但会按调用方传入的值写入 `createdAt`、`updatedAt`、`createdBy`、`updatedBy`，以及灵感的 `titleOrigin`、`categorySource`、回收站时间和追记。不会重新计算标题或分类。
+
+每条成功导入写一条历史，`command` 为 `import.workbench.project` / `entry` / `idea` / `attachment`。`requestId` 固定为 `workbench:<类型>:<来源 id>`。相同 `requestId` 且内容相同则返回原记录；内容不同则 `duplicate_request_mismatch`，不覆盖。
+
+台账在 `import_sources`：`source_system`、`source_type`、`source_id`、`source_updated_at`、`target_id`、`imported_at`、`raw_json`。`(source_system, source_type, source_id)` 唯一。失败的导入不写台账。`listImportSources()` 读取台账；`readImportLedger(dbPath)` 只读已有库，库或表不存在时返回空列表。
+
+`backupBeforeImport()` 把当前数据库复制到 `<数据目录>/backups/<时间戳>-before-import/`。
+
+命令行在仓库根目录（需先 `npm run build`）：
+
+```bash
+npm run import:workbench -- --source <store.json> --data-dir <数据目录> [--config <映射.json>] [--dry-run]
+```
+
+映射、附件复制和报告在 `packages/importer`。示例配置是 `packages/importer/workbench-import.example.json`。
 
 字段限制：卡片标题 ≤ 80 字，正文 ≤ 8000 字，追记 ≤ 8000 字（按 Unicode 码位计）。灵感的 `attachmentIds` 最多 4 个。任务截止日期是 `YYYY-MM-DD`。
 

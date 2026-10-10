@@ -95,6 +95,6 @@ describe('SQLite ExperimentalWarning', () => {
     expect(loaded.status, loaded.stderr).toBe(0);
     expect(loaded.stderr).not.toContain(SQLITE_WARNING);
     expect(loaded.stderr).toContain('bluemanta-other-experimental');
-    expect(loaded.stdout).toContain('schema 2');
+    expect(loaded.stdout).toContain('schema 3');
   });
 });

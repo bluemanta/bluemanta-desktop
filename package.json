@@ -13,6 +13,7 @@
     "check": "npm run check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs"
+    "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs",
+    "import:workbench": "node packages/importer/dist/cli.js"
   }
 }

@@ -486,6 +486,35 @@ export function saveLink(db: DatabaseSync, link: Link): void {
   );
 }
 
+function attachmentValues(attachment: Attachment): SQLInputValue[] {
+  return [
+    attachment.id,
+    attachment.module,
+    attachment.rev,
+    attachment.createdAt,
+    attachment.updatedAt,
+    JSON.stringify(attachment.createdBy),
+    JSON.stringify(attachment.updatedBy),
+    attachment.deletedAt,
+    attachment.mime,
+    attachment.byteSize,
+    attachment.width,
+    attachment.height,
+    attachment.sha256,
+    attachment.path,
+  ];
+}
+
+const ATTACHMENT_COLUMNS = `id, module, rev, created_at, updated_at, created_by, updated_by, deleted_at, mime, byte_size, width, height, sha256, path`;
+
+export function insertAttachment(db: DatabaseSync, attachment: Attachment): void {
+  runOne(
+    db,
+    `INSERT INTO attachments (${ATTACHMENT_COLUMNS}) VALUES (${placeholders(14)})`,
+    attachmentValues(attachment),
+  );
+}
+
 export function getAttachment(db: DatabaseSync, id: string): Attachment | null {
   const row = getRow<AttachmentRow>(db, 'SELECT * FROM attachments WHERE id = ?', [id]);
   return row ? toAttachment(row) : null;
