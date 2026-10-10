@@ -1,6 +1,6 @@
 # ADR 0001：dsh Desktop 作为唯一外壳，数据与业务规则放在 dsh 之外
 
-- 状态：已采纳；扩展点已在 web 版验证（S1），Desktop App 内待验证
+- 状态：已采纳；扩展点已在 web 版和 Desktop App 内验证（S1）
 - 日期：2026-10-10
 
 ## 背景
@@ -35,6 +35,6 @@ dsh 处于开发者预览，这些 API 都标注为预稳定。
 
 详见 [spikes/s1-panel](../../spikes/s1-panel/README.md)。
 
-- 左侧栏面板在 web 版中可行：纯 JS 插件即可注册入口和主区页面，显示 workbench 冻结数据中的 29 条灵感，主题跟随宿主，控制台无报错。
+- 左侧栏面板可行：纯 JS 插件即可注册入口和主区页面，显示 workbench 冻结数据中的 29 条灵感，主题跟随宿主，控制台无报错。web 版和 Desktop App 0.2.0-rc.2 中均已验证，Desktop 中启用、停用、卸载都即时生效。
 - 数据通道：第三方插件不能新增 `ctx.remote` 命名空间。S1 改由宿主插件在 `ctx.webServer` 注册路由，面板 fetch 该路由。这条路由不经过 dsh 的 `/api` 鉴权，正式实现前要查清并复用 dsh 的鉴权机制。
-- 尚未验证：在 Desktop App 内显示；TypeScript 构建产物；插件停用后的清理。
+- 尚未验证：TypeScript 源码构建出的 client bundle。

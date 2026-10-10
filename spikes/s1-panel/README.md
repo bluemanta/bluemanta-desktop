@@ -3,7 +3,7 @@
 - 日期：2026-10-10
 - 执行：Claude Code
 - dsh 版本：0.2.0-rc.2（CLI；隔离 `DSH_HOME`，web profile）
-- 结论：**web 版中可行（verified）**；Desktop App 内尚未验证（not-run）
+- 结论：**可行**。web 版（隔离环境）和 Desktop App 0.2.0-rc.2 内均已验证；TypeScript 构建链未验证
 
 ## 要回答的问题
 
@@ -46,8 +46,8 @@ dsh --profile s1 --port 3091 --no-open
 | 6 | 控制台无报错（无 `slot entry crashed`） | verified | `read_console_messages` 无错误 |
 | 7 | 路由只读 | verified | `POST` 返回 405；`store.json` 修改时间仍为 2026-10-09 09:45 |
 | 8 | 路由拒绝非回环 Host 头 | verified | `Host: evil.example` 返回 403 |
-| 9 | 在 Desktop App 内显示 | not-run | 需要用户授权把插件装进 Desktop 的 profile |
-| 10 | 停用 / 卸载插件后面板消失 | not-run | |
+| 9 | 在 Desktop App 内显示 | verified | 经用户授权，通过 Desktop「插件 → 添加插件」安装本地目录并启用；左侧栏即时出现入口，无需重启；面板显示 29 条，说明 `dsh-app://` 页面的相对路径请求能转发到 Host |
+| 10 | 停用 / 卸载插件后面板消失 | verified | 在 Desktop 中关闭插件开关，入口立即消失；随后卸载，profile 的组合包列表恢复为原来的 6 个，patch 中无残留 |
 | 11 | TypeScript 源码构建出的 client bundle 能加载 | not-run | 本次用纯 JS，未走构建链 |
 
 ## 发现
@@ -55,5 +55,5 @@ dsh --profile s1 --port 3091 --no-open
 1. **第三方插件不能新增 remote 命名空间。** `ctx.remote` 的能力在 dsh 构建时固定（见 `packages/api/remotes/README.zh.md` 已知限制）。面板读取宿主数据，本次改用宿主插件在 `ctx.webServer` 上注册 HTTP 路由，可行。
 2. **自定义路由不经过 dsh 的鉴权。** 不带令牌访问 `/api/` 返回 401，访问我们的路由返回 200。本次靠"只监听回环 + 校验 Host 头 + 只读 + 只返回摘要"兜底。正式实现前，必须查清 dsh 的 `/api` 鉴权机制并复用，写入操作尤其不能裸露。
 3. **dsh 默认上传会话日志。** 使用 DeepSeek 官方 API 时，基础组合包的 `session-log-deepseek` 默认把规范会话日志随请求上传（`dsh_session_log` 字段），内容包括 agent 读到的文件和工具结果。可以在「设置 → 通用 → 在使用官方模型 API 时上传 Session Log」关闭。OTel 只在用户主动反馈时上传，`DSH_TELEMETRY_DISABLED` 可整体关闭。
-4. **Desktop 的页面跑在 `dsh-app://app/`。** 文档说明 Electron 会把应用 HTTP 请求转发给已认证的 Host，所以相对路径的 fetch 应该可用，但要在 Desktop 里实测（检查项 9）。
+4. **Desktop 的页面跑在 `dsh-app://app/`。** Electron 会把应用 HTTP 请求转发给已认证的 Host，相对路径的 fetch 在 Desktop 中实测可用（检查项 9）。Desktop 的插件页支持直接填本地目录安装，启用、停用都即时生效。
 5. **dsh 自带的插件开发 skill 质量很高**，规则包括：不要 import dsh 的客户端 UI 包、只用主题变量、同一个操作做成宿主方法后由界面和 agent 工具共用。可以直接作为给 Cursor / Codex 的必读材料。
