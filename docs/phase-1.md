@@ -20,9 +20,10 @@
 | T5.1 | 灵感台分栏与多 tab | T6 | 按 `idea-ui.md` 第 9 节：列表与详情左右分栏、列表宽度可拖动、详情多 tab、窄屏整页；修复详情抽屉随滚动停在顶部的 bug |
 | T7 | 本机灵感命令与 MCP 服务 | T6 | 供 Grok Bot 等本机 agent 写入 Desktop 的命令行（JSON 从标准输入读，不落临时文件，语义对齐 workbench `module-submit`），以及供 Claude Code / Codex 使用的 MCP 服务；均复用 T6 的工具函数 |
 | T8 | 对话旁打开灵感 | T7 | 按 `idea-ui.md` 第 10 节：dsh 右侧栏的「灵感」tab 类型、开始页入口、对话中的工具卡片 |
-| T9 | 侧栏品牌换成 bluemanta | — | 按 `spikes/s2-brand`：patch 停用 `ui-brand-official`，填侧栏与首屏三个品牌 slot；先用占位图标，正式 logo 到位后只换图标 |
 
-顺序：T6 → T5.1 → T7 → T8 → T9。T9 与其他任务无依赖，可按需提前。T7 合并后即可切换 Grok Bot（收尾第 1–4 步），不必等 T8。
+顺序：T6 → T5.1 → T7 → T8。T7 合并后即可切换 Grok Bot（收尾第 1–4 步），不必等 T8。
+
+2026-10-11 用户决定：T9「侧栏品牌换成 bluemanta」（IFM-281，按 `spikes/s2-brand`）移到阶段 2，不在阶段 1 做。
 
 阶段 1 收尾（T7 合并后）：
 
