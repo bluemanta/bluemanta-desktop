@@ -25,6 +25,7 @@
 | 2026-10-10 | 灵感台在 dsh 中只占左侧栏一个入口「灵感台」，主区域内有自己的二级菜单，顺序沿用原灵感台；视觉跟随 dsh（主题变量、深浅色），交互沿用灵感台 |
 | 2026-10-10 | 导入时「个人北极星」归成长领域；「灵感台」项目归产品领域并设为已归档；演示档案不导入 |
 | 2026-10-10 | Grok Bot 目前通过在本机执行 workbench 的 `backend.py module-submit` 写入灵感（标题、摘要、原文，带唯一请求号和版本号，写完回读确认）；阶段 1 收尾时改为调用 Desktop 的本机命令（T7） |
+| 2026-10-10 | Grok Bot 的连接器在云端运行，访问不到本机 MCP 服务，因此 Grok Bot 用 T7 的本机命令写入；MCP 服务只供本机的 Claude Code、Codex 使用。不通过 Tailscale 等方式把本机数据服务暴露到网络 |
 | 2026-10-10 | Desktop 能接收新灵感之前，workbench 继续作为灵感收件箱（Grok Bot 等入口照常写入）；导入做成可重复执行的增量导入，阶段 1 结束时最后导一次，再把写入入口切到 Desktop，此后 workbench 只读 |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
