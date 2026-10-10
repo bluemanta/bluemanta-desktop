@@ -2,7 +2,15 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@bluemanta/core": ["./packages/core/src/index.ts"]
+    }
   },
-  "include": ["packages/core/src/**/*.ts", "packages/core/test/**/*.ts"]
+  "include": [
+    "packages/core/src/**/*.ts",
+    "packages/core/test/**/*.ts",
+    "packages/dsh-plugin/src/**/*.ts",
+    "packages/dsh-plugin/test/**/*.ts"
+  ]
 }

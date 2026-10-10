@@ -1,3 +1,4 @@
+import './silence-sqlite.js';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';

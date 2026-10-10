@@ -17,5 +17,8 @@ coverage/
 spikes/**/.dsh-home/
 spikes/**/.data/
 
+# 本地 dev:dsh 的隔离 DSH_HOME、临时数据库和 dsh CLI
+.dsh-dev/
+
 # 系统文件
 .DS_Store

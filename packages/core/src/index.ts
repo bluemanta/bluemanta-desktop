@@ -1,3 +1,5 @@
+import './silence-sqlite.js';
+
 export { Core } from './core.js';
 export { UnsupportedSchemaError } from './errors.js';
 export type { CommandErrorCode, CommandFailure, CommandResult, CommandSuccess } from './errors.js';
