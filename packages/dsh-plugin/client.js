@@ -1,5 +1,5 @@
 /**
- * 浏览器端：左侧栏「灵感台」，以及主区里的清单、统计和回收站。
+ * 浏览器端：左侧栏「灵感台」。宽屏是清单与详情左右分栏，窄屏是整页详情。
  * 输出格式与 spikes/s1-panel/plugin/client.js 相同。React 来自 dsh 的浏览器模块表。
  * 请求用相对路径、开头不带 /，以兼容 Desktop 的 dsh-app:// 挂载。
  * 上海时区的日期函数与 src/shanghai.js 保持同一份文本（测试会核对）。
@@ -133,7 +133,7 @@ window.__ModuleLoader__.load({
     const CSS = `
 .bm-app, .bm-app * { box-sizing: border-box; }
 .bm-app {
-  position: relative; display: flex; height: 100%; min-height: 0;
+  position: relative; display: flex; height: 100%; min-height: 0; overflow: hidden;
   color: var(--dsw-alias-label-primary); background: transparent;
 }
 .bm-app[data-narrow="true"] { flex-direction: column; }
@@ -155,7 +155,6 @@ window.__ModuleLoader__.load({
 .bm-nav-btn:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .bm-nav-btn.is-on { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-state-business-primary); font-weight: 500; }
 .bm-nav-btn:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 1px; }
-.bm-main { position: relative; flex: 1; min-width: 0; overflow: auto; padding: 0 clamp(24px, 4vw, 48px) 48px; }
 .bm-column { width: 100%; max-width: 960px; margin: 0 auto; }
 .bm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-top: 28px; }
 .bm-app[data-platform="darwin"]:not([data-narrow="true"]) .bm-head { padding-top: calc(28px + var(--dsh-frame-top-clearance, 0px)); }
@@ -204,6 +203,7 @@ window.__ModuleLoader__.load({
   border-radius: var(--dsw-radius-xl);
 }
 .bm-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bm-row.is-active { background: var(--dsw-alias-markdown-tag, var(--dsw-alias-interactive-bg-hover)); }
 .bm-row-main {
   flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;
   padding: 8px; border: 0; background: transparent; color: inherit; text-align: left;
@@ -236,21 +236,100 @@ window.__ModuleLoader__.load({
   box-shadow: inset 0 0 0 0.5px var(--dsw-alias-border-l3); cursor: pointer;
 }
 .bm-cell:disabled { cursor: default; opacity: 0.4; }
-.bm-cell:focus-visible, .bm-choice:focus-visible, .bm-btn:focus-visible, .bm-row-main:focus-visible {
+.bm-cell:focus-visible, .bm-choice:focus-visible, .bm-btn:focus-visible, .bm-row-main:focus-visible,
+.bm-tab:focus-visible, .bm-tab-close:focus-visible, .bm-splitter:focus-visible, .bm-back:focus-visible {
   outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: 1px;
 }
-.bm-mask { position: absolute; inset: 0; z-index: 2; border: 0; padding: 0;
-  background: color-mix(in srgb, var(--dsw-alias-label-primary) 28%, transparent); cursor: pointer; }
-.bm-drawer {
-  position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(440px, 100%);
-  display: flex; flex-direction: column; background: var(--dsw-alias-bg-layer-1);
-  border-left: 0.5px solid var(--dsw-alias-border-l3); box-shadow: var(--dsw-shadow-l2, 0 0 0 transparent);
+.bm-stage { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.bm-stage[hidden] { display: none; }
+.bm-scroll { overflow: auto; padding: 0 clamp(24px, 4vw, 48px) 48px; }
+.bm-split { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.bm-list-pane { flex: none; min-width: 0; min-height: 0; overflow: auto; padding: 0 16px 32px; }
+.bm-splitter {
+  flex: none; width: 5px; margin: 0 -2px; padding: 0; border: 0; position: relative; z-index: 1;
+  background: transparent; cursor: col-resize; touch-action: none;
 }
-.bm-drawer-bar, .bm-drawer-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
-.bm-drawer-bar { justify-content: flex-end; }
-.bm-drawer-foot { justify-content: space-between; border-top: 0.5px solid var(--dsw-alias-border-l3); }
-.bm-drawer-body { flex: 1; overflow: auto; padding: 0 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+.bm-splitter::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 2px; width: 0.5px;
+  background: var(--dsw-alias-border-l3);
+}
+.bm-splitter:hover::before, .bm-splitter:focus-visible::before {
+  left: 1.5px; width: 2px; background: var(--dsw-alias-state-business-primary);
+}
+.bm-detail-pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.bm-app[data-narrow="true"] .bm-split { flex-direction: column; }
+.bm-app[data-narrow="true"] .bm-list-pane { flex: 1; width: auto; }
+.bm-app[data-narrow="true"] .bm-splitter,
+.bm-app[data-narrow="true"] .bm-tabstrip,
+.bm-app[data-narrow="true"] .bm-back { display: none; }
+.bm-app[data-narrow="true"][data-page="detail"] .bm-list-pane { display: none; }
+.bm-app[data-narrow="true"]:not([data-page="detail"]) .bm-detail-pane { display: none; }
+.bm-app[data-narrow="true"][data-page="detail"] .bm-back { display: inline-flex; }
+.bm-back {
+  display: none; flex: none; align-items: center; width: fit-content; height: 32px;
+  margin: 12px 16px 0; padding: 0 10px; border: 0; border-radius: var(--dsw-radius-md);
+  background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; cursor: pointer;
+}
+.bm-back:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.bm-app[data-platform="darwin"][data-narrow="true"][data-page="detail"] .bm-back {
+  margin-top: calc(12px + var(--dsh-frame-top-clearance, 0px));
+}
+.bm-tabstrip {
+  flex: none; display: flex; align-items: flex-end; min-width: 0; height: 38px;
+  padding: 10px 10px 0;
+}
+.bm-app[data-platform="darwin"]:not([data-narrow="true"]) .bm-tabstrip {
+  padding-top: calc(10px + var(--dsh-frame-top-clearance, 0px));
+  height: calc(38px + var(--dsh-frame-top-clearance, 0px));
+}
+.bm-tabscroll {
+  display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.bm-tabscroll::-webkit-scrollbar { display: none; }
+.bm-tab {
+  position: relative; display: flex; flex: 0 1 auto; align-items: center; gap: 0;
+  min-width: 80px; max-width: 170px; height: 28px; padding: 0 26px 0 10px;
+  border-radius: var(--dsw-radius-sm); color: var(--dsw-alias-label-secondary);
+  font-size: 13px; line-height: 1; white-space: nowrap; cursor: pointer; user-select: none;
+}
+.bm-tab + .bm-tab::before {
+  content: ''; position: absolute; left: -5px; top: 7px; width: 0.5px; height: 14px;
+  background: var(--dsw-alias-border-l4);
+}
+.bm-tab.is-on::before, .bm-tab.is-on + .bm-tab::before { background: transparent; }
+.bm-tab:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bm-tab.is-on { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-markdown-tag, var(--dsw-alias-bg-layer-3)); }
+.bm-tab-title { display: flex; flex: 1; align-items: center; gap: 5px; min-width: 0; overflow: hidden; line-height: 1.4; }
+.bm-tab-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bm-tab-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--dsw-alias-state-business-primary);
+}
+.bm-tab-close {
+  position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--dsw-radius-sm); background: transparent;
+  color: var(--dsw-alias-label-tertiary); font: inherit; line-height: 1; cursor: pointer;
+  opacity: 0; pointer-events: none;
+}
+.bm-tab:hover .bm-tab-close, .bm-tab:focus-within .bm-tab-close, .bm-tab.is-on .bm-tab-close {
+  opacity: 1; pointer-events: auto;
+}
+.bm-tab-close:hover { color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.bm-tab-panels { flex: 1; min-height: 0; position: relative; }
+.bm-tab-panel { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
+.bm-tab-panel[hidden] { display: none; }
+.bm-detail-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px;
+}
+.bm-detail { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.bm-detail-bar, .bm-detail-foot { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+.bm-detail-bar { justify-content: flex-end; }
+.bm-detail-foot { justify-content: space-between; border-top: 0.5px solid var(--dsw-alias-border-l3); }
+.bm-detail-body { flex: 1; min-height: 0; overflow: auto; padding: 0 16px 24px; display: flex; flex-direction: column; gap: 14px; }
 .bm-read-title { margin: 0; font-size: 18px; line-height: 26px; font-weight: 500; }
 .bm-read-body { margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 22px; }
 .bm-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
@@ -305,7 +384,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
   box-shadow: var(--dsw-shadow-l2, 0 0 0 transparent);
 }
 .bm-dialog p { margin: 0; font-size: 14px; line-height: 22px; }
-.bm-light img { width: auto; height: auto; max-width: min(920px, 100%); max-height: 86vh; object-fit: contain; background: var(--dsw-alias-bg-layer-1); }
+.bm-light img { width: auto; height: auto; max-width: min(920px, 100%); max-height: calc(100% - 48px); object-fit: contain; background: var(--dsw-alias-bg-layer-1); }
 .bm-light-nav { position: absolute; bottom: 20px; display: flex; gap: 8px; }
 .bm-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 `
@@ -417,21 +496,91 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       return 'color-mix(in srgb, var(--dsw-alias-state-business-primary) ' + opacity + '%, transparent)'
     }
 
-    function detailState(card) {
-      return {
-        kind: 'detail',
-        session: uuid(),
-        card,
-        rawOpen: false,
-        extensionText: '',
-        extensionError: '',
-        extensionRequestId: uuid(),
-        editing: false,
-        draft: null,
-        error: '',
-        conflict: false,
-        saving: false,
+    /**
+     * 灵感台分栏与多 tab 的纯函数。client.js 内嵌同一份文本（测试会核对）。
+     * 只处理界面偏好和 tab 开关，不读写业务数据。
+     */
+
+    const LIST_WIDTH_DEFAULT = 380;
+
+    const LIST_WIDTH_MIN = 280;
+
+    const LIST_WIDTH_RATIO = 0.6;
+
+    const LIST_WIDTH_KEY = 'bluemanta.ideas.listWidth';
+
+    const TAB_LIMIT = 8;
+
+    const CREATE_TAB_ID = 'create';
+
+    const TAB_LIMIT_MESSAGE = '已打开 8 个详情，且都有未保存的修改。请先保存或关闭其中一个。';
+
+    function clampListWidth(preferred, appWidth) {
+      const width = Number.isFinite(preferred) ? preferred : LIST_WIDTH_DEFAULT;
+      const span = Number(appWidth);
+      const max = Math.max(LIST_WIDTH_MIN, Math.floor((Number.isFinite(span) ? span : 0) * LIST_WIDTH_RATIO));
+      return Math.min(max, Math.max(LIST_WIDTH_MIN, Math.round(width)));
+    }
+
+    function readStoredListWidth(storage) {
+      try {
+    if (!storage || typeof storage.getItem !== 'function') return LIST_WIDTH_DEFAULT;
+    const raw = storage.getItem(LIST_WIDTH_KEY);
+    if (raw == null || raw === '') return LIST_WIDTH_DEFAULT;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return LIST_WIDTH_DEFAULT;
+        return value;
+      } catch {
+        return LIST_WIDTH_DEFAULT;
       }
+    }
+
+    function writeStoredListWidth(storage, width) {
+      try {
+        if (!storage || typeof storage.setItem !== 'function') return;
+        storage.setItem(LIST_WIDTH_KEY, String(Math.round(width)));
+      } catch {
+        // 隐私模式或禁用存储时，宽度只留在本次会话。
+      }
+    }
+
+    function planOpenTab(tabs, request) {
+      const existing = tabs.find((tab) => tab.id === request.id);
+      if (existing) return { tabs, activeId: request.id, blocked: false, droppedId: null };
+      let next = tabs.slice();
+      let droppedId = null;
+      if (next.length >= TAB_LIMIT) {
+        const clean = next.filter((tab) => !tab.dirty).slice().sort((a, b) => a.openedAt - b.openedAt);
+        if (clean.length === 0) return { tabs, activeId: null, blocked: true, droppedId: null };
+        droppedId = clean[0].id;
+        next = next.filter((tab) => tab.id !== droppedId);
+      }
+      next = next.concat([{
+        id: request.id,
+        kind: request.kind,
+        dirty: false,
+        openedAt: request.openedAt,
+        generation: 0,
+      }]);
+      return { tabs: next, activeId: request.id, blocked: false, droppedId };
+    }
+
+    function planCloseTab(tabs, activeId, id) {
+      const index = tabs.findIndex((tab) => tab.id === id);
+      if (index < 0) return { tabs, activeId };
+      const next = tabs.filter((tab) => tab.id !== id);
+      if (activeId !== id) return { tabs: next, activeId };
+      const neighbor = next[index] || next[index - 1] || null;
+      return { tabs: next, activeId: neighbor ? neighbor.id : null };
+    }
+
+    function planReplaceCreate(tabs, activeId, cardId) {
+      const index = tabs.findIndex((tab) => tab.id === CREATE_TAB_ID);
+      if (index < 0) return { tabs, activeId };
+      const next = tabs.map((tab) => (tab.id === CREATE_TAB_ID
+        ? { id: cardId, kind: 'detail', dirty: false, openedAt: tab.openedAt, generation: 0 }
+        : tab));
+      return { tabs: next, activeId: activeId === CREATE_TAB_ID ? cardId : activeId };
     }
 
     function editDraft(card) {
@@ -453,30 +602,465 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }
     }
 
-    function drawerImages(state) {
-      if (!state) return []
-      if (state.kind === 'create') return state.images
-      if (state.draft) return state.draft.images
-      return []
+    function editIsDirty(card, draft) {
+      if (!card || !draft) return false
+      if (draft.title !== (card.title || '')) return true
+      if (draft.body !== (card.body || '')) return true
+      if (draft.category !== ((card.fields && card.fields.category) || 'other')) return true
+      const current = (card.attachmentIds || []).join('\n')
+      const next = draft.images.map((image) => image.id || '').join('\n')
+      if (current !== next) return true
+      return draft.images.some((image) => image.status !== 'ready')
     }
 
-    function isDirty(state) {
-      if (!state) return false
-      if (state.kind === 'create') {
-        return state.title.trim() !== '' || state.body.trim() !== '' || state.images.length > 0
+    function filesFromClipboard(event) {
+      const items = event.clipboardData && event.clipboardData.items
+      if (!items) return []
+      const files = []
+      for (const item of items) {
+        if (item.kind === 'file') {
+          const file = item.getAsFile()
+          if (file) files.push(file)
+        }
       }
-      if (state.kind === 'detail' && state.editing && state.draft) {
-        const card = state.card
-        const draft = state.draft
-        if (draft.title !== (card.title || '')) return true
-        if (draft.body !== (card.body || '')) return true
-        if (draft.category !== ((card.fields && card.fields.category) || 'other')) return true
-        const current = (card.attachmentIds || []).join('\n')
-        const next = draft.images.map((image) => image.id || '').join('\n')
-        if (current !== next) return true
-        if (draft.images.some((image) => image.status !== 'ready')) return true
+      return files
+    }
+
+    function readInitialWidth() {
+      try { return readStoredListWidth(globalThis.localStorage) } catch { return LIST_WIDTH_DEFAULT }
+    }
+
+    function storeWidth(width) {
+      try { writeStoredListWidth(globalThis.localStorage, width) } catch { /* 本次会话内仍然生效 */ }
+    }
+
+    function AttachmentEditor({ images, onChange, addRef }) {
+      const fileRef = React.useRef(null)
+      const imagesRef = React.useRef(images)
+      imagesRef.current = images
+      const alive = React.useRef(true)
+      const [dragOver, setDragOver] = React.useState(false)
+      React.useEffect(() => () => { alive.current = false }, [])
+
+      function patch(key, next) {
+        if (!alive.current) return
+        onChange((prev) => patchImage(prev, key, next))
       }
-      return false
+
+      function begin(image) {
+        patch(image.key, { status: 'uploading', progress: 0, message: '' })
+        uploadImage(image.file, image.requestId, (progress) => {
+          patch(image.key, { progress })
+        }).then((record) => {
+          patch(image.key, { status: 'ready', id: record.id, progress: 1, message: '' })
+        }).catch((error) => {
+          patch(image.key, { status: 'error', message: String(error.message || error) })
+        })
+      }
+
+      function addFiles(fileList) {
+        const room = 4 - imagesRef.current.length
+        if (room <= 0) return
+        const created = Array.from(fileList).filter(Boolean).slice(0, room).map((file) => ({
+          key: uuid(),
+          id: null,
+          file,
+          preview: previewOf(file),
+          status: 'uploading',
+          progress: 0,
+          message: '',
+          requestId: uuid(),
+        }))
+        onChange((prev) => prev.concat(created).slice(0, 4))
+        for (const image of created) begin(image)
+      }
+
+      if (addRef) addRef.current = addFiles
+
+      function removeImage(image) {
+        if (typeof image.preview === 'string' && image.preview.indexOf('blob:') === 0) URL.revokeObjectURL(image.preview)
+        onChange((prev) => prev.filter((item) => item.key !== image.key))
+      }
+
+      return h('div', {
+        className: 'bm-drop' + (dragOver ? ' is-over' : ''),
+        onDragOver: (event) => { event.preventDefault(); setDragOver(true) },
+        onDragLeave: () => setDragOver(false),
+        onDrop: (event) => {
+          event.preventDefault()
+          setDragOver(false)
+          addFiles(event.dataTransfer.files)
+        },
+      },
+      h('div', { className: 'bm-images' },
+        images.map((image) => h('div', { key: image.key, className: 'bm-shot' },
+          h('img', { src: image.preview, alt: '' }),
+          image.status === 'uploading' ? h('div', { className: 'bm-progress' }, h('span', { style: { width: Math.round((image.progress || 0) * 100) + '%' } })) : null,
+          h('button', { type: 'button', 'aria-label': '移除图片', onClick: () => removeImage(image) }, '×'),
+          image.status === 'error' ? h('button', {
+            type: 'button', className: 'bm-btn', style: { position: 'absolute', left: 4, bottom: 4, height: 22, padding: '0 6px' },
+            onClick: () => begin(image),
+          }, '重试') : null)),
+        images.length < 4 ? h('button', {
+          type: 'button', className: 'bm-btn', onClick: () => { if (fileRef.current) fileRef.current.click() },
+        }, '添加图片') : null),
+      h('p', { className: 'bm-meta' }, images.some((image) => image.message) ? images.map((image) => image.message).filter(Boolean).join(' ') : '最多 4 张，可以点选、拖入或粘贴。'),
+      h('input', {
+        ref: fileRef, className: 'bm-sr', type: 'file', multiple: true,
+        accept: 'image/jpeg,image/png,image/gif,image/webp',
+        onChange: (event) => {
+          addFiles(event.target.files)
+          event.target.value = ''
+        },
+      }))
+    }
+
+    function saveDisabled(title, body, images, saving, extra) {
+      const blocked = images.some((image) => image.status !== 'ready')
+      const ready = images.some((image) => image.status === 'ready' && image.id)
+      const hasContent = title.trim() !== '' || body.trim() !== '' || ready
+      return !hasContent || blocked || saving || extra
+    }
+
+    // 新增表单自包含，不读取灵感台的分栏或 tab。保存成功后由调用方把这个 tab 换成详情。
+    function IdeaCreate({ onClose, onCancel, onCreated, onDirty }) {
+      const [title, setTitle] = React.useState('')
+      const [body, setBody] = React.useState('')
+      const [images, setImages] = React.useState([])
+      const [error, setError] = React.useState('')
+      const [saving, setSaving] = React.useState(false)
+      const requestId = React.useRef(uuid())
+      const savingRef = React.useRef(false)
+      const addRef = React.useRef(null)
+      const imagesRef = React.useRef(images)
+      const stateRef = React.useRef({})
+      imagesRef.current = images
+      stateRef.current = { title, body, images, saving }
+      const dirty = title.trim() !== '' || body.trim() !== '' || images.length > 0
+      const onDirtyRef = React.useRef(onDirty)
+      onDirtyRef.current = onDirty
+      React.useEffect(() => { onDirtyRef.current(dirty) }, [dirty])
+      React.useEffect(() => () => { revokeImages(imagesRef.current) }, [])
+
+      function save() {
+        const state = stateRef.current
+        if (savingRef.current || saveDisabled(state.title, state.body, state.images, false, false)) return
+        const ids = state.images.filter((image) => image.status === 'ready' && image.id).map((image) => image.id)
+        const input = { requestId: requestId.current, cardType: 'idea' }
+        if (state.title.trim()) input.title = state.title.trim()
+        if (state.body.trim()) input.body = state.body
+        if (ids.length) input.attachmentIds = ids
+        savingRef.current = true
+        setSaving(true)
+        setError('')
+        postCommand('card.create', input).then((record) => {
+          onCreated(record)
+        }).catch((failure) => {
+          savingRef.current = false
+          setSaving(false)
+          setError(String(failure.message || failure))
+        })
+      }
+
+      return h('div', {
+        className: 'bm-detail',
+        'aria-label': '新增灵感',
+        onPaste: (event) => {
+          const files = filesFromClipboard(event)
+          if (!files.length || !addRef.current) return
+          event.preventDefault()
+          addRef.current(files)
+        },
+      },
+      h('div', { className: 'bm-detail-bar' },
+        h('h2', { className: 'bm-read-title', style: { marginRight: 'auto' } }, '新增灵感'),
+        h('button', { type: 'button', className: 'bm-btn', onClick: onClose }, '关闭')),
+      h('div', { className: 'bm-detail-body' },
+        h('label', { className: 'bm-field' }, '标题',
+          h('input', { value: title, placeholder: '一句话概括…', onChange: (event) => setTitle(event.target.value) })),
+        h('label', { className: 'bm-field' }, '正文',
+          h('textarea', { value: body, placeholder: '把闪过的念头写下来…', onChange: (event) => setBody(event.target.value) })),
+        h(AttachmentEditor, { images, onChange: setImages, addRef }),
+        error ? h('p', { className: 'bm-error' }, error) : null,
+        h('div', { className: 'bm-actions' },
+          h('button', { type: 'button', className: 'bm-btn', onClick: onCancel }, '取消'),
+          h('button', {
+            type: 'button', className: 'bm-btn bm-btn-primary',
+            disabled: saveDisabled(title, body, images, saving, false),
+            onClick: save,
+          }, '保存'))))
+    }
+
+    // 详情内容自包含：不读取灵感台的分栏、tab 或页面滚动。T8 可以把 IdeaDetail 放进 dsh 右侧栏。
+    function IdeaDetail({ card, now, onClose, onCard, onTrashed, onDirty, onPreview, onConfirm, onLibrary, onMissing }) {
+      const [rawOpen, setRawOpen] = React.useState(false)
+      const [extensionText, setExtensionText] = React.useState('')
+      const [extensionError, setExtensionError] = React.useState('')
+      const [editing, setEditing] = React.useState(false)
+      const [draft, setDraft] = React.useState(null)
+      const [error, setError] = React.useState('')
+      const [conflict, setConflict] = React.useState(false)
+      const [saving, setSaving] = React.useState(false)
+      const [actionError, setActionError] = React.useState('')
+      const extensionRequestId = React.useRef(uuid())
+      const savingRef = React.useRef(false)
+      const addRef = React.useRef(null)
+      const cardRef = React.useRef(card)
+      const draftRef = React.useRef(draft)
+      const imagesRef = React.useRef([])
+      cardRef.current = card
+      draftRef.current = draft
+      imagesRef.current = draft ? draft.images : []
+      const dirty = !!(card && editing && editIsDirty(card, draft))
+      const dirtyRef = React.useRef(dirty)
+      dirtyRef.current = dirty
+      const onDirtyRef = React.useRef(onDirty)
+      onDirtyRef.current = onDirty
+      React.useEffect(() => { onDirtyRef.current(dirty) }, [dirty])
+      React.useEffect(() => () => { revokeImages(imagesRef.current) }, [])
+
+      function setDraftImages(recipe) {
+        setDraft((prev) => {
+          if (!prev) return prev
+          const next = typeof recipe === 'function' ? recipe(prev.images) : recipe
+          return { ...prev, images: next }
+        })
+      }
+
+      function cancelEdit() {
+        revokeImages(draftRef.current && draftRef.current.images)
+        setEditing(false)
+        setDraft(null)
+        setError('')
+        setConflict(false)
+      }
+
+      function saveEdit() {
+        const current = cardRef.current
+        const pending = draftRef.current
+        if (!current || !pending || savingRef.current || conflict) return
+        if (saveDisabled(pending.title, pending.body, pending.images, false, !editIsDirty(current, pending))) return
+        const input = { requestId: pending.requestId, id: current.id, rev: current.rev }
+        if (pending.title !== (current.title || '')) input.title = pending.title
+        if (pending.body !== (current.body || '')) input.body = pending.body
+        if (pending.category !== ((current.fields && current.fields.category) || 'other')) input.fields = { category: pending.category }
+        const ids = pending.images.map((image) => image.id)
+        if (ids.join('\n') !== (current.attachmentIds || []).join('\n')) input.attachmentIds = ids
+        savingRef.current = true
+        setSaving(true)
+        setError('')
+        postCommand('card.update', input).then((record) => {
+          revokeImages(pending.images)
+          savingRef.current = false
+          setSaving(false)
+          setEditing(false)
+          setDraft(null)
+          setConflict(false)
+          setActionError('')
+          onCard(record)
+        }).catch((failure) => {
+          savingRef.current = false
+          setSaving(false)
+          if (failure.code === 'version_conflict') {
+            setConflict(true)
+            setError('')
+            return
+          }
+          setError(String(failure.message || failure))
+        })
+      }
+
+      function reloadConflict() {
+        const id = cardRef.current && cardRef.current.id
+        fetch(CARDS_ROUTE).then(readJson).then((body) => {
+          const cards = Array.isArray(body.cards) ? body.cards : []
+          onLibrary(cards)
+          const found = cards.find((item) => item.id === id)
+          if (!found) {
+            onMissing()
+            return
+          }
+          revokeImages(draftRef.current && draftRef.current.images)
+          setEditing(false)
+          setDraft(null)
+          setConflict(false)
+          setError('')
+          setSaving(false)
+        }).catch((failure) => {
+          setError(String(failure.message || failure))
+        })
+      }
+
+      function toggleStar() {
+        const current = cardRef.current
+        if (!current) return
+        postCommand('card.setStar', {
+          requestId: uuid(),
+          id: current.id,
+          rev: current.rev,
+          starred: !current.starred,
+        }).then((record) => {
+          setActionError('')
+          onCard(record)
+        }).catch((failure) => setActionError(String(failure.message || failure)))
+      }
+
+      function addExtension() {
+        const current = cardRef.current
+        const text = extensionText.trim()
+        if (!current || !text) return
+        postCommand('card.addExtension', {
+          requestId: extensionRequestId.current,
+          id: current.id,
+          rev: current.rev,
+          body: text,
+        }).then((record) => {
+          setExtensionText('')
+          setExtensionError('')
+          extensionRequestId.current = uuid()
+          onCard(record)
+        }).catch((failure) => setExtensionError(String(failure.message || failure)))
+      }
+
+      function deleteExtension(extension) {
+        onConfirm('确定删除这条延展？', '删除', () => {
+          const current = cardRef.current
+          if (!current) return
+          postCommand('card.deleteExtension', {
+            requestId: uuid(),
+            id: current.id,
+            rev: current.rev,
+            extensionId: extension.id,
+          }).then((record) => {
+            setExtensionError('')
+            onCard(record)
+          }).catch((failure) => setExtensionError(String(failure.message || failure)))
+        })
+      }
+
+      function moveToTrash() {
+        const run = () => {
+          const current = cardRef.current
+          if (!current) return
+          postCommand('card.delete', { requestId: uuid(), id: current.id, rev: current.rev }).then(() => {
+            onTrashed()
+          }).catch((failure) => setActionError(String(failure.message || failure)))
+        }
+        if (dirtyRef.current) {
+          onConfirm('有未保存的修改。确定离开？', '离开', run)
+          return
+        }
+        run()
+      }
+
+      if (!card) return h('div', { className: 'bm-detail' })
+      const extensions = (card.extensions || []).slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+      const legacy = !card.rawInput || card.rawInput.status === 'legacy'
+      const pending = draft || { title: '', body: '', category: 'other', images: [] }
+      return h('div', {
+        className: 'bm-detail',
+        'aria-label': '灵感详情',
+        onPaste: (event) => {
+          if (!editing) return
+          const files = filesFromClipboard(event)
+          if (!files.length || !addRef.current) return
+          event.preventDefault()
+          addRef.current(files)
+        },
+      },
+      h('div', { className: 'bm-detail-bar' },
+        h('button', {
+          type: 'button',
+          className: 'bm-star' + (card.starred ? ' is-on' : ''),
+          'aria-label': card.starred ? '取消收藏' : '收藏',
+          onClick: toggleStar,
+        }, h(StarIcon, { filled: !!card.starred })),
+        !editing ? h('button', {
+          type: 'button', className: 'bm-btn',
+          onClick: () => {
+            setEditing(true)
+            setDraft(editDraft(card))
+            setError('')
+            setConflict(false)
+          },
+        }, '编辑') : null,
+        h('button', { type: 'button', className: 'bm-btn', onClick: onClose }, '关闭')),
+      h('div', { className: 'bm-detail-body' },
+        editing ? h(React.Fragment, null,
+          h('label', { className: 'bm-field' }, '标题',
+            h('input', {
+              value: pending.title,
+              placeholder: '一句话概括…',
+              onChange: (event) => {
+                const value = event.target.value
+                setDraft((prev) => prev ? { ...prev, title: value } : prev)
+              },
+            })),
+          h('label', { className: 'bm-field' }, '正文',
+            h('textarea', {
+              value: pending.body,
+              placeholder: '把闪过的念头写下来…',
+              onChange: (event) => {
+                const value = event.target.value
+                setDraft((prev) => prev ? { ...prev, body: value } : prev)
+              },
+            })),
+          h('label', { className: 'bm-field' }, '分类',
+            h('select', {
+              value: pending.category,
+              onChange: (event) => {
+                const value = event.target.value
+                setDraft((prev) => prev ? { ...prev, category: value } : prev)
+              },
+            }, CATEGORIES.map((id) => h('option', { key: id, value: id }, CATEGORY[id])))),
+          h(AttachmentEditor, { images: pending.images, onChange: setDraftImages, addRef }),
+          error ? h('p', { className: 'bm-error' }, error) : null,
+          conflict ? h('div', null,
+            h('p', { className: 'bm-error' }, '这条灵感已在别处更新'),
+            h('button', { type: 'button', className: 'bm-btn', onClick: reloadConflict }, '重新载入')) : null,
+          h('div', { className: 'bm-actions' },
+            h('button', { type: 'button', className: 'bm-btn', onClick: cancelEdit }, '取消'),
+            h('button', {
+              type: 'button', className: 'bm-btn bm-btn-primary',
+              disabled: saveDisabled(pending.title, pending.body, pending.images, saving, conflict || !editIsDirty(card, draft)),
+              onClick: saveEdit,
+            }, '保存'))) : h(React.Fragment, null,
+          h('h2', { className: 'bm-read-title' }, card.title || '未命名灵感'),
+          h('div', null, h('span', { className: 'bm-tag' }, CATEGORY[card.fields && card.fields.category] || '其他')),
+          card.body ? h('p', { className: 'bm-read-body' }, card.body) : null,
+          (card.attachmentIds || []).length ? h('div', { className: 'bm-images' }, card.attachmentIds.map((id, index) => h('button', {
+            type: 'button', key: id, className: 'bm-shot', 'aria-label': '查看大图',
+            onClick: () => onPreview(card.attachmentIds, index),
+          }, h('img', { src: attachmentUrl(id), alt: '' })))) : null,
+          h('div', null,
+            h('button', {
+              type: 'button', className: 'bm-raw', 'aria-expanded': rawOpen ? 'true' : 'false',
+              onClick: () => setRawOpen((open) => !open),
+            }, '查看原文'),
+            rawOpen ? h('p', { className: 'bm-raw-body' }, legacy ? '历史数据，无原文' : String(card.rawInput.text || '')) : null)),
+        h('h3', { className: 'bm-block-title' }, '延展'),
+        extensions.length ? h('ul', { className: 'bm-ext-list' }, extensions.map((extension) => h('li', { key: extension.id, className: 'bm-ext-item' },
+          h('div', { className: 'bm-ext-meta' },
+            h('span', null, relativeTime(extension.createdAt, now)),
+            h('button', { type: 'button', className: 'bm-btn bm-btn-ghost', onClick: () => deleteExtension(extension) }, '删除')),
+          h('p', { className: 'bm-read-body' }, extension.body)))) : h('p', { className: 'bm-meta' }, '还没有延展。'),
+        h('div', { className: 'bm-compose' },
+          h('textarea', {
+            value: extensionText,
+            placeholder: '写下理解、续写或补充…',
+            onChange: (event) => setExtensionText(event.target.value),
+          }),
+          extensionError ? h('p', { className: 'bm-error' }, extensionError) : null,
+          h('div', { className: 'bm-actions' },
+            h('button', {
+              type: 'button', className: 'bm-btn bm-btn-primary',
+              disabled: extensionText.trim() === '',
+              onClick: addExtension,
+            }, '追加延展'))),
+        actionError ? h('p', { className: 'bm-error' }, actionError) : null),
+      h('div', { className: 'bm-detail-foot' },
+        h('button', { type: 'button', className: 'bm-btn bm-btn-danger', onClick: moveToTrash }, '移入回收站'),
+        h('span')))
     }
 
     function IdeasIcon({ size }) {
@@ -516,8 +1100,15 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
 
     function IdeasPage() {
       const rootRef = React.useRef(null)
-      const fileRef = React.useRef(null)
+      const listPaneRef = React.useRef(null)
+      const scrollRef = React.useRef(null)
+      const listScrollRef = React.useRef(0)
+      const orderRef = React.useRef(0)
+      const dragRef = React.useRef(null)
       const [narrow, setNarrow] = React.useState(false)
+      const [narrowPage, setNarrowPage] = React.useState(false)
+      const [appWidth, setAppWidth] = React.useState(1200)
+      const [preferredWidth, setPreferredWidth] = React.useState(readInitialWidth)
       const [contentWidth, setContentWidth] = React.useState(640)
       const [section, setSection] = React.useState('list')
       const [library, setLibrary] = React.useState({ status: 'loading', cards: [], message: '' })
@@ -528,14 +1119,26 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const [scope, setScope] = React.useState('all')
       const [category, setCategory] = React.useState('all')
       const [day, setDay] = React.useState(null)
-      const [drawer, setDrawer] = React.useState(null)
+      const [tabs, setTabs] = React.useState([])
+      const [activeId, setActiveId] = React.useState(null)
       const [lightbox, setLightbox] = React.useState(null)
       const [confirm, setConfirm] = React.useState(null)
       const [notice, setNotice] = React.useState('')
       const [now, setNow] = React.useState(() => Date.now())
-      const [dragOver, setDragOver] = React.useState(false)
-      const drawerRef = React.useRef(drawer)
-      drawerRef.current = drawer
+      const tabsRef = React.useRef(tabs)
+      const activeIdRef = React.useRef(activeId)
+      const narrowRef = React.useRef(narrow)
+      const narrowPageRef = React.useRef(narrowPage)
+      const sectionRef = React.useRef(section)
+      const appWidthRef = React.useRef(appWidth)
+      const actionRef = React.useRef({})
+      tabsRef.current = tabs
+      activeIdRef.current = activeId
+      narrowRef.current = narrow
+      narrowPageRef.current = narrowPage
+      sectionRef.current = section
+      appWidthRef.current = appWidth
+      const listWidth = clampListWidth(preferredWidth, appWidth)
 
       React.useEffect(() => {
         let alive = true
@@ -591,6 +1194,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         const observer = new ResizeObserver((entries) => {
           const width = entries[0] && entries[0].contentRect.width
           if (!width) return
+          setAppWidth(width)
           setNarrow(width <= 820)
         })
         observer.observe(node)
@@ -598,8 +1202,8 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }, [])
 
       React.useEffect(() => {
-        const node = rootRef.current && rootRef.current.querySelector('.bm-main')
-        if (!node || typeof ResizeObserver === 'undefined') return undefined
+        const node = scrollRef.current
+        if (!node || section === 'list' || typeof ResizeObserver === 'undefined') return undefined
         const observer = new ResizeObserver((entries) => {
           const width = entries[0] && entries[0].contentRect.width
           if (width) setContentWidth(width)
@@ -608,7 +1212,42 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         return () => observer.disconnect()
       }, [section, narrow])
 
-      function syncCard(record, extra) {
+      React.useEffect(() => {
+        const node = listPaneRef.current
+        if (!node || section !== 'list' || (narrow && narrowPage)) return undefined
+        node.scrollTop = listScrollRef.current
+        return undefined
+      }, [narrow, narrowPage, section])
+
+      React.useEffect(() => {
+        if (!activeId) return undefined
+        if (tabs.some((item) => item.id === activeId)) return undefined
+        const nextActive = tabs.length ? tabs[tabs.length - 1].id : null
+        setActiveId(nextActive)
+        if (!nextActive) setNarrowPage(false)
+        return undefined
+      }, [tabs, activeId])
+
+      React.useEffect(() => {
+        function onKey(event) {
+          if (event.key !== 'Escape') return
+          const actions = actionRef.current
+          if (actions.lightbox) { actions.closeLightbox(); return }
+          if (actions.confirm) { actions.closeConfirm(); return }
+          if (actions.narrow && actions.narrowPage) { actions.requestBack(); return }
+          if (actions.activeId) actions.requestClose()
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+      }, [])
+
+      function findCard(id) {
+        return library.cards.find((item) => item.id === id)
+          || (search && search.cards.find((item) => item.id === id))
+          || null
+      }
+
+      function syncCard(record) {
         setLibrary((prev) => ({
           status: 'ready',
           message: '',
@@ -623,10 +1262,6 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
             cards: prev.cards.map((item) => item.id === record.id ? Object.assign({}, item, record) : item),
           }
         })
-        setDrawer((prev) => {
-          if (!prev || prev.kind !== 'detail' || prev.card.id !== record.id) return prev
-          return Object.assign({}, prev, { card: record }, extra || {})
-        })
       }
 
       function forgetCard(id) {
@@ -634,67 +1269,57 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         setSearch((prev) => prev ? { ...prev, cards: prev.cards.filter((item) => item.id !== id) } : prev)
       }
 
-      function updateImages(session, recipe) {
-        setDrawer((prev) => {
-          if (!prev || prev.session !== session) return prev
-          if (prev.kind === 'create') return { ...prev, images: recipe(prev.images) }
-          if (prev.draft) return { ...prev, draft: { ...prev.draft, images: recipe(prev.draft.images) } }
-          return prev
+      function setTabDirty(id, dirty) {
+        setTabs((prev) => {
+          const found = prev.find((item) => item.id === id)
+          if (!found || found.dirty === dirty) return prev
+          return prev.map((item) => item.id === id ? { ...item, dirty } : item)
         })
       }
 
-      function beginUpload(session, image) {
-        updateImages(session, (images) => patchImage(images, image.key, { status: 'uploading', progress: 0, message: '' }))
-        uploadImage(image.file, image.requestId, (progress) => {
-          updateImages(session, (images) => patchImage(images, image.key, { progress }))
-        }).then((record) => {
-          updateImages(session, (images) => patchImage(images, image.key, {
-            status: 'ready', id: record.id, progress: 1, message: '',
-          }))
-        }).catch((error) => {
-          updateImages(session, (images) => patchImage(images, image.key, {
-            status: 'error', message: String(error.message || error),
-          }))
-        })
+      function nextOrder() {
+        orderRef.current += 1
+        return orderRef.current
       }
 
-      function addFiles(fileList) {
-        const state = drawerRef.current
-        if (!state || (state.kind === 'detail' && !state.editing)) return
-        const current = drawerImages(state)
-        const room = 4 - current.length
-        if (room <= 0) return
-        const created = Array.from(fileList).filter(Boolean).slice(0, room).map((file) => ({
-          key: uuid(),
-          id: null,
-          file,
-          preview: previewOf(file),
-          status: 'uploading',
-          progress: 0,
-          message: '',
-          requestId: uuid(),
-        }))
-        updateImages(state.session, (images) => images.concat(created).slice(0, 4))
-        for (const image of created) beginUpload(state.session, image)
+      function rememberScroll() {
+        const node = listPaneRef.current
+        if (node) listScrollRef.current = node.scrollTop
       }
 
-      function removeImage(image) {
-        const state = drawerRef.current
-        if (!state) return
-        if (typeof image.preview === 'string' && image.preview.indexOf('blob:') === 0) URL.revokeObjectURL(image.preview)
-        updateImages(state.session, (images) => images.filter((item) => item.key !== image.key))
+      function forceCloseTab(id) {
+        const plan = planCloseTab(tabsRef.current, activeIdRef.current, id)
+        setTabs(plan.tabs)
+        setActiveId(plan.activeId)
+        if (narrowRef.current && id === activeIdRef.current) setNarrowPage(false)
       }
 
-      function closeDrawer() {
-        const state = drawerRef.current
-        revokeImages(drawerImages(state))
-        setDrawer(null)
-        setDragOver(false)
+      function discardTab(id) {
+        const current = tabsRef.current
+        const tab = current.find((item) => item.id === id)
+        if (!tab || !tab.dirty) return
+        if (tab.kind === 'create') {
+          forceCloseTab(id)
+          return
+        }
+        setTabs(current.map((item) => item.id === id ? { ...item, dirty: false, generation: item.generation + 1 } : item))
       }
 
-      function requestClose() {
-        if (!isDirty(drawerRef.current)) {
-          setDrawer(null)
+      function discardAllDirty() {
+        const current = tabsRef.current
+        let active = activeIdRef.current
+        let next = current.filter((item) => !(item.kind === 'create' && item.dirty))
+        next = next.map((item) => item.dirty ? { ...item, dirty: false, generation: item.generation + 1 } : item)
+        if (!next.some((item) => item.id === active)) active = next.length ? next[next.length - 1].id : null
+        setTabs(next)
+        setActiveId(active)
+      }
+
+      function requestCloseTab(id) {
+        const tab = tabsRef.current.find((item) => item.id === id)
+        if (!tab) return
+        if (!tab.dirty) {
+          forceCloseTab(id)
           return
         }
         setConfirm({
@@ -702,14 +1327,30 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           confirmLabel: '离开',
           action: () => {
             setConfirm(null)
-            closeDrawer()
+            forceCloseTab(id)
           },
         })
       }
 
-      function leave(action) {
-        if (!isDirty(drawerRef.current)) {
-          setDrawer(null)
+      function requestBack() {
+        const tab = tabsRef.current.find((item) => item.id === activeIdRef.current)
+        if (tab && tab.dirty) {
+          setConfirm({
+            message: '有未保存的修改。确定离开？',
+            confirmLabel: '离开',
+            action: () => {
+              setConfirm(null)
+              discardTab(tab.id)
+              setNarrowPage(false)
+            },
+          })
+          return
+        }
+        setNarrowPage(false)
+      }
+
+      function confirmLeave(action) {
+        if (!tabsRef.current.some((item) => item.dirty)) {
           action()
           return
         }
@@ -718,35 +1359,57 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           confirmLabel: '离开',
           action: () => {
             setConfirm(null)
-            closeDrawer()
+            discardAllDirty()
             action()
           },
         })
       }
 
       function go(next) {
-        if (next === section) return
-        leave(() => setSection(next))
+        if (next === sectionRef.current) return
+        confirmLeave(() => setSection(next))
+      }
+
+      function showDetailPage() {
+        if (!narrowRef.current) return
+        rememberScroll()
+        setNarrowPage(true)
+      }
+
+      function openSomething(request) {
+        const plan = planOpenTab(tabsRef.current, request)
+        if (plan.blocked) {
+          setNotice(TAB_LIMIT_MESSAGE)
+          return false
+        }
+        setNotice('')
+        setTabs(plan.tabs)
+        setActiveId(plan.activeId)
+        return true
       }
 
       function openCreate() {
-        leave(() => {
-          setSection('list')
-          setDrawer({
-            kind: 'create',
-            session: uuid(),
-            title: '',
-            body: '',
-            images: [],
-            error: '',
-            saving: false,
-            requestId: uuid(),
-          })
-        })
+        if (!openSomething({ id: CREATE_TAB_ID, kind: 'create', openedAt: nextOrder() })) return
+        showDetailPage()
       }
 
       function openCard(card) {
-        leave(() => setDrawer(detailState(card)))
+        if (!openSomething({ id: card.id, kind: 'detail', openedAt: nextOrder() })) return
+        showDetailPage()
+      }
+
+      function handleCreated(record) {
+        const plan = planReplaceCreate(tabsRef.current, activeIdRef.current, record.id)
+        setQuery('')
+        setScope('all')
+        setCategory('all')
+        setDay(null)
+        setSearch(null)
+        setSection('list')
+        syncCard(record)
+        setTabs(plan.tabs)
+        setActiveId(plan.activeId)
+        setNotice('')
       }
 
       function toggleStar(card) {
@@ -758,122 +1421,6 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         }).then((record) => {
           setNotice('')
           syncCard(record)
-        }).catch((error) => setNotice(String(error.message || error)))
-      }
-
-      function saveCreate() {
-        const state = drawerRef.current
-        if (!state || state.kind !== 'create' || state.saving) return
-        const ids = state.images.filter((image) => image.status === 'ready' && image.id).map((image) => image.id)
-        const input = { requestId: state.requestId, cardType: 'idea' }
-        if (state.title.trim()) input.title = state.title.trim()
-        if (state.body.trim()) input.body = state.body
-        if (ids.length) input.attachmentIds = ids
-        setDrawer({ ...state, saving: true, error: '' })
-        postCommand('card.create', input).then((record) => {
-          revokeImages(state.images)
-          setQuery('')
-          setScope('all')
-          setCategory('all')
-          setDay(null)
-          setSearch(null)
-          setSection('list')
-          setDrawer(null)
-          setNotice('')
-          syncCard(record)
-        }).catch((error) => {
-          setDrawer((prev) => prev && prev.session === state.session ? { ...prev, saving: false, error: String(error.message || error) } : prev)
-        })
-      }
-
-      function saveEdit() {
-        const state = drawerRef.current
-        if (!state || state.kind !== 'detail' || !state.draft || state.saving || state.conflict) return
-        const draft = state.draft
-        const card = state.card
-        const input = { requestId: draft.requestId, id: card.id, rev: card.rev }
-        if (draft.title !== (card.title || '')) input.title = draft.title
-        if (draft.body !== (card.body || '')) input.body = draft.body
-        if (draft.category !== ((card.fields && card.fields.category) || 'other')) input.fields = { category: draft.category }
-        const ids = draft.images.map((image) => image.id)
-        if (ids.join('\n') !== (card.attachmentIds || []).join('\n')) input.attachmentIds = ids
-        setDrawer({ ...state, saving: true, error: '' })
-        postCommand('card.update', input).then((record) => {
-          revokeImages(draft.images)
-          setNotice('')
-          setDrawer(detailState(record))
-          syncCard(record)
-        }).catch((error) => {
-          setDrawer((prev) => {
-            if (!prev || prev.session !== state.session) return prev
-            if (error.code === 'version_conflict') return { ...prev, saving: false, conflict: true, error: '' }
-            return { ...prev, saving: false, error: String(error.message || error) }
-          })
-        })
-      }
-
-      function reloadConflict() {
-        const state = drawerRef.current
-        if (!state || state.kind !== 'detail') return
-        fetch(CARDS_ROUTE).then(readJson).then((body) => {
-          const cards = Array.isArray(body.cards) ? body.cards : []
-          setLibrary({ status: 'ready', cards, message: '' })
-          const found = cards.find((item) => item.id === state.card.id)
-          if (!found) {
-            setDrawer((prev) => prev && prev.session === state.session ? { ...prev, conflict: false, error: '这条灵感已不在清单中' } : prev)
-            return
-          }
-          revokeImages(drawerImages(state))
-          setDrawer(detailState(found))
-        }).catch((error) => {
-          setDrawer((prev) => prev && prev.session === state.session ? { ...prev, error: String(error.message || error) } : prev)
-        })
-      }
-
-      function addExtension() {
-        const state = drawerRef.current
-        if (!state || state.kind !== 'detail') return
-        const text = state.extensionText.trim()
-        if (!text) return
-        postCommand('card.addExtension', {
-          requestId: state.extensionRequestId,
-          id: state.card.id,
-          rev: state.card.rev,
-          body: text,
-        }).then((record) => {
-          setNotice('')
-          syncCard(record, { extensionText: '', extensionError: '', extensionRequestId: uuid() })
-        }).catch((error) => {
-          setDrawer((prev) => prev && prev.session === state.session ? { ...prev, extensionError: String(error.message || error) } : prev)
-        })
-      }
-
-      function deleteExtension(extension) {
-        const state = drawerRef.current
-        if (!state || state.kind !== 'detail') return
-        setConfirm({
-          message: '确定删除这条延展？',
-          confirmLabel: '删除',
-          action: () => {
-            setConfirm(null)
-            postCommand('card.deleteExtension', {
-              requestId: uuid(),
-              id: state.card.id,
-              rev: state.card.rev,
-              extensionId: extension.id,
-            }).then((record) => syncCard(record, { extensionError: '' })).catch((error) => {
-              setDrawer((prev) => prev && prev.kind === 'detail' ? { ...prev, extensionError: String(error.message || error) } : prev)
-            })
-          },
-        })
-      }
-
-      function moveToTrash(card) {
-        postCommand('card.delete', { requestId: uuid(), id: card.id, rev: card.rev }).then(() => {
-          forgetCard(card.id)
-          setTrashTick((value) => value + 1)
-          setDrawer(null)
-          setNotice('')
         }).catch((error) => setNotice(String(error.message || error)))
       }
 
@@ -893,22 +1440,58 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
             setConfirm(null)
             postCommand('card.purge', { requestId: uuid(), id: card.id, rev: card.rev }).then(() => {
               setTrash((prev) => ({ ...prev, cards: prev.cards.filter((item) => item.id !== card.id) }))
+              forceCloseTab(card.id)
               setNotice('')
             }).catch((error) => setNotice(String(error.message || error)))
           },
         })
       }
 
-      React.useEffect(() => {
-        function onKey(event) {
-          if (event.key !== 'Escape') return
-          if (lightbox) { setLightbox(null); return }
-          if (confirm) { setConfirm(null); return }
-          if (drawerRef.current) requestClose()
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-      }, [lightbox, confirm])
+      function onSplitterDown(event) {
+        if (event.button !== 0) return
+        event.preventDefault()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        dragRef.current = { startX: event.clientX, startW: listWidth, width: listWidth }
+      }
+
+      function onSplitterMove(event) {
+        if (!dragRef.current) return
+        const next = clampListWidth(dragRef.current.startW + (event.clientX - dragRef.current.startX), appWidthRef.current)
+        dragRef.current.width = next
+        setPreferredWidth(next)
+      }
+
+      function onSplitterUp() {
+        if (!dragRef.current) return
+        const moved = dragRef.current.width !== dragRef.current.startW
+        const width = dragRef.current.width
+        dragRef.current = null
+        if (moved) storeWidth(width)
+      }
+
+      function nudgeWidth(delta) {
+        const next = clampListWidth(listWidth + delta, appWidthRef.current)
+        setPreferredWidth(next)
+        storeWidth(next)
+      }
+
+      function resetWidth() {
+        const next = clampListWidth(LIST_WIDTH_DEFAULT, appWidthRef.current)
+        setPreferredWidth(next)
+        storeWidth(next)
+      }
+
+      actionRef.current = {
+        lightbox,
+        confirm,
+        narrow,
+        narrowPage,
+        activeId,
+        closeLightbox: () => setLightbox(null),
+        closeConfirm: () => setConfirm(null),
+        requestBack,
+        requestClose: () => { if (activeIdRef.current) requestCloseTab(activeIdRef.current) },
+      }
 
       const platform = document.documentElement.dataset.platform || ''
       const searching = query.trim() !== ''
@@ -919,177 +1502,137 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const columns = weekColumns(Math.max(120, contentWidth - 48))
       const summary = summarizeCounts(library.cards, now)
 
-      function renderImages(images, editable) {
-        return h('div', {
-          className: 'bm-drop' + (dragOver ? ' is-over' : ''),
-          onDragOver: (event) => { event.preventDefault(); setDragOver(true) },
-          onDragLeave: () => setDragOver(false),
-          onDrop: (event) => {
-            event.preventDefault()
-            setDragOver(false)
-            if (editable) addFiles(event.dataTransfer.files)
-          },
-        },
-        h('div', { className: 'bm-images' },
-          images.map((image) => h('div', { key: image.key, className: 'bm-shot' },
-            h('img', { src: image.preview, alt: '' }),
-            image.status === 'uploading' ? h('div', { className: 'bm-progress' }, h('span', { style: { width: Math.round((image.progress || 0) * 100) + '%' } })) : null,
-            editable ? h('button', { type: 'button', 'aria-label': '移除图片', onClick: () => removeImage(image) }, '×') : null,
-            image.status === 'error' ? h('button', {
-              type: 'button', className: 'bm-btn', style: { position: 'absolute', left: 4, bottom: 4, height: 22, padding: '0 6px' },
-              onClick: () => beginUpload(drawer.session, image),
-            }, '重试') : null)),
-          editable && images.length < 4 ? h('button', {
-            type: 'button', className: 'bm-btn', onClick: () => { if (fileRef.current) fileRef.current.click() },
-          }, '添加图片') : null),
-        editable ? h('p', { className: 'bm-meta' }, images.some((image) => image.message) ? images.map((image) => image.message).filter(Boolean).join(' ') : '最多 4 张，可以点选、拖入或粘贴。') : null)
-      }
-
-      function renderEditor(state) {
-        const draft = state.kind === 'create' ? state : state.draft
-        const images = state.kind === 'create' ? state.images : draft.images
-        const blocked = images.some((image) => image.status !== 'ready')
-        const readyCount = images.filter((image) => image.status === 'ready' && image.id).length
-        const hasContent = (draft.title || '').trim() !== '' || (draft.body || '').trim() !== '' || readyCount > 0
-        const canSave = state.kind === 'create'
-          ? hasContent && !blocked && !state.saving
-          : isDirty(state) && hasContent && !blocked && !state.saving && !state.conflict
-        return h(React.Fragment, null,
-          h('label', { className: 'bm-field' }, '标题',
+      const listBody = h(React.Fragment, null,
+        h('div', { className: 'bm-head' },
+          h('h1', { className: 'bm-title' }, '灵感清单'),
+          h('button', { type: 'button', className: 'bm-btn bm-btn-primary', onClick: openCreate }, '新增')),
+        h('div', { className: 'bm-toolbar' },
+          h('div', { className: 'bm-search' },
             h('input', {
-              value: draft.title,
-              placeholder: '一句话概括…',
-              onChange: (event) => {
-                const value = event.target.value
-                setDrawer((prev) => {
-                  if (!prev || prev.session !== state.session) return prev
-                  if (prev.kind === 'create') return { ...prev, title: value }
-                  return { ...prev, draft: { ...prev.draft, title: value } }
-                })
-              },
-            })),
-          h('label', { className: 'bm-field' }, '正文',
-            h('textarea', {
-              value: draft.body,
-              placeholder: '把闪过的念头写下来…',
-              onChange: (event) => {
-                const value = event.target.value
-                setDrawer((prev) => {
-                  if (!prev || prev.session !== state.session) return prev
-                  if (prev.kind === 'create') return { ...prev, body: value }
-                  return { ...prev, draft: { ...prev.draft, body: value } }
-                })
-              },
-            })),
-          state.kind === 'detail' ? h('label', { className: 'bm-field' }, '分类',
-            h('select', {
-              value: draft.category,
-              onChange: (event) => {
-                const value = event.target.value
-                setDrawer((prev) => prev && prev.session === state.session && prev.draft ? { ...prev, draft: { ...prev.draft, category: value } } : prev)
-              },
-            }, CATEGORIES.map((id) => h('option', { key: id, value: id }, CATEGORY[id])))) : null,
-          renderImages(images, true),
-          h('input', {
-            ref: fileRef, className: 'bm-sr', type: 'file', multiple: true,
-            accept: 'image/jpeg,image/png,image/gif,image/webp',
-            onChange: (event) => {
-              addFiles(event.target.files)
-              event.target.value = ''
-            },
+              value: query,
+              placeholder: '搜索标题、正文、原文或分类',
+              'aria-label': '搜索标题、正文、原文或分类',
+              onChange: (event) => setQuery(event.target.value),
+            }),
+            query ? h('button', { type: 'button', className: 'bm-icon-btn', 'aria-label': '清空', onClick: () => setQuery('') }, '×') : null),
+          h(ChoiceGroup, {
+            label: '范围', value: scope,
+            options: [{ value: 'all', label: '全部' }, { value: 'starred', label: '收藏' }],
+            onChange: setScope,
           }),
-          state.error ? h('p', { className: 'bm-error' }, state.error) : null,
-          state.conflict ? h('div', null,
-            h('p', { className: 'bm-error' }, '这条灵感已在别处更新'),
-            h('button', { type: 'button', className: 'bm-btn', onClick: reloadConflict }, '重新载入')) : null,
-          h('div', { className: 'bm-actions' },
-            h('button', {
-              type: 'button', className: 'bm-btn',
-              onClick: () => {
-                if (state.kind === 'create') closeDrawer()
-                else {
-                  revokeImages(state.draft && state.draft.images)
-                  setDrawer((prev) => prev && prev.session === state.session ? { ...prev, editing: false, draft: null, error: '', conflict: false } : prev)
-                }
-              },
-            }, '取消'),
-            h('button', { type: 'button', className: 'bm-btn bm-btn-primary', disabled: !canSave, onClick: state.kind === 'create' ? saveCreate : saveEdit }, '保存')))
-      }
-
-      function renderDetail(state) {
-        const card = state.card
-        const extensions = (card.extensions || []).slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
-        const legacy = !card.rawInput || card.rawInput.status === 'legacy'
-        return h(React.Fragment, null,
-          h('div', { className: 'bm-drawer-bar' },
+          h(ChoiceGroup, {
+            label: '分类', value: category,
+            options: [{ value: 'all', label: '全部' }].concat(CATEGORIES.map((id) => ({ value: id, label: CATEGORY[id] }))),
+            onChange: setCategory,
+          }),
+          day ? h('div', null, h('span', { className: 'bm-chip' },
+            formatDayLabel(day, now),
+            h('button', { type: 'button', className: 'bm-icon-btn', 'aria-label': '清除日期', onClick: () => setDay(null) }, '×'))) : null),
+        notice ? h('p', { className: 'bm-error' }, notice) : null,
+        !source || source.status === 'loading' ? h('p', { className: 'bm-status' }, '正在读取灵感…') : null,
+        source && source.status === 'error' ? h('p', { className: 'bm-error' }, '读取失败：' + source.message) : null,
+        source && source.status === 'ready' && shown.length === 0
+          ? h('p', { className: 'bm-status' }, libraryEmpty ? '还没有记下灵感。点右上角「新增」，可以只写文字、只贴图，或两者一起记下。' : '没有匹配的灵感。')
+          : null,
+        shown.length ? h('ul', { className: 'bm-list' }, shown.map((card) => {
+          const extensions = card.extensions || []
+          const bits = [relativeTime(card.createdAt, now)]
+          if (card.updatedAt && card.updatedAt !== card.createdAt) bits.push('已改写')
+          if (card.field && MATCH[card.field]) bits.push(MATCH[card.field])
+          const thumb = (card.attachmentIds || [])[0]
+          const active = activeId === card.id && tabs.some((item) => item.kind === 'detail' && item.id === card.id)
+          return h('li', { key: card.id, className: 'bm-row' + (active ? ' is-active' : '') },
+            h('button', { type: 'button', className: 'bm-row-main', onClick: () => openCard(card) },
+              h('div', { className: 'bm-row-title' },
+                h('span', { className: 'bm-name' }, card.title || '未命名灵感'),
+                h('span', { className: 'bm-tag' }, CATEGORY[card.fields && card.fields.category] || ''),
+                extensions.length ? h('span', { className: 'bm-ext' }, '延展 ' + extensions.length) : null),
+              excerptOf(card) ? h('p', { className: 'bm-summary' }, excerptOf(card)) : null,
+              h('div', { className: 'bm-meta' }, bits.filter(Boolean).join(' · '))),
+            thumb ? h('button', {
+              type: 'button', className: 'bm-thumb', 'aria-label': '查看大图',
+              onClick: (event) => { event.stopPropagation(); setLightbox({ ids: card.attachmentIds, index: 0 }) },
+            }, h('img', { src: attachmentUrl(thumb), alt: '' })) : null,
             h('button', {
               type: 'button',
               className: 'bm-star' + (card.starred ? ' is-on' : ''),
               'aria-label': card.starred ? '取消收藏' : '收藏',
-              onClick: () => toggleStar(card),
-            }, h(StarIcon, { filled: !!card.starred })),
-            !state.editing ? h('button', {
-              type: 'button', className: 'bm-btn',
-              onClick: () => setDrawer((prev) => prev && prev.session === state.session ? { ...prev, editing: true, draft: editDraft(card), error: '', conflict: false } : prev),
-            }, '编辑') : null,
-            h('button', { type: 'button', className: 'bm-btn', onClick: requestClose }, '关闭')),
-          h('div', { className: 'bm-drawer-body' },
-            state.editing ? renderEditor(state) : h(React.Fragment, null,
-              h('h2', { className: 'bm-read-title' }, card.title || '未命名灵感'),
-              h('div', null, h('span', { className: 'bm-tag' }, CATEGORY[card.fields && card.fields.category] || '其他')),
-              card.body ? h('p', { className: 'bm-read-body' }, card.body) : null,
-              (card.attachmentIds || []).length ? h('div', { className: 'bm-images' }, card.attachmentIds.map((id, index) => h('button', {
-                type: 'button', key: id, className: 'bm-shot', 'aria-label': '查看大图',
-                onClick: () => setLightbox({ ids: card.attachmentIds, index }),
-              }, h('img', { src: attachmentUrl(id), alt: '' })))) : null,
-              h('div', null,
-                h('button', {
-                  type: 'button', className: 'bm-raw', 'aria-expanded': state.rawOpen ? 'true' : 'false',
-                  onClick: () => setDrawer((prev) => prev && prev.session === state.session ? { ...prev, rawOpen: !prev.rawOpen } : prev),
-                }, '查看原文'),
-                state.rawOpen ? h('p', { className: 'bm-raw-body' }, legacy ? '历史数据，无原文' : String(card.rawInput.text || '')) : null)),
-            h('h3', { className: 'bm-block-title' }, '延展'),
-            extensions.length ? h('ul', { className: 'bm-ext-list' }, extensions.map((extension) => h('li', { key: extension.id, className: 'bm-ext-item' },
-              h('div', { className: 'bm-ext-meta' },
-                h('span', null, relativeTime(extension.createdAt, now)),
-                h('button', { type: 'button', className: 'bm-btn bm-btn-ghost', onClick: () => deleteExtension(extension) }, '删除')),
-              h('p', { className: 'bm-read-body' }, extension.body)))) : h('p', { className: 'bm-meta' }, '还没有延展。'),
-            h('div', { className: 'bm-compose' },
-              h('textarea', {
-                value: state.extensionText,
-                placeholder: '写下理解、续写或补充…',
-                onChange: (event) => {
-                  const value = event.target.value
-                  setDrawer((prev) => prev && prev.session === state.session ? { ...prev, extensionText: value } : prev)
-                },
-              }),
-              state.extensionError ? h('p', { className: 'bm-error' }, state.extensionError) : null,
-              h('div', { className: 'bm-actions' },
-                h('button', {
-                  type: 'button', className: 'bm-btn bm-btn-primary',
-                  disabled: state.extensionText.trim() === '',
-                  onClick: addExtension,
-                }, '追加延展')))),
-          h('div', { className: 'bm-drawer-foot' },
-            h('button', {
-              type: 'button', className: 'bm-btn bm-btn-danger',
-              onClick: () => leave(() => moveToTrash(card)),
-            }, '移入回收站'),
-            h('span')))
-      }
+              onClick: (event) => { event.stopPropagation(); toggleStar(card) },
+            }, h(StarIcon, { filled: !!card.starred })))
+        })) : null)
 
-      function renderCreate(state) {
-        return h(React.Fragment, null,
-          h('div', { className: 'bm-drawer-bar' },
-            h('h2', { className: 'bm-read-title', style: { marginRight: 'auto' } }, '新增灵感'),
-            h('button', { type: 'button', className: 'bm-btn', onClick: requestClose }, '关闭')),
-          h('div', { className: 'bm-drawer-body' }, renderEditor(state)))
-      }
+      const tabStrip = tabs.length ? h('div', { className: 'bm-tabstrip', role: 'tablist', 'aria-label': '已打开的灵感' },
+        h('div', { className: 'bm-tabscroll' }, tabs.map((tab) => {
+          const label = tab.kind === 'create' ? '新增灵感' : ((findCard(tab.id) || {}).title || '未命名灵感')
+          const on = tab.id === activeId
+          return h('div', {
+            key: tab.id,
+            role: 'tab',
+            'aria-selected': on ? 'true' : 'false',
+            'aria-label': tab.dirty ? label + '，未保存' : label,
+            tabIndex: 0,
+            title: tab.dirty ? label + '（未保存）' : label,
+            className: 'bm-tab' + (on ? ' is-on' : ''),
+            onClick: () => setActiveId(tab.id),
+            onKeyDown: (event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return
+              event.preventDefault()
+              setActiveId(tab.id)
+            },
+          },
+          h('span', { className: 'bm-tab-title' },
+            tab.dirty ? h('span', { className: 'bm-tab-dot', 'aria-hidden': true }) : null,
+            h('span', { className: 'bm-tab-text' }, label)),
+          h('button', {
+            type: 'button',
+            className: 'bm-tab-close',
+            'aria-label': '关闭',
+            onClick: (event) => {
+              event.stopPropagation()
+              requestCloseTab(tab.id)
+            },
+          }, '×'))
+        }))) : null
 
-      let page
+      const panels = tabs.length
+        ? h('div', { className: 'bm-tab-panels' }, tabs.map((tab) => h('div', {
+          key: tab.id + ':' + tab.generation,
+          className: 'bm-tab-panel',
+          hidden: tab.id !== activeId,
+          role: 'tabpanel',
+        }, tab.kind === 'create'
+          ? h(IdeaCreate, {
+            onClose: () => requestCloseTab(tab.id),
+            onCancel: () => forceCloseTab(tab.id),
+            onCreated: handleCreated,
+            onDirty: (dirty) => setTabDirty(tab.id, dirty),
+          })
+          : h(IdeaDetail, {
+            card: findCard(tab.id),
+            now,
+            onClose: () => requestCloseTab(tab.id),
+            onCard: syncCard,
+            onTrashed: () => {
+              forgetCard(tab.id)
+              setTrashTick((value) => value + 1)
+              forceCloseTab(tab.id)
+            },
+            onDirty: (dirty) => setTabDirty(tab.id, dirty),
+            onPreview: (ids, index) => setLightbox({ ids, index }),
+            onConfirm: (message, confirmLabel, action) => setConfirm({
+              message,
+              confirmLabel,
+              action: () => { setConfirm(null); action() },
+            }),
+            onLibrary: (cards) => setLibrary({ status: 'ready', cards, message: '' }),
+            onMissing: () => forceCloseTab(tab.id),
+          }))))
+        : h('div', { className: 'bm-detail-empty' }, '选一条灵感查看')
+
+      let aside = null
       if (section === 'stats') {
         const weeks = library.status === 'ready' && library.cards.length ? heatmapWeeks(library.cards, columns, now) : []
-        page = h('div', { className: 'bm-column' },
+        aside = h('div', { className: 'bm-column' },
           h('div', { className: 'bm-head' },
             h('div', null,
               h('h1', { className: 'bm-title' }, '数据统计'),
@@ -1115,7 +1658,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
               style: { background: heatBackground(cell.count) },
               onClick: () => {
                 if (cell.future) return
-                leave(() => { setDay(cell.key); setQuery(''); setSection('list') })
+                confirmLeave(() => { setDay(cell.key); setQuery(''); setSection('list') })
               },
             })
           }))) : null)
@@ -1123,7 +1666,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         const rows = trash.status === 'ready'
           ? trash.cards.slice().sort((a, b) => String(b.deletedAt || '').localeCompare(String(a.deletedAt || '')))
           : []
-        page = h('div', { className: 'bm-column' },
+        aside = h('div', { className: 'bm-column' },
           h('div', { className: 'bm-head' }, h('h1', { className: 'bm-title' }, '回收站')),
           trash.status === 'loading' ? h('p', { className: 'bm-status' }, '正在读取灵感…') : null,
           trash.status === 'error' ? h('p', { className: 'bm-error' }, '读取失败：' + trash.message) : null,
@@ -1134,74 +1677,18 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
               h('div', { className: 'bm-meta' }, '移入于 ' + relativeTime(card.deletedAt, now))),
             h('button', { type: 'button', className: 'bm-btn', onClick: () => restoreCard(card) }, '恢复'),
             h('button', { type: 'button', className: 'bm-btn bm-btn-danger', onClick: () => purgeCard(card) }, '彻底删除')))) : null)
-      } else {
-        page = h('div', { className: 'bm-column' },
-          h('div', { className: 'bm-head' },
-            h('h1', { className: 'bm-title' }, '灵感清单'),
-            h('button', { type: 'button', className: 'bm-btn bm-btn-primary', onClick: openCreate }, '新增')),
-          h('div', { className: 'bm-toolbar' },
-            h('div', { className: 'bm-search' },
-              h('input', {
-                value: query,
-                placeholder: '搜索标题、正文、原文或分类',
-                'aria-label': '搜索标题、正文、原文或分类',
-                onChange: (event) => setQuery(event.target.value),
-              }),
-              query ? h('button', { type: 'button', className: 'bm-icon-btn', 'aria-label': '清空', onClick: () => setQuery('') }, '×') : null),
-            h(ChoiceGroup, {
-              label: '范围', value: scope,
-              options: [{ value: 'all', label: '全部' }, { value: 'starred', label: '收藏' }],
-              onChange: setScope,
-            }),
-            h(ChoiceGroup, {
-              label: '分类', value: category,
-              options: [{ value: 'all', label: '全部' }].concat(CATEGORIES.map((id) => ({ value: id, label: CATEGORY[id] }))),
-              onChange: setCategory,
-            }),
-            day ? h('div', null, h('span', { className: 'bm-chip' },
-              formatDayLabel(day, now),
-              h('button', { type: 'button', className: 'bm-icon-btn', 'aria-label': '清除日期', onClick: () => setDay(null) }, '×'))) : null),
-          notice ? h('p', { className: 'bm-error' }, notice) : null,
-          !source || source.status === 'loading' ? h('p', { className: 'bm-status' }, '正在读取灵感…') : null,
-          source && source.status === 'error' ? h('p', { className: 'bm-error' }, '读取失败：' + source.message) : null,
-          source && source.status === 'ready' && shown.length === 0
-            ? h('p', { className: 'bm-status' }, libraryEmpty ? '还没有记下灵感。点右上角「新增」，可以只写文字、只贴图，或两者一起记下。' : '没有匹配的灵感。')
-            : null,
-          shown.length ? h('ul', { className: 'bm-list' }, shown.map((card) => {
-            const extensions = card.extensions || []
-            const bits = [relativeTime(card.createdAt, now)]
-            if (card.updatedAt && card.updatedAt !== card.createdAt) bits.push('已改写')
-            if (card.field && MATCH[card.field]) bits.push(MATCH[card.field])
-            const thumb = (card.attachmentIds || [])[0]
-            return h('li', { key: card.id, className: 'bm-row' },
-              h('button', { type: 'button', className: 'bm-row-main', onClick: () => openCard(card) },
-                h('div', { className: 'bm-row-title' },
-                  h('span', { className: 'bm-name' }, card.title || '未命名灵感'),
-                  h('span', { className: 'bm-tag' }, CATEGORY[card.fields && card.fields.category] || ''),
-                  extensions.length ? h('span', { className: 'bm-ext' }, '延展 ' + extensions.length) : null),
-                excerptOf(card) ? h('p', { className: 'bm-summary' }, excerptOf(card)) : null,
-                h('div', { className: 'bm-meta' }, bits.filter(Boolean).join(' · '))),
-              thumb ? h('button', {
-                type: 'button', className: 'bm-thumb', 'aria-label': '查看大图',
-                onClick: (event) => { event.stopPropagation(); setLightbox({ ids: card.attachmentIds, index: 0 }) },
-              }, h('img', { src: attachmentUrl(thumb), alt: '' })) : null,
-              h('button', {
-                type: 'button',
-                className: 'bm-star' + (card.starred ? ' is-on' : ''),
-                'aria-label': card.starred ? '取消收藏' : '收藏',
-                onClick: (event) => { event.stopPropagation(); toggleStar(card) },
-              }, h(StarIcon, { filled: !!card.starred })))
-          })) : null)
       }
 
       const lightIds = lightbox ? lightbox.ids || [] : []
       const lightIndex = lightbox ? Math.min(lightbox.index, Math.max(lightIds.length - 1, 0)) : 0
+      const maxWidth = Math.max(LIST_WIDTH_MIN, Math.floor(appWidth * LIST_WIDTH_RATIO))
 
       return h('div', {
         ref: rootRef,
         className: 'bm-app',
         'data-bluemanta-panel': PANEL_ID,
         'data-narrow': narrow ? 'true' : 'false',
+        'data-page': narrow && narrowPage ? 'detail' : 'list',
         'data-platform': platform,
       },
       h('style', null, CSS),
@@ -1213,27 +1700,41 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           'aria-current': section === item.id ? 'page' : undefined,
           onClick: () => go(item.id),
         }, item.label))),
-      h('div', { className: 'bm-main' },
-        page,
-        drawer ? h('button', { type: 'button', className: 'bm-mask', 'aria-label': '关闭', onClick: requestClose }) : null,
-        drawer ? h('aside', {
-          className: 'bm-drawer', role: 'dialog', 'aria-modal': 'true',
-          'aria-label': drawer.kind === 'create' ? '新增灵感' : '灵感详情',
-          onPaste: (event) => {
-            const items = event.clipboardData && event.clipboardData.items
-            if (!items) return
-            const files = []
-            for (const item of items) {
-              if (item.kind === 'file') {
-                const file = item.getAsFile()
-                if (file) files.push(file)
-              }
-            }
-            if (!files.length) return
-            event.preventDefault()
-            addFiles(files)
-          },
-        }, drawer.kind === 'create' ? renderCreate(drawer) : renderDetail(drawer)) : null),
+      h('div', { className: 'bm-stage', hidden: section !== 'list' },
+        h('div', { className: 'bm-split' },
+          h('div', {
+            className: 'bm-list-pane',
+            ref: listPaneRef,
+            style: narrow ? undefined : { width: listWidth },
+            onScroll: (event) => {
+              const node = event.currentTarget
+              if (!node.offsetParent) return
+              listScrollRef.current = node.scrollTop
+            },
+          }, listBody),
+          h('div', {
+            className: 'bm-splitter',
+            role: 'separator',
+            tabIndex: 0,
+            'aria-orientation': 'vertical',
+            'aria-label': '调整列表宽度',
+            'aria-valuemin': LIST_WIDTH_MIN,
+            'aria-valuemax': maxWidth,
+            'aria-valuenow': listWidth,
+            onPointerDown: onSplitterDown,
+            onPointerMove: onSplitterMove,
+            onPointerUp: onSplitterUp,
+            onDoubleClick: resetWidth,
+            onKeyDown: (event) => {
+              if (event.key === 'ArrowLeft') { event.preventDefault(); nudgeWidth(-10) }
+              if (event.key === 'ArrowRight') { event.preventDefault(); nudgeWidth(10) }
+            },
+          }),
+          h('div', { className: 'bm-detail-pane' },
+            h('button', { type: 'button', className: 'bm-back', onClick: requestBack }, '← 返回'),
+            tabStrip,
+            panels))),
+      section !== 'list' ? h('div', { className: 'bm-stage bm-scroll', ref: scrollRef }, aside) : null,
       confirm ? h('div', { className: 'bm-dialog-mask' },
         h('div', { className: 'bm-dialog', role: 'alertdialog', 'aria-modal': 'true' },
           h('p', null, confirm.message),
