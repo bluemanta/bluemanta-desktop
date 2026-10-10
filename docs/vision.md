@@ -20,6 +20,8 @@
 | 2026-10-10 | 跨模块数据（如统一任务看板）通过公共对象实现：任务、项目、人、卡片在 core 中只有一份，各模块写入并带来源模块；不做插件之间的数据同步 |
 | 2026-10-10 | 敏感信息：工作资料（含 SalesOS、FDE）默认可进入、agent 默认可读；管控放在对外时（发布、对外 PPT、分享）做对外检查，不做读取分级（[对象模型](object-model.md) 第 5 节） |
 | 2026-10-10 | 场景卡字段和脱敏流程由用户先重新梳理 Notion，阶段 2 再设计；阶段 1 只做灵感卡片、项目、任务和 core |
+| 2026-10-10 | 领域按"长期责任/角色"划分为工作、内容、产品、成长、家庭，可配置；知识不是领域，而是贯穿所有领域的卡片层；灵感、场景卡、笔记统一为卡片（[对象模型](object-model.md)） |
+| 2026-10-10 | 阶段 1 计划见 [phase-1.md](phase-1.md) |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
