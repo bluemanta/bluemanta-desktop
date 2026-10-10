@@ -26,13 +26,13 @@
 
 阶段 1 收尾（T7 合并后）：
 
-1. 最后执行一次 T4 增量导入。
-2. 把 Grok Bot 的写入命令从 workbench 的 `backend.py module-submit` 换成 T7 的命令。Grok Bot 的指令由用户在 Grok Bot 中更新，Claude Code 提供替换文本。
-3. 让 Grok Bot 写一条测试灵感，确认出现在 Desktop 灵感台。
-4. workbench 从此只读；`opc-workbench` skill 停用或改为只读（待用户确认）。
+1. ~~最后执行一次 T4 增量导入。~~ 2026-10-11 dry-run 显示没有新增（灵感 30、档案 5、档案笔记 5、附件 1 全部已导入），无需再导。
+2. ~~把 Grok Bot 的写入命令换成 T7 的命令。~~ 2026-10-11 完成，用户已在 Grok Bot 中更新指令。
+3. ~~让 Grok Bot 写一条测试灵感。~~ 2026-10-11 完成，来源记为 `Grokbot`，摘要与原话分开存储。
+4. ~~workbench 只读；`opc-workbench` skill 停用。~~ 2026-10-11 完成：数据目录去掉写权限，skill 在 manifest 中改为 `pending` 并移走链接。
 5. 用户在 Desktop 中试用，决定是否进入阶段 2。
 
-在此之前，workbench 继续作为灵感收件箱，用户记灵感的方式不变。
+2026-10-11 起，灵感的唯一写入入口是 Desktop，workbench 只读。
 
 ## 已定的技术约束
 

@@ -30,6 +30,10 @@
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
+| 2026-10-11 | Grok Bot 改为调用 Desktop 的本机命令写入灵感（T7，JSON 经 heredoc 从标准输入传入，`body` 只放摘要、`raw` 只放原话）；用户已在 Grok Bot 中更新指令，测试写入已确认 |
+| 2026-10-11 | workbench 数据目录 `~/Library/Application Support/BluemantaOPC` 去掉写权限（`chmod u-w`），任何写入都会失败，读取不受影响；恢复用 `chmod u+w` |
+| 2026-10-11 | `opc-workbench` skill 停用：manifest 中 Codex、Claude 安装改为 `pending`，链接移到 `~/Documents/AgentSkills/disabled/`，源目录保留。Desktop 支持项目笔记后再决定是否改写 |
+| 2026-10-11 | 灵感详情页直接展开原文，不再折叠在「查看原文」后面；原文与正文重复时不重复显示。历史数据中「摘要 + 原文」拼在正文里的 24 条不清理（IFM-282） |
 
 ## 架构
 
@@ -46,9 +50,10 @@
 
 | 数据 | 当前正本 | 状态 | 去向 |
 |---|---|---|---|
-| 灵感及内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 灵感仍在接收新增（收件箱），其余只读 | 阶段 1 一次性导入 Desktop |
+| 灵感 | Desktop（`~/Library/Application Support/BluemantaDesktop/`） | 活跃；2026-10-11 起 Grok Bot 直接写入 Desktop，workbench 中的旧灵感已导入，workbench 只读 | — |
+| 内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 冻结，只读 | 阶段 2 导入 Desktop |
 | 场景卡、选题卡（内容台账） | Notion ContentHub | 活跃，暂留 | 阶段 2 功能对齐后导入 Desktop，Notion 归档为只读 |
-| 成长 / 项目档案（英语学习、AI 基础、个人北极星等） | workbench `store.json` | 冻结，只读 | 迁入 Desktop，阶段待定 |
+| 成长 / 项目档案（英语学习、AI 基础、个人北极星等） | Desktop core（T4 已导入） | 界面展示与新增笔记功能待定 | workbench 副本只读 |
 | 本地 ContentHub Markdown | `~/Documents/ContentHub` | 待确认是否仍在使用 | 知识库阶段导入 |
 | 灵感台 L1 云端数据 | `inspiration-desk-l1-web` 的云端库 | 冻结 | 待确认是否有真实数据 |
 | Obsidian 笔记 | `~/Documents/Obsidian`、`~/Documents/Obsidian Vault` | 未定 | 知识库阶段决定 |
@@ -73,8 +78,8 @@
 3. ~~小红书账号名不一致~~ 不是不一致：Notion 内容台账中共有 4 个账号（深蓝夜航、bluemanta、被迫进化的打工人三个小红书号，加 bluemanta@X），见 [object-model.md](object-model.md)。
 4. ~~产品 core 的语言~~ 已决定用 TypeScript 重写（ADR 0003）。
 5. ~~敏感分级~~ 已决定：读取不设限，对外时检查（见对象模型第 5 节）。
-6. 迁移阶段 Grok Bot 怎么写入本机的 Desktop（webhook 加隧道，或者 Desktop 从云端收件箱拉取）。
-7. workbench 冻结后，`opc-workbench` skill 仍然能写入 workbench，是否停用或改为只读？
+6. ~~迁移阶段 Grok Bot 怎么写入本机的 Desktop~~ 已解决：Grok Bot 在本机执行 T7 的命令（2026-10-11 切换）。
+7. ~~`opc-workbench` skill 是否停用~~ 已停用（2026-10-11），workbench 数据目录已锁为只读。
 8. ~~是否关闭 dsh 的会话日志上传~~ Desktop 和 web profile 均已于 2026-10-10 关闭。
 9. 面板读写数据的通道如何鉴权：S1 用的 `ctx.webServer` 自定义路由不经过 dsh 的 `/api` 鉴权。
 
