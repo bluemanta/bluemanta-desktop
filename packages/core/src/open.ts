@@ -2,7 +2,7 @@ import './silence-sqlite.js';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
 import { Core } from './core.js';
 import { UnsupportedSchemaError } from './errors.js';
 import { applyMigrations, readSchemaVersion, SCHEMA_VERSION } from './migrate.js';
@@ -53,6 +53,8 @@ function backupDatabase(dataDir: string, dbPath: string): void {
 }
 
 function openDatabase(dbPath: string): DatabaseSync {
+  // 内置模块在打开时再加载。顶层 import 会在 ESM 链接阶段触发 ExperimentalWarning，早于静默过滤器。
+  const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
   return new DatabaseSync(dbPath, { timeout: 5000, enableForeignKeyConstraints: true });
 }
 

@@ -127,7 +127,7 @@ describe('命令与读取', () => {
           source: human,
           id: card.id,
           rev: card.rev,
-          fields: { category: 'learning', categorySource: 'user' },
+          fields: { category: 'learning' },
         }),
       );
       expect(recategorized.cardType).toBe('idea');

@@ -1,17 +1,27 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
-import { advance } from '../envelope.js';
+import { classifyIdea } from '../classify.js';
+import { advance, bumpRev } from '../envelope.js';
 import { commandFailure, type CommandResult } from '../errors.js';
-import { applied, appliedPurge, execute } from '../execute.js';
-import { guardRev, requireLiveProject } from '../guards.js';
+import { applied, execute } from '../execute.js';
+import { guardActiveCard, guardInTrash, guardRev, requireLiveProject } from '../guards.js';
 import { createId } from '../ids.js';
 import { deleteCardRow, deleteLinksOf, getCard, insertCard, saveCard } from '../rows.js';
-import type { Card, CardExtension, IdeaFields, PurgedRecord } from '../types.js';
+import { hasCardContent, resolveIdeaTitle } from '../titles.js';
+import type {
+  Card,
+  CardExtension,
+  IdeaFields,
+  PurgedCard,
+  RawInput,
+  Source,
+  TitleOrigin,
+} from '../types.js';
 import {
   cardBodySchema,
   cardTitleSchema,
   extensionBodySchema,
-  ideaFieldsSchema,
+  ideaFieldsInputSchema,
   rawInputSchema,
   requestFields,
   requirePatch,
@@ -21,12 +31,11 @@ import {
 
 const MODULE = 'core';
 const IDEA_ATTACHMENT_LIMIT = 4;
+const CONTENT_MESSAGE = '标题、正文、附件至少要有一项非空';
 
-const cardBaseFields = {
+const sharedCreateFields = {
   ...requestFields,
-  title: cardTitleSchema,
   body: cardBodySchema.optional(),
-  rawInput: rawInputSchema,
   starred: z.boolean().optional(),
   tags: tagsSchema.optional(),
   projectId: z.string().min(1).nullable().optional(),
@@ -35,23 +44,29 @@ const cardBaseFields = {
 const cardCreateSchema = z.discriminatedUnion('cardType', [
   z
     .object({
-      ...cardBaseFields,
+      ...sharedCreateFields,
       cardType: z.literal('idea'),
+      title: cardTitleSchema.optional(),
+      rawInput: rawInputSchema.optional(),
       attachmentIds: z.array(z.string().min(1)).max(IDEA_ATTACHMENT_LIMIT).optional(),
-      fields: ideaFieldsSchema,
+      fields: ideaFieldsInputSchema,
     })
     .strict(),
   z
     .object({
-      ...cardBaseFields,
+      ...sharedCreateFields,
       cardType: z.literal('scene'),
+      title: cardTitleSchema,
+      rawInput: rawInputSchema,
       attachmentIds: z.array(z.string().min(1)).optional(),
     })
     .strict(),
   z
     .object({
-      ...cardBaseFields,
+      ...sharedCreateFields,
       cardType: z.literal('note'),
+      title: cardTitleSchema,
+      rawInput: rawInputSchema,
       attachmentIds: z.array(z.string().min(1)).optional(),
     })
     .strict(),
@@ -66,7 +81,7 @@ const cardUpdateSchema = z
     tags: tagsSchema.optional(),
     attachmentIds: z.array(z.string().min(1)).optional(),
     projectId: z.string().min(1).nullable().optional(),
-    fields: ideaFieldsSchema.partial().optional(),
+    fields: ideaFieldsInputSchema.optional(),
   })
   .strict()
   .superRefine(requirePatch(['title', 'body', 'tags', 'attachmentIds', 'projectId', 'fields']));
@@ -109,36 +124,40 @@ export type CardSetStarInput = z.infer<typeof cardSetStarSchema>;
 export type CardAddExtensionInput = z.infer<typeof cardAddExtensionSchema>;
 export type CardDeleteExtensionInput = z.infer<typeof cardDeleteExtensionSchema>;
 
-function patchCard(
-  current: Card,
-  patch: {
-    title: string;
-    body: string;
-    tags: string[];
-    attachmentIds: string[];
-    projectId: string | null;
-    fields: Partial<IdeaFields> | undefined;
-  },
-): Card {
-  const shared = {
-    title: patch.title,
-    body: patch.body,
-    tags: patch.tags,
-    attachmentIds: patch.attachmentIds,
-    projectId: patch.projectId,
-  };
-  if (current.cardType === 'idea') {
-    return { ...current, ...shared, fields: { ...current.fields, ...definedFields(patch.fields ?? {}) } };
-  }
-  return { ...current, ...shared };
+type IdeaFieldInput = z.infer<typeof ideaFieldsInputSchema>;
+
+function defaultRawInput(source: Source, title: string, body: string): RawInput {
+  const channel = source.kind === 'agent' ? 'agent' : 'web';
+  const text = body !== '' ? body : title;
+  return { status: 'present', channel, text };
 }
 
-function definedFields(patch: Partial<IdeaFields>): Partial<IdeaFields> {
-  const next: Partial<IdeaFields> = {};
-  if (patch.category !== undefined) next.category = patch.category;
-  if (patch.categorySource !== undefined) next.categorySource = patch.categorySource;
-  if (patch.captureGroupId !== undefined) next.captureGroupId = patch.captureGroupId;
-  return next;
+function resolveIdeaFields(input: IdeaFieldInput, title: string, body: string, previous?: IdeaFields): IdeaFields {
+  const captureGroupId = input.captureGroupId === undefined ? (previous?.captureGroupId ?? null) : input.captureGroupId;
+  if (input.category !== undefined) {
+    return { category: input.category, categorySource: 'user', captureGroupId };
+  }
+  if (previous?.categorySource === 'user') {
+    return { category: previous.category, categorySource: 'user', captureGroupId };
+  }
+  return { category: classifyIdea(title, body), categorySource: 'auto', captureGroupId };
+}
+
+function resolveStoredTitle(
+  cardType: Card['cardType'],
+  current: { title: string; titleOrigin: TitleOrigin } | null,
+  inputTitle: string | undefined,
+  body: string,
+): { title: string; titleOrigin: TitleOrigin } {
+  if (cardType === 'idea') {
+    if (current !== null && inputTitle === undefined) {
+      return { title: current.title, titleOrigin: current.titleOrigin };
+    }
+    return resolveIdeaTitle(inputTitle, body);
+  }
+  if (inputTitle !== undefined) return { title: inputTitle, titleOrigin: 'user' };
+  if (current !== null) return { title: current.title, titleOrigin: current.titleOrigin };
+  return { title: '', titleOrigin: 'user' };
 }
 
 export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> {
@@ -155,6 +174,14 @@ export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
           const missing = requireLiveProject(database, input.projectId);
           if (missing) return missing;
         }
+        const body = input.body ?? '';
+        const attachmentIds = input.attachmentIds ?? [];
+        const title = resolveStoredTitle(input.cardType, null, input.title, body);
+        if (input.cardType === 'idea' && !hasCardContent(title.title, body, attachmentIds)) {
+          return commandFailure('invalid_input', CONTENT_MESSAGE);
+        }
+        const rawInput =
+          input.cardType === 'idea' ? (input.rawInput ?? defaultRawInput(input.source, title.title, body)) : input.rawInput;
         const shared = {
           id: createId('card'),
           module: MODULE,
@@ -164,18 +191,19 @@ export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
           createdBy: input.source,
           updatedBy: input.source,
           deletedAt: null,
-          title: input.title,
-          body: input.body ?? '',
-          rawInput: input.rawInput,
+          title: title.title,
+          titleOrigin: title.titleOrigin,
+          body,
+          rawInput,
           starred: input.starred ?? false,
           tags: input.tags ?? [],
-          attachmentIds: input.attachmentIds ?? [],
+          attachmentIds,
           extensions: [] as CardExtension[],
           projectId: input.projectId ?? null,
         };
         const record: Card =
           input.cardType === 'idea'
-            ? { ...shared, cardType: 'idea', fields: input.fields }
+            ? { ...shared, cardType: 'idea', fields: resolveIdeaFields(input.fields, title.title, body) }
             : input.cardType === 'scene'
               ? { ...shared, cardType: 'scene', fields: {} }
               : { ...shared, cardType: 'note', fields: {} };
@@ -196,7 +224,7 @@ export function updateCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
       apply(database, input, now) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'active');
+        const problem = guardActiveCard(current, input.rev);
         if (problem) return problem;
         const projectId = input.projectId === undefined ? current.projectId : input.projectId;
         if (typeof projectId === 'string') {
@@ -210,14 +238,48 @@ export function updateCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
         if (current.cardType !== 'idea' && input.fields !== undefined) {
           return commandFailure('invalid_input', 'scene 和 note 不使用类型字段');
         }
-        const patched = patchCard(current, {
-          title: input.title ?? current.title,
-          body: input.body ?? current.body,
-          tags: input.tags ?? current.tags,
-          attachmentIds,
-          projectId,
-          fields: input.fields,
-        });
+        const body = input.body ?? current.body;
+        const title = resolveStoredTitle(current.cardType, current, input.title, body);
+        if (current.cardType === 'idea' && !hasCardContent(title.title, body, attachmentIds)) {
+          return commandFailure('invalid_input', CONTENT_MESSAGE);
+        }
+        const fields: IdeaFields | Record<string, never> =
+          current.cardType === 'idea'
+            ? resolveIdeaFields(input.fields ?? {}, title.title, body, current.fields)
+            : {};
+        const patched: Card =
+          current.cardType === 'idea'
+            ? {
+                ...current,
+                title: title.title,
+                titleOrigin: title.titleOrigin,
+                body,
+                tags: input.tags ?? current.tags,
+                attachmentIds,
+                projectId,
+                fields: fields as IdeaFields,
+              }
+            : current.cardType === 'scene'
+              ? {
+                  ...current,
+                  title: title.title,
+                  titleOrigin: title.titleOrigin,
+                  body,
+                  tags: input.tags ?? current.tags,
+                  attachmentIds,
+                  projectId,
+                  fields: {},
+                }
+              : {
+                  ...current,
+                  title: title.title,
+                  titleOrigin: title.titleOrigin,
+                  body,
+                  tags: input.tags ?? current.tags,
+                  attachmentIds,
+                  projectId,
+                  fields: {},
+                };
         const record = advance(patched, input.source, now, current.deletedAt);
         saveCard(database, record);
         return applied(record, current.rev);
@@ -267,7 +329,7 @@ export function restoreCard(db: DatabaseSync, raw: unknown): CommandResult<Card>
   );
 }
 
-export function purgeCard(db: DatabaseSync, raw: unknown): CommandResult<PurgedRecord> {
+export function purgeCard(db: DatabaseSync, raw: unknown): CommandResult<PurgedCard> {
   return execute(
     db,
     {
@@ -277,11 +339,17 @@ export function purgeCard(db: DatabaseSync, raw: unknown): CommandResult<PurgedR
       apply(database, input) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'any');
+        const problem = guardInTrash(current, input.rev);
         if (problem) return problem;
         deleteLinksOf(database, current.id);
         deleteCardRow(database, current.id);
-        return appliedPurge(current.id, current.rev);
+        return {
+          ok: true,
+          record: { id: current.id, attachmentIds: [...current.attachmentIds] },
+          objectId: current.id,
+          revBefore: current.rev,
+          revAfter: null,
+        };
       },
     },
     raw,
@@ -295,12 +363,12 @@ export function setCardStar(db: DatabaseSync, raw: unknown): CommandResult<Card>
       name: 'card.setStar',
       schema: cardSetStarSchema,
       humanOnly: true,
-      apply(database, input, now) {
+      apply(database, input) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'active');
+        const problem = guardActiveCard(current, input.rev);
         if (problem) return problem;
-        const record = advance({ ...current, starred: input.starred }, input.source, now, current.deletedAt);
+        const record = bumpRev({ ...current, starred: input.starred });
         saveCard(database, record);
         return applied(record, current.rev);
       },
@@ -315,10 +383,11 @@ export function addCardExtension(db: DatabaseSync, raw: unknown): CommandResult<
     {
       name: 'card.addExtension',
       schema: cardAddExtensionSchema,
+      humanOnly: true,
       apply(database, input, now) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'active');
+        const problem = guardActiveCard(current, input.rev);
         if (problem) return problem;
         const extension: CardExtension = { id: createId('ext'), body: input.body, createdAt: now };
         const record = advance(
@@ -341,10 +410,11 @@ export function deleteCardExtension(db: DatabaseSync, raw: unknown): CommandResu
     {
       name: 'card.deleteExtension',
       schema: cardDeleteExtensionSchema,
+      humanOnly: true,
       apply(database, input, now) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
-        const problem = guardRev(current, input.rev, 'active');
+        const problem = guardActiveCard(current, input.rev);
         if (problem) return problem;
         const extensions = current.extensions.filter((item) => item.id !== input.extensionId);
         if (extensions.length === current.extensions.length) return commandFailure('not_found', '追记不存在');

@@ -9,7 +9,7 @@ export const inject = ['connection'];
 export type { HostContext } from './context.js';
 export { resolveDataDir } from './data-dir.js';
 export { CARDS_PATH, handleCards, handleHealth, HEALTH_PATH } from './routes.js';
-export type { CardsBody, ErrorBody, HealthBody, RouteCore } from './routes.js';
+export type { CardsBody, ErrorBody, HealthBody, RouteCore, SearchedCard } from './routes.js';
 
 function adapt(
   core: RouteCore,

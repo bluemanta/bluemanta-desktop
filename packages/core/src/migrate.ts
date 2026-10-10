@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_AREAS } from './areas.js';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const SCHEMA_V1 = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -136,7 +136,19 @@ function migrateTo1(db: DatabaseSync): void {
   }
 }
 
-const MIGRATIONS: readonly Migration[] = [{ version: 1, up: migrateTo1 }];
+/** 已有卡片没有 titleOrigin。迁移时一律记为 user，不重算标题。 */
+function migrateTo2(db: DatabaseSync): void {
+  db.exec(`
+    UPDATE cards
+    SET data = json_set(data, '$.titleOrigin', 'user')
+    WHERE json_extract(data, '$.titleOrigin') IS NULL
+  `);
+}
+
+const MIGRATIONS: readonly Migration[] = [
+  { version: 1, up: migrateTo1 },
+  { version: 2, up: migrateTo2 },
+];
 
 export function readSchemaVersion(db: DatabaseSync): number | null {
   const table = db

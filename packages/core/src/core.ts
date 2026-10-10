@@ -55,18 +55,22 @@ import {
   listProjects,
   listTasks,
 } from './rows.js';
+import { searchCardRecords } from './search.js';
 import type {
   Area,
   Attachment,
   AttachmentListQuery,
   Card,
   CardListQuery,
+  CardSearchHit,
+  CardSearchOptions,
   HistoryEntry,
   HistoryListQuery,
   Link,
   LinkListQuery,
   Project,
   ProjectListQuery,
+  PurgedCard,
   Task,
   TaskListQuery,
 } from './types.js';
@@ -94,7 +98,7 @@ export class Core {
     update: (input: CardUpdateInput) => CommandResult<Card>;
     delete: (input: CardRevInput) => CommandResult<Card>;
     restore: (input: CardRevInput) => CommandResult<Card>;
-    purge: (input: CardRevInput) => CommandResult<{ id: string }>;
+    purge: (input: CardRevInput) => CommandResult<PurgedCard>;
     setStar: (input: CardSetStarInput) => CommandResult<Card>;
     addExtension: (input: CardAddExtensionInput) => CommandResult<Card>;
     deleteExtension: (input: CardDeleteExtensionInput) => CommandResult<Card>;
@@ -176,6 +180,14 @@ export class Core {
 
   listCards(query?: CardListQuery): Card[] {
     return listCards(this.db, query);
+  }
+
+  searchCards(query: string, options: CardSearchOptions = {}): CardSearchHit[] {
+    const cards = listCards(this.db, {
+      ...(options.cardType === undefined ? {} : { cardType: options.cardType }),
+      deleted: options.deleted ?? 'active',
+    });
+    return searchCardRecords(cards, query);
   }
 
   getLink(id: string): Link | null {

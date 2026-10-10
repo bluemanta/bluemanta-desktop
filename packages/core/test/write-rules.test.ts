@@ -185,8 +185,11 @@ describe('写入规则', () => {
       const softDeleted = must(core.link.delete({ requestId: req(), source: human, id: soft.id, rev: soft.rev }));
       expect(softDeleted.deletedAt).not.toBeNull();
 
-      const purged = must(core.card.purge({ requestId: req(), source: human, id: card.id, rev: withNote.rev }));
-      expect(purged).toEqual({ id: card.id });
+      const cardTrashed = must(
+        core.card.delete({ requestId: req(), source: human, id: card.id, rev: withNote.rev }),
+      );
+      const purged = must(core.card.purge({ requestId: req(), source: human, id: card.id, rev: cardTrashed.rev }));
+      expect(purged).toEqual({ id: card.id, attachmentIds: [] });
       expect(core.getCard(card.id)).toBeNull();
       expect(core.getLink(forward.id)).toBeNull();
       expect(core.getLink(backward.id)).toBeNull();
@@ -197,7 +200,8 @@ describe('写入规则', () => {
       const another = must(
         core.link.create({ requestId: req(), source: human, from: task.id, to: task.id, rel: 'related' }),
       );
-      must(core.task.purge({ requestId: req(), source: human, id: task.id, rev: task.rev }));
+      const taskTrashed = must(core.task.delete({ requestId: req(), source: human, id: task.id, rev: task.rev }));
+      must(core.task.purge({ requestId: req(), source: human, id: task.id, rev: taskTrashed.rev }));
       expect(core.getTask(task.id)).toBeNull();
       expect(core.getLink(another.id)).toBeNull();
     });
@@ -294,8 +298,12 @@ describe('写入规则', () => {
           body: '删除前的追记',
         }),
       );
-      must(core.card.purge({ requestId: req(), source: human, id: card.id, rev: noted.rev }));
-      must(core.task.purge({ requestId: req(), source: human, id: task.id, rev: taskRestored.rev }));
+      const cardTrashed = must(core.card.delete({ requestId: req(), source: human, id: card.id, rev: noted.rev }));
+      must(core.card.purge({ requestId: req(), source: human, id: card.id, rev: cardTrashed.rev }));
+      const taskTrashed = must(
+        core.task.delete({ requestId: req(), source: human, id: task.id, rev: taskRestored.rev }),
+      );
+      must(core.task.purge({ requestId: req(), source: human, id: task.id, rev: taskTrashed.rev }));
 
       expect(core.listHistory()[0]).toMatchObject({ command: 'project.create', revBefore: null, revAfter: 1 });
       const commands = core.listHistory().map((entry) => entry.command);
@@ -319,7 +327,9 @@ describe('写入规则', () => {
         'task.restore',
         'link.create',
         'card.addExtension',
+        'card.delete',
         'card.purge',
+        'task.delete',
         'task.purge',
       ]);
       expect(core.getLink(linkAgain.id)).toBeNull();

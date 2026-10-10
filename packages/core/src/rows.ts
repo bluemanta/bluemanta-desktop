@@ -19,6 +19,7 @@ import type {
   RawInput,
   Source,
   Task,
+  TitleOrigin,
   TaskListQuery,
   TaskOrigin,
 } from './types.js';
@@ -105,6 +106,7 @@ type CardData = {
   attachmentIds: string[];
   extensions: CardExtension[];
   fields: IdeaFields | Record<string, never>;
+  titleOrigin?: 'user' | 'fallback';
 };
 
 function parseJson<T>(text: string): T {
@@ -189,9 +191,11 @@ function toTask(row: TaskRow): Task {
 
 function toCard(row: CardRow): Card {
   const data = parseJson<CardData>(row.data);
+  const titleOrigin: TitleOrigin = data.titleOrigin === 'fallback' ? 'fallback' : 'user';
   const base = {
     ...toEnvelope(row),
     title: row.title,
+    titleOrigin,
     body: data.body,
     rawInput: data.rawInput,
     starred: row.starred === 1,
@@ -295,6 +299,7 @@ function cardValues(card: Card): SQLInputValue[] {
       attachmentIds: card.attachmentIds,
       extensions: card.extensions,
       fields: card.fields,
+      titleOrigin: card.titleOrigin,
     }),
   ];
 }

@@ -41,7 +41,7 @@ try {
       title: '冒烟灵感',
       body: '虚构正文',
       rawInput: { status: 'present', channel: 'agent', text: '冒烟' },
-      fields: { category: 'product', categorySource: 'user', captureGroupId: null },
+      fields: { category: 'product', captureGroupId: null },
       projectId: project.id,
     }),
     'card.create',

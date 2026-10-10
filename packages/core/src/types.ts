@@ -66,6 +66,8 @@ export type Task = Envelope & {
 
 export type CardType = 'idea' | 'scene' | 'note';
 
+export type TitleOrigin = 'user' | 'fallback';
+
 export type IdeaCategory = 'product' | 'learning' | 'work' | 'life' | 'other';
 
 export type CategorySource = 'auto' | 'user';
@@ -88,6 +90,7 @@ export type CardExtension = {
 
 type CardBase = Envelope & {
   title: string;
+  titleOrigin: TitleOrigin;
   body: string;
   rawInput: RawInput;
   starred: boolean;
@@ -132,6 +135,26 @@ export type Link = Envelope & {
 
 export type PurgedRecord = {
   id: string;
+};
+
+/** 彻底删除卡片时带回附件 id，供调用方清理文件。文件本身不在 core 里删。 */
+export type PurgedCard = {
+  id: string;
+  attachmentIds: string[];
+};
+
+export type CardSearchField = 'title' | 'body' | 'rawInput' | 'category';
+
+export type CardSearchHit = {
+  card: Card;
+  field: CardSearchField;
+  excerpt: string;
+};
+
+export type CardSearchOptions = {
+  cardType?: CardType;
+  /** 默认 `active`，不含回收站。 */
+  deleted?: DeletedFilter;
 };
 
 export type HistoryEntry = {

@@ -83,11 +83,14 @@ export const locationSchema = z
     message: '位置需要 path 或 url',
   });
 
-export const ideaFieldsSchema = z
+/**
+ * 调用方只传分类和捕捉分组。`categorySource` 由 core 决定：
+ * 带 `category` 视为用户指定；省略 `captureGroupId` 即 null。
+ */
+export const ideaFieldsInputSchema = z
   .object({
-    category: z.enum(['product', 'learning', 'work', 'life', 'other']),
-    categorySource: z.enum(['auto', 'user']),
-    captureGroupId: z.string().min(1).nullable(),
+    category: z.enum(['product', 'learning', 'work', 'life', 'other']).optional(),
+    captureGroupId: z.string().min(1).nullable().optional(),
   })
   .strict();
 

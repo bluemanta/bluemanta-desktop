@@ -68,7 +68,7 @@ describe('health', () => {
         cardType: 'idea',
         title: '留下的灵感',
         rawInput: { status: 'legacy' },
-        fields: { category: 'product', categorySource: 'user', captureGroupId: null },
+        fields: { category: 'product', captureGroupId: null },
       }));
       const trashed = unwrap(core.card.create({
         requestId: 'c2',
@@ -76,7 +76,7 @@ describe('health', () => {
         cardType: 'idea',
         title: '丢弃的灵感',
         rawInput: { status: 'legacy' },
-        fields: { category: 'life', categorySource: 'user', captureGroupId: null },
+        fields: { category: 'life', captureGroupId: null },
       }));
       unwrap(core.card.delete({ requestId: 'c2-del', source, id: trashed.id, rev: trashed.rev }));
 
@@ -113,7 +113,7 @@ describe('cards', () => {
         title: '还在的灵感',
         body: '正文',
         rawInput: { status: 'present', channel: 'web', text: '原始' },
-        fields: { category: 'work', categorySource: 'user', captureGroupId: null },
+        fields: { category: 'work', captureGroupId: null },
       }));
       const trashed = unwrap(core.card.create({
         requestId: 'idea-trash',
@@ -121,7 +121,7 @@ describe('cards', () => {
         cardType: 'idea',
         title: '回收站灵感',
         rawInput: { status: 'legacy' },
-        fields: { category: 'other', categorySource: 'auto', captureGroupId: null },
+        fields: { category: 'other' },
       }));
       const deleted = unwrap(core.card.delete({
         requestId: 'idea-trash-del',
@@ -157,6 +157,43 @@ describe('cards', () => {
     }
   });
 
+  it('q 走搜索，并附带命中字段和摘录', async () => {
+    const core = tempCore();
+    try {
+      const matched = unwrap(core.card.create({
+        requestId: 'search-hit',
+        source,
+        cardType: 'idea',
+        title: 'Alpha 灵感',
+        body: '正文里有 Beta',
+        fields: { category: 'learning' },
+      }));
+      unwrap(core.card.create({
+        requestId: 'search-miss',
+        source,
+        cardType: 'idea',
+        title: '别的卡片',
+        body: '没有目标词',
+        fields: { category: 'work' },
+      }));
+
+      const response = handleCards(core, request('/api/bluemanta/cards?q=alpha%20beta'));
+      expect(response.status).toBe(200);
+      const body = await bodyOf<CardsBody>(response);
+      expect(body.count).toBe(1);
+      expect(body.cards).toHaveLength(1);
+      const hit = body.cards[0];
+      expect(hit).toMatchObject({ id: matched.id, field: 'title', excerpt: 'Alpha 灵感' });
+
+      const byCategory = handleCards(core, request('/api/bluemanta/cards?q=' + encodeURIComponent('学习备忘')));
+      const categoryBody = await bodyOf<CardsBody>(byCategory);
+      expect(categoryBody.cards.map((card) => card.id)).toEqual([matched.id]);
+      expect(categoryBody.cards[0]).toMatchObject({ field: 'category', excerpt: '学习备忘' });
+    } finally {
+      core.close();
+    }
+  });
+
   it('非法参数返回 400', async () => {
     const core = tempCore();
     try {
@@ -168,6 +205,9 @@ describe('cards', () => {
         '/api/bluemanta/cards?cardType=IDEA',
         '/api/bluemanta/cards?cardType=idea&cardType=note',
         '/api/bluemanta/cards?trash=0&trash=1',
+        '/api/bluemanta/cards?q=',
+        '/api/bluemanta/cards?q=%20',
+        '/api/bluemanta/cards?q=a&q=b',
       ];
       for (const path of cases) {
         const response = handleCards(core, request(path));
