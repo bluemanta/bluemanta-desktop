@@ -8,7 +8,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const PANEL_ID = 'bluemanta.ideas'
-    const ROUTE = '/bluemanta/s1/ideas'
+    const ROUTE = 'api/bluemanta/s1/ideas'
     const CATEGORY = { product: '产品想法', learning: '学习备忘', work: '工作事务', life: '生活随想', other: '其他' }
 
     function IdeasIcon({ size }) {

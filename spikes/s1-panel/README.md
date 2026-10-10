@@ -57,3 +57,18 @@ dsh --profile s1 --port 3091 --no-open
 3. **dsh 默认上传会话日志。** 使用 DeepSeek 官方 API 时，基础组合包的 `session-log-deepseek` 默认把规范会话日志随请求上传（`dsh_session_log` 字段），内容包括 agent 读到的文件和工具结果。可以在「设置 → 通用 → 在使用官方模型 API 时上传 Session Log」关闭。OTel 只在用户主动反馈时上传，`DSH_TELEMETRY_DISABLED` 可整体关闭。
 4. **Desktop 的页面跑在 `dsh-app://app/`。** Electron 会把应用 HTTP 请求转发给已认证的 Host，相对路径的 fetch 在 Desktop 中实测可用（检查项 9）。Desktop 的插件页支持直接填本地目录安装，启用、停用都即时生效。
 5. **dsh 自带的插件开发 skill 质量很高**，规则包括：不要 import dsh 的客户端 UI 包、只用主题变量、同一个操作做成宿主方法后由界面和 agent 工具共用。可以直接作为给 Cursor / Codex 的必读材料。
+
+## S1b：改用 dsh 的鉴权路由（2026-10-10）
+
+宿主插件改为 `inject = ['connection']`，用 `ctx.connection.fetch.register({ path: '/api/bluemanta/s1/ideas', methods: ['GET'], requestBody: 'buffered', fetch })` 注册路由；浏览器端用相对路径 `fetch('api/bluemanta/s1/ideas')`（不带开头的 `/`，以兼容挂载路径）。写法参照 dsh 的 `packages/client/ui-deliverables/src/present-open.ts`。
+
+| 检查项 | 结果 | 证据 |
+|---|---|---|
+| 不带 cookie 访问 | verified | 401 |
+| 伪造 Host 头 | verified | 403 |
+| `sec-fetch-site: cross-site` | verified | 403 |
+| 页面内面板读取 | verified | 用带令牌 URL 登录后，面板显示 30 条 |
+
+结论：S1 发现 2（自定义路由不经过鉴权）已解决。正式实现一律通过 `ctx.connection.fetch.register` 注册 `/api/bluemanta/...` 路由，不再直接用 `ctx.webServer`。
+
+另：此时 workbench 数据为 30 条，比上午多 1 条（2026-10-10 新增），说明仍有入口在写入 workbench。

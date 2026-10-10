@@ -7,12 +7,11 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 export const name = 'bluemanta-spike-s1-panel'
-export const inject = ['webServer']
+export const inject = ['connection']
 
-export const ROUTE = '/bluemanta/s1/ideas'
+export const ROUTE = '/api/bluemanta/s1/ideas'
 
 const DEFAULT_STORE = join(homedir(), 'Library', 'Application Support', 'BluemantaOPC', 'store.json')
-const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]'])
 
 function storePath() {
   return process.env.BLUEMANTA_WORKBENCH_STORE || DEFAULT_STORE
@@ -34,24 +33,18 @@ async function readIdeas() {
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
 }
 
-function send(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-  res.end(JSON.stringify(body))
-}
-
 export function apply(ctx) {
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'exact',
+  // S1b：改用 dsh 的 /api 路由注册表，自动经过 Host/Origin 校验和浏览器 cookie 认证。
+  ctx.effect(() => ctx.connection.fetch.register({
     path: ROUTE,
-    async handler(req, res) {
-      const hostname = String(req.headers.host ?? '').replace(/:\d+$/, '')
-      if (!LOOPBACK.has(hostname)) return send(res, 403, { error: 'loopback only' })
-      if (req.method !== 'GET') return send(res, 405, { error: 'read only' })
+    methods: ['GET'],
+    requestBody: 'buffered',
+    async fetch() {
       try {
         const ideas = await readIdeas()
-        send(res, 200, { source: 'bluemanta-workbench（已冻结，只读）', count: ideas.length, ideas })
+        return Response.json({ source: 'bluemanta-workbench（已冻结，只读）', count: ideas.length, ideas }, { headers: { 'cache-control': 'no-store' } })
       } catch (error) {
-        send(res, 500, { error: String(error?.message ?? error) })
+        return Response.json({ error: String(error?.message ?? error) }, { status: 500 })
       }
     },
   }), 'bluemanta-spike-s1-panel: ideas route')
