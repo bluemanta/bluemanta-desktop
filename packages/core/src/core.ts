@@ -1,6 +1,14 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { listAreas } from './areas.js';
+import {
+  deleteUnreferencedAttachmentRecords,
+  listStaleUnreferencedAttachments,
+} from './attachment-gc.js';
 import { backupStamp, copyDatabaseFiles, uniqueBackupFolder } from './backup.js';
+import {
+  createAttachment,
+  type AttachmentCreateInput,
+} from './commands/attachment.js';
 import {
   addCardExtension,
   createCard,
@@ -121,6 +129,10 @@ export class Core {
     delete: (input: LinkDeleteInput) => CommandResult<Link>;
   };
 
+  readonly attachment: {
+    create: (input: AttachmentCreateInput) => CommandResult<Attachment>;
+  };
+
   /** 只给导入脚本用，不从 dsh 暴露。 */
   readonly importer: {
     importProject: (input: ImportProjectInput) => CommandResult<Project>;
@@ -160,6 +172,9 @@ export class Core {
     this.link = {
       create: (input) => createLink(this.db, input),
       delete: (input) => deleteLink(this.db, input),
+    };
+    this.attachment = {
+      create: (input) => createAttachment(this.db, input),
     };
     this.importer = {
       importProject: (input) => importProject(this.db, input),
@@ -234,6 +249,16 @@ export class Core {
 
   listAttachments(query?: AttachmentListQuery): Attachment[] {
     return listAttachments(this.db, query);
+  }
+
+  /** 超过 cutoff 仍未被任何卡片引用的附件。不删除。 */
+  listStaleUnreferencedAttachments(cutoffIso: string): Attachment[] {
+    return listStaleUnreferencedAttachments(this.db, cutoffIso);
+  }
+
+  /** 删掉其中已无卡片引用的附件记录，返回被删记录。 */
+  deleteUnreferencedAttachmentRecords(ids: readonly string[]): Attachment[] {
+    return deleteUnreferencedAttachmentRecords(this.db, ids);
   }
 
   listLinks(query?: LinkListQuery): Link[] {

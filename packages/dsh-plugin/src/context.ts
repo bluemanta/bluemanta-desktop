@@ -5,7 +5,7 @@ export type FetchHandler = (request: Request) => Response | Promise<Response>;
 export type FetchRoute = {
   path: string;
   methods: readonly string[];
-  requestBody: 'buffered';
+  requestBody: 'buffered' | 'streaming';
   fetch: FetchHandler;
 };
 

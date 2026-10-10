@@ -530,6 +530,19 @@ export function listAttachments(db: DatabaseSync, query: AttachmentListQuery = {
   return rows.map((row) => toAttachment(row));
 }
 
+export function deleteAttachment(db: DatabaseSync, id: string): boolean {
+  return run(db, 'DELETE FROM attachments WHERE id = ?', [id]) === 1;
+}
+
+/** 仍被任意卡片（含回收站）引用的附件 id。 */
+export function referencedAttachmentIds(db: DatabaseSync): Set<string> {
+  const ids = new Set<string>();
+  for (const card of listCards(db, { deleted: 'all' })) {
+    for (const id of card.attachmentIds) ids.add(id);
+  }
+  return ids;
+}
+
 export function deleteLinksOf(db: DatabaseSync, objectId: string): void {
   run(db, 'DELETE FROM links WHERE from_id = ? OR to_id = ?', [objectId, objectId]);
 }

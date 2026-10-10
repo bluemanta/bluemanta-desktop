@@ -1,5 +1,9 @@
 import './silence-sqlite.js';
 
+export {
+  UNREFERENCED_ATTACHMENT_TTL_MS,
+  unreferencedAttachmentCutoff,
+} from './attachment-gc.js';
 export { DEFAULT_AREAS } from './areas.js';
 export { Core } from './core.js';
 export { UnsupportedSchemaError } from './errors.js';
@@ -57,6 +61,13 @@ export type {
   TaskStatus,
   TitleOrigin,
 } from './types.js';
+export {
+  IMAGE_EXTENSION,
+  IMAGE_MIME,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_EDGE,
+} from './commands/attachment.js';
+export type { AttachmentCreateInput, ImageMime } from './commands/attachment.js';
 export type {
   CardAddExtensionInput,
   CardCreateInput,

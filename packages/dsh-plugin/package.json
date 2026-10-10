@@ -2,7 +2,7 @@
   "name": "@bluemanta/dsh-plugin",
   "version": "0.0.0",
   "private": true,
-  "description": "bluemanta Desktop 的 dsh 插件：左侧栏灵感清单，以及经过 dsh 鉴权的只读数据通道",
+  "description": "bluemanta Desktop 的 dsh 插件：左侧栏灵感台，以及经过 dsh 鉴权的读写数据通道",
   "type": "module",
   "engines": {
     "node": ">=24"
