@@ -33,5 +33,5 @@ fork 位于 iCloud 同步的 `~/Documents` 下，没有本地改动，也没有�
 
 ## 待办
 
-- 旧目录 `~/Documents/CodeProjects/bluemanta-harness`（约 368 MB）由用户确认后删除。
+- ~~旧目录 `~/Documents/CodeProjects/bluemanta-harness`（约 368 MB）由用户确认后删除。~~ 2026-10-10 已由用户移入废纸篓（`~/.Trash/bluemanta-harness-old`）。
 - GitHub 上 fork 的 `master` 还停在 0.1.7-rc.1；是否同步到上游由用户决定。本地参考不依赖它。
