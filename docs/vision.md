@@ -61,7 +61,7 @@
 
 1. 本地 `~/Documents/ContentHub` 还在用吗？它和 Notion ContentHub 是什么关系？
 2. 灵感台 L1 云端版里有没有真实数据？
-3. 小红书账号名不一致：`ContentHub/CLAUDE.md` 写的是「被迫进化的打工人」，Notion 写卡 skill 写的是「深蓝夜航」。
+3. ~~小红书账号名不一致~~ 不是不一致：Notion 内容台账中共有 4 个账号（深蓝夜航、bluemanta、被迫进化的打工人三个小红书号，加 bluemanta@X），见 [object-model.md](object-model.md)。
 4. ~~产品 core 的语言~~ 已决定用 TypeScript 重写（ADR 0003）。
 5. 敏感分级的具体级别，以及每一级 agent 能读到什么。
 6. 迁移阶段 Grok Bot 怎么写入本机的 Desktop（webhook 加隧道，或者 Desktop 从云端收件箱拉取）。
