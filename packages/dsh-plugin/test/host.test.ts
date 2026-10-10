@@ -125,7 +125,12 @@ describe('包清单与浏览器端', () => {
     expect(pkg.dsh.client).toEqual({
       platform: 'web',
       immediately: true,
-      inject: ['@deepseek-ai/dsh-client-ui-layout', '@deepseek-ai/dsh-client-ui-sidebar'],
+      inject: [
+        '@deepseek-ai/dsh-client-ui-layout',
+        '@deepseek-ai/dsh-client-ui-sidebar',
+        '@deepseek-ai/dsh-client-ui-sidebar-right',
+        '@deepseek-ai/dsh-client-ui-tool',
+      ],
     });
     expect(pkg.exports['./client']).toBe('./client.js');
     expect(pkg.exports['.'].import).toBe('./dist/index.js');
