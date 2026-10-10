@@ -76,3 +76,10 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 | `bluemanta_idea_get` | 按 id 读取一条灵感。在回收站中的也会返回 |
 
 不提供修改、收藏、追记、删除。这些只在灵感台界面由人操作。
+
+## 对话右侧栏
+
+浏览器端在 `dsh.client.inject` 里声明 `@deepseek-ai/dsh-client-ui-sidebar-right` 和 `@deepseek-ai/dsh-client-ui-tool`，只用来排激活顺序，`client.js` 不 import 这两个包。
+
+- 页类型 `bluemanta.idea`（`multiple: true`）注册到 `ctx.sidebarRightTabs`。开始页入口「灵感台」打开精简列表；点一条，或在工具卡片上点「打开」，会在当前对话的右侧栏新开这条灵感。正文复用灵感详情，写入仍走人的命令通道。
+- `bluemanta_idea_capture`、`bluemanta_idea_search`、`bluemanta_idea_get` 各有一张 `tool.call.toolview` 卡片。主区域不是对话时右侧栏不存在，「打开」不显示，也不会调用 `openTab`。

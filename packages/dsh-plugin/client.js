@@ -1,14 +1,31 @@
 /**
- * 浏览器端：左侧栏「灵感台」。宽屏是清单与详情左右分栏，窄屏是整页详情。
+ * 浏览器端：左侧栏「灵感台」，以及对话右侧栏里的灵感 tab 和工具卡片。
+ * 宽屏是清单与详情左右分栏，窄屏是整页详情。
  * 输出格式与 spikes/s1-panel/plugin/client.js 相同。React 来自 dsh 的浏览器模块表。
  * 请求用相对路径、开头不带 /，以兼容 Desktop 的 dsh-app:// 挂载。
  * 上海时区的日期函数与 src/shanghai.js 保持同一份文本（测试会核对）。
+ * 右侧栏与工具卡片的纯函数与 src/idea-sidebar.js 保持同一份文本（测试会核对）。
  */
 window.__ModuleLoader__.load({
   id: '@bluemanta/dsh-plugin',
   factory(require) {
     const React = require('react')
     const h = React.createElement
+    const shell = { sidebarRight: null }
+    const titleBus = {
+      titles: new Map(),
+      listeners: new Set(),
+      set(id, title) {
+        if (!id || this.titles.get(id) === title) return
+        this.titles.set(id, title)
+        for (const listener of this.listeners) listener()
+      },
+      get(id) { return this.titles.get(id) || '' },
+      subscribe(listener) {
+        this.listeners.add(listener)
+        return () => { this.listeners.delete(listener) }
+      },
+    }
     const PANEL_ID = 'bluemanta.ideas'
     const CARDS_ROUTE = 'api/bluemanta/cards?cardType=idea'
     const TRASH_ROUTE = 'api/bluemanta/cards?cardType=idea&trash=1'
@@ -387,6 +404,22 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
 .bm-light img { width: auto; height: auto; max-width: min(920px, 100%); max-height: calc(100% - 48px); object-fit: contain; background: var(--dsw-alias-bg-layer-1); }
 .bm-light-nav { position: absolute; bottom: 20px; display: flex; gap: 8px; }
 .bm-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+.bm-side { flex-direction: column; }
+.bm-side .bm-list-pane { flex: 1; width: auto; }
+.bm-side .bm-head { padding-top: 16px; }
+.bm-side > .bm-detail { flex: 1; min-height: 0; }
+.bm-tool {
+  margin: 4px 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+  border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-bg-layer-2);
+}
+.bm-tool-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bm-tool-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bm-tool-title { font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-primary); }
+.bm-tool-meta { margin: 0; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary); }
+.bm-tool-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.bm-tool .bm-btn { flex: none; }
+.bm-tool .bm-summary { margin: 0; }
 `
 
     function uuid() {
@@ -581,6 +614,201 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         ? { id: cardId, kind: 'detail', dirty: false, openedAt: tab.openedAt, generation: 0 }
         : tab));
       return { tabs: next, activeId: activeId === CREATE_TAB_ID ? cardId : activeId };
+    }
+
+    /**
+     * 右侧栏灵感 tab 与对话工具卡片的纯函数。client.js 内嵌同一份文本（测试会核对）。
+     * 只解析导航参数和工具结果文本，不读写业务数据。
+     */
+
+    const IDEA_TAB_KIND = 'bluemanta.idea';
+
+    const IDEA_TAB_ID = '@bluemanta/dsh-plugin/idea';
+
+    const IDEA_CAPTURE_NAME = 'bluemanta_idea_capture';
+
+    const IDEA_SEARCH_NAME = 'bluemanta_idea_search';
+
+    const IDEA_GET_NAME = 'bluemanta_idea_get';
+
+    const CATEGORY_LABELS = ['产品想法', '学习备忘', '工作事务', '生活随想', '其他'];
+
+    function ideaParams(navigation) {
+      const params = navigation && navigation.params;
+      if (!params || typeof params !== 'object') return { id: '', title: '' };
+      const id = typeof params.id === 'string' ? params.id.trim() : '';
+      const title = typeof params.title === 'string' ? params.title.trim() : '';
+      return { id, title };
+    }
+
+    function sidebarIsMounted(sidebarRight) {
+      try {
+        const mounted = sidebarRight && sidebarRight.mounted;
+        if (!mounted || typeof mounted.getSnapshot !== 'function') return false;
+        const value = mounted.getSnapshot();
+        return value != null && value !== '';
+      } catch {
+        return false;
+      }
+    }
+
+    function subscribeSidebarMounted(sidebarRight, listener) {
+      try {
+        const mounted = sidebarRight && sidebarRight.mounted;
+        if (!mounted || typeof mounted.subscribe !== 'function') return function unsubscribe() {};
+        const unsubscribe = mounted.subscribe(listener);
+        return typeof unsubscribe === 'function' ? unsubscribe : function unsubscribeMissing() {};
+      } catch {
+        return function unsubscribeFailed() {};
+      }
+    }
+
+    function openIdeaTab(sidebarRight, params) {
+      if (!sidebarIsMounted(sidebarRight) || !sidebarRight || typeof sidebarRight.openTab !== 'function') return false;
+      const id = params && typeof params.id === 'string' ? params.id.trim() : '';
+      if (id === '') return false;
+      const title = params && typeof params.title === 'string' ? params.title.trim() : '';
+      const next = title === '' ? { id } : { id, title };
+      try {
+        sidebarRight.openTab(IDEA_TAB_KIND, { params: next });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function parseToolArgs(raw) {
+      if (typeof raw !== 'string' || raw.trim() === '') return null;
+      try {
+        const value = JSON.parse(raw);
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+        return value;
+      } catch {
+        return null;
+      }
+    }
+
+    function toolResultText(block) {
+      if (!block || !Array.isArray(block.content)) return '';
+      const parts = [];
+      for (const item of block.content) {
+        if (item && item.type === 'text' && typeof item.text === 'string') parts.push(item.text);
+      }
+      return parts.join('\n');
+    }
+
+    function excerptText(body) {
+      const flat = String(body || '').replace(/\s+/g, ' ').trim();
+      const chars = Array.from(flat);
+      if (chars.length <= 120) return flat;
+      return chars.slice(0, 120).join('') + '…';
+    }
+
+    function parseCaptureText(text) {
+      const source = String(text || '').trim();
+      const idMatch = source.match(/，id：(\S+)$/);
+      if (!idMatch || idMatch.index == null) return null;
+      let head = source.slice(0, idMatch.index);
+      const prefix = '已记下灵感「';
+      if (!head.startsWith(prefix)) return null;
+      head = head.slice(prefix.length);
+      const marker = '，分类：';
+      const at = head.lastIndexOf(marker);
+      if (at < 0) return null;
+      const category = head.slice(at + marker.length);
+      if (!CATEGORY_LABELS.includes(category)) return null;
+      let title = head.slice(0, at);
+      const note = '」（标题由正文生成）';
+      if (title.endsWith(note)) title = title.slice(0, -note.length);
+      else if (title.endsWith('」')) title = title.slice(0, -1);
+      else return null;
+      return { title, category, id: idMatch[1] };
+    }
+
+    function parseSearchChunk(chunk) {
+      const source = String(chunk || '').trim();
+      const idMatch = source.match(/ id：(\S+)$/);
+      if (!idMatch || idMatch.index == null) return null;
+      const head = source.slice(0, idMatch.index);
+      const dateMatch = head.match(/^(\d{4}-\d{2}-\d{2}) 「/);
+      if (!dateMatch) return null;
+      const rest = head.slice(dateMatch[0].length - 1);
+      for (const category of CATEGORY_LABELS) {
+        const marker = '」（' + category + '）命中';
+        const at = rest.lastIndexOf(marker);
+        if (at < 1 || !rest.startsWith('「')) continue;
+        const tail = rest.slice(at + marker.length);
+        const fieldMatch = tail.match(/^(标题|正文|原文|分类)：([\s\S]*)$/);
+        if (!fieldMatch) continue;
+        return {
+          id: idMatch[1],
+          title: rest.slice(1, at),
+          category,
+          date: dateMatch[1],
+          excerpt: fieldMatch[2],
+        };
+      }
+      return null;
+    }
+
+    function parseSearchText(text) {
+      const source = String(text || '').trim();
+      if (source === '') return null;
+      const chunks = source.split(/\n(?=\d{4}-\d{2}-\d{2} 「)/);
+      const items = [];
+      for (const chunk of chunks) {
+        const item = parseSearchChunk(chunk);
+        if (!item) return null;
+        items.push(item);
+      }
+      return items;
+    }
+
+    function labeledSection(text, label, followers) {
+      const source = String(text || '');
+      const token = label + '：';
+      const start = source.indexOf(token);
+      if (start < 0) return '';
+      const from = start + token.length;
+      let end = source.length;
+      for (const follower of followers) {
+        const at = source.indexOf('\n' + follower + '：', from);
+        if (at >= 0 && at < end) end = at;
+      }
+      return source.slice(from, end).trim();
+    }
+
+    function ideaToolCard(toolName, phase, args, resultText, isError) {
+      if (phase !== 'result') {
+        if (toolName === IDEA_CAPTURE_NAME) return { kind: 'pending', label: '正在记下灵感…' };
+        if (toolName === IDEA_SEARCH_NAME) return { kind: 'pending', label: '正在查找灵感…' };
+        if (toolName === IDEA_GET_NAME) return { kind: 'pending', label: '正在读取灵感…' };
+        return { kind: 'pending', label: '正在处理…' };
+      }
+      const text = typeof resultText === 'string' ? resultText.trim() : '';
+      if (isError) return { kind: 'error', message: text || '调用失败' };
+      if (toolName === IDEA_CAPTURE_NAME) {
+        if (text.startsWith('没有记下')) return { kind: 'error', message: text.replace(/^没有记下：?/, '') || text };
+        const captured = parseCaptureText(text);
+        if (!captured) return { kind: 'error', message: text || '没有记下' };
+        return { kind: 'capture', title: captured.title || '未命名灵感', category: captured.category, id: captured.id };
+      }
+      if (toolName === IDEA_SEARCH_NAME) {
+        if (text === '没有找到' || text === '') return { kind: 'search', items: [], empty: true };
+        const items = parseSearchText(text);
+        if (!items) return { kind: 'error', message: text || '查找失败' };
+        return { kind: 'search', items, empty: items.length === 0 };
+      }
+      if (toolName === IDEA_GET_NAME) {
+        if (!text.includes('\n标题：') && !text.startsWith('标题：')) {
+          return { kind: 'error', message: text || '没有找到这条灵感' };
+        }
+        const id = args && typeof args.id === 'string' ? args.id.trim() : '';
+        const title = labeledSection(text, '标题', ['分类', '收藏', '创建时间', '正文', '原文', '追记']);
+        const body = labeledSection(text, '正文', ['原文', '追记']);
+        return { kind: 'get', id, title: title || '未命名灵感', excerpt: excerptText(body) };
+      }
+      return { kind: 'error', message: text || '调用失败' };
     }
 
     function editDraft(card) {
@@ -1064,8 +1292,9 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
     }
 
     function IdeasIcon({ size }) {
+      const px = size || 16
       return h('svg', {
-        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+        width: px, height: px, viewBox: '0 0 24 24', fill: 'none',
         stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
       },
       h('path', { d: 'M9 18h6' }),
@@ -1757,13 +1986,336 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           }, '下一张')) : null) : null)
     }
 
+    function useSidebarOpen() {
+      const [open, setOpen] = React.useState(() => sidebarIsMounted(shell.sidebarRight))
+      React.useEffect(() => {
+        setOpen(sidebarIsMounted(shell.sidebarRight))
+        return subscribeSidebarMounted(shell.sidebarRight, () => {
+          setOpen(sidebarIsMounted(shell.sidebarRight))
+        })
+      }, [])
+      return open
+    }
+
+    function OpenIdeaButton({ id, title }) {
+      const open = useSidebarOpen()
+      if (!open || !id) return null
+      return h('button', {
+        type: 'button',
+        className: 'bm-btn',
+        onClick: () => { openIdeaTab(shell.sidebarRight, { id, title }) },
+      }, '打开')
+    }
+
+    function IdeaToolView(props) {
+      const phase = props && props.phase
+      const block = props && props.block
+      const toolName = (props && props.toolName) || ''
+      let args = null
+      let text = ''
+      let failed = false
+      if (phase === 'result' && block) {
+        args = parseToolArgs(block.call && block.call.argsRaw)
+        text = toolResultText(block)
+        failed = block.isError === true || block.error != null
+      } else if (block && typeof block.argsRaw === 'string') {
+        args = parseToolArgs(block.argsRaw)
+      }
+      const model = ideaToolCard(toolName, phase === 'result' ? 'result' : 'start', args, text, failed)
+      let body = null
+      if (model.kind === 'pending') {
+        body = h('p', { className: 'bm-tool-meta' }, model.label)
+      } else if (model.kind === 'error') {
+        body = h('p', { className: 'bm-tool-meta' }, model.message)
+      } else if (model.kind === 'capture') {
+        body = h('div', { className: 'bm-tool-line' },
+          h('div', { className: 'bm-tool-title' }, '已记录灵感：' + model.title + ' · ' + model.category),
+          h(OpenIdeaButton, { id: model.id, title: model.title }))
+      } else if (model.kind === 'search') {
+        body = model.empty
+          ? h('p', { className: 'bm-tool-meta' }, '没有找到')
+          : h('ul', { className: 'bm-tool-list' }, model.items.map((item) => h('li', { key: item.id, className: 'bm-tool-line' },
+            h('div', { className: 'bm-tool-main' },
+              h('div', { className: 'bm-tool-title' }, item.title || '未命名灵感'),
+              h('div', { className: 'bm-tool-meta' }, [item.category, item.date].filter(Boolean).join(' · '))),
+            h(OpenIdeaButton, { id: item.id, title: item.title }))))
+      } else if (model.kind === 'get') {
+        body = h('div', { className: 'bm-tool-line' },
+          h('div', { className: 'bm-tool-main' },
+            h('div', { className: 'bm-tool-title' }, model.title),
+            model.excerpt ? h('p', { className: 'bm-summary' }, model.excerpt) : null),
+          h(OpenIdeaButton, { id: model.id, title: model.title }))
+      }
+      return h('div', { className: 'bm-tool', 'data-bluemanta-tool': toolName },
+        h('style', null, CSS),
+        body)
+    }
+
+    function IdeaTabTitle(props) {
+      const info = props.useTabInfo()
+      const params = ideaParams(info && info.tab && info.tab.navigation)
+      const [, bump] = React.useState(0)
+      React.useEffect(() => titleBus.subscribe(() => bump((value) => value + 1)), [])
+      if (!params.id) return '灵感台'
+      return titleBus.get(params.id) || params.title || '灵感'
+    }
+
+    function openRailIdea(actions, card) {
+      if (!actions || typeof actions.openTab !== 'function' || !card || !card.id) return
+      const title = card.title || '未命名灵感'
+      try {
+        actions.openTab(IDEA_TAB_KIND, { params: { id: card.id, title } })
+      } catch {
+        // 当前对话没有右侧栏时，打开失败也不抛到页面。
+      }
+    }
+
+    function IdeaRailList({ actions }) {
+      const [query, setQuery] = React.useState('')
+      const [library, setLibrary] = React.useState({ status: 'loading', cards: [], message: '' })
+      const [search, setSearch] = React.useState(null)
+      const [now, setNow] = React.useState(() => Date.now())
+
+      React.useEffect(() => {
+        let alive = true
+        fetch(CARDS_ROUTE).then(readJson).then((body) => {
+          if (!alive) return
+          setLibrary({ status: 'ready', cards: Array.isArray(body.cards) ? body.cards : [], message: '' })
+        }).catch((error) => {
+          if (!alive) return
+          setLibrary({ status: 'error', cards: [], message: String(error.message || error) })
+        })
+        return () => { alive = false }
+      }, [])
+
+      React.useEffect(() => {
+        const q = query.trim()
+        if (!q) { setSearch(null); return undefined }
+        let alive = true
+        setSearch({ status: 'loading', cards: [], message: '' })
+        const timer = setTimeout(() => {
+          fetch(CARDS_ROUTE + '&q=' + encodeURIComponent(q)).then(readJson).then((body) => {
+            if (!alive) return
+            setSearch({ status: 'ready', cards: Array.isArray(body.cards) ? body.cards : [], message: '' })
+          }).catch((error) => {
+            if (!alive) return
+            setSearch({ status: 'error', cards: [], message: String(error.message || error) })
+          })
+        }, 200)
+        return () => { alive = false; clearTimeout(timer) }
+      }, [query])
+
+      React.useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 60000)
+        return () => clearInterval(timer)
+      }, [])
+
+      const searching = query.trim() !== ''
+      const source = searching ? search : library
+      const cards = source && source.status === 'ready' ? source.cards.slice().sort(byCreatedDesc) : []
+      return h('div', { className: 'bm-list-pane' },
+        h('div', { className: 'bm-head' },
+          h('h1', { className: 'bm-title' }, '灵感台')),
+        h('div', { className: 'bm-toolbar' },
+          h('div', { className: 'bm-search' },
+            h('input', {
+              value: query,
+              placeholder: '搜索标题、正文、原文或分类',
+              'aria-label': '搜索标题、正文、原文或分类',
+              onChange: (event) => setQuery(event.target.value),
+            }),
+            query ? h('button', { type: 'button', className: 'bm-icon-btn', 'aria-label': '清空', onClick: () => setQuery('') }, '×') : null)),
+        !source || source.status === 'loading' ? h('p', { className: 'bm-status' }, '正在读取灵感…') : null,
+        source && source.status === 'error' ? h('p', { className: 'bm-error' }, '读取失败：' + source.message) : null,
+        source && source.status === 'ready' && cards.length === 0
+          ? h('p', { className: 'bm-status' }, searching || library.cards.length ? '没有匹配的灵感。' : '还没有记下灵感。')
+          : null,
+        cards.length ? h('ul', { className: 'bm-list' }, cards.map((card) => h('li', { key: card.id, className: 'bm-row' },
+          h('button', { type: 'button', className: 'bm-row-main', onClick: () => openRailIdea(actions, card) },
+            h('div', { className: 'bm-row-title' },
+              h('span', { className: 'bm-name' }, card.title || '未命名灵感'),
+              h('span', { className: 'bm-tag' }, CATEGORY[card.fields && card.fields.category] || '')),
+            h('div', { className: 'bm-meta' }, relativeTime(card.createdAt, now)))))) : null)
+    }
+
+    function IdeaRailDetail({ id, actions, revision }) {
+      const [state, setState] = React.useState({ status: 'loading', card: null, message: '' })
+      const [now, setNow] = React.useState(() => Date.now())
+      const [confirm, setConfirm] = React.useState(null)
+      const [lightbox, setLightbox] = React.useState(null)
+      const [dirty, setDirty] = React.useState(false)
+      const dirtyRef = React.useRef(false)
+      dirtyRef.current = dirty
+
+      React.useEffect(() => {
+        let alive = true
+        setState((prev) => ({ status: 'loading', card: prev.card && prev.card.id === id ? prev.card : null, message: '' }))
+        fetch(CARDS_ROUTE).then(readJson).then((body) => {
+          const cards = Array.isArray(body.cards) ? body.cards : []
+          const found = cards.find((item) => item.id === id)
+          if (found) return found
+          return fetch(TRASH_ROUTE).then(readJson).then((trash) => {
+            const rows = Array.isArray(trash.cards) ? trash.cards : []
+            return rows.find((item) => item.id === id) || null
+          })
+        }).then((card) => {
+          if (!alive) return
+          if (!card) {
+            setState({ status: 'missing', card: null, message: '没有找到这条灵感' })
+            return
+          }
+          titleBus.set(card.id, card.title || '未命名灵感')
+          setState({ status: 'ready', card, message: '' })
+        }).catch((error) => {
+          if (!alive) return
+          setState({ status: 'error', card: null, message: String(error.message || error) })
+        })
+        return () => { alive = false }
+      }, [id, revision])
+
+      React.useEffect(() => {
+        const timer = setInterval(() => setNow(Date.now()), 60000)
+        return () => clearInterval(timer)
+      }, [])
+
+      function closeTab() {
+        if (actions && typeof actions.close === 'function') {
+          try { actions.close() } catch { /* 标签已经关掉时不再抛出 */ }
+        }
+      }
+
+      function requestClose() {
+        if (!dirtyRef.current) {
+          closeTab()
+          return
+        }
+        setConfirm({
+          message: '有未保存的修改。确定离开？',
+          confirmLabel: '离开',
+          action: () => {
+            setConfirm(null)
+            dirtyRef.current = false
+            setDirty(false)
+            closeTab()
+          },
+        })
+      }
+
+      const lightIds = lightbox ? lightbox.ids || [] : []
+      const lightIndex = lightbox ? Math.min(lightbox.index, Math.max(lightIds.length - 1, 0)) : 0
+      let content = null
+      if (state.status === 'loading' && !state.card) content = h('p', { className: 'bm-status' }, '正在读取灵感…')
+      else if (state.status === 'error') content = h('p', { className: 'bm-error' }, '读取失败：' + state.message)
+      else if (state.status === 'missing' || !state.card) content = h('p', { className: 'bm-status' }, state.message || '没有找到这条灵感')
+      else content = h(IdeaDetail, {
+        card: state.card,
+        now,
+        onClose: requestClose,
+        onCard: (record) => {
+          titleBus.set(record.id, record.title || '未命名灵感')
+          setState({ status: 'ready', card: record, message: '' })
+        },
+        onTrashed: () => {
+          dirtyRef.current = false
+          setDirty(false)
+          closeTab()
+        },
+        onDirty: setDirty,
+        onPreview: (ids, index) => setLightbox({ ids, index }),
+        onConfirm: (message, confirmLabel, action) => setConfirm({
+          message,
+          confirmLabel,
+          action: () => { setConfirm(null); action() },
+        }),
+        onLibrary: (cards) => {
+          const found = cards.find((item) => item.id === id)
+          if (!found) return
+          titleBus.set(found.id, found.title || '未命名灵感')
+          setState({ status: 'ready', card: found, message: '' })
+        },
+        onMissing: () => {
+          dirtyRef.current = false
+          closeTab()
+        },
+      })
+
+      return h(React.Fragment, null,
+        content,
+        confirm ? h('div', { className: 'bm-dialog-mask' },
+          h('div', { className: 'bm-dialog', role: 'alertdialog', 'aria-modal': 'true' },
+            h('p', null, confirm.message),
+            h('div', { className: 'bm-actions', style: { marginTop: 16 } },
+              h('button', { type: 'button', className: 'bm-btn', onClick: () => setConfirm(null) }, '取消'),
+              h('button', { type: 'button', className: 'bm-btn bm-btn-primary', onClick: confirm.action }, confirm.confirmLabel || '确定')))) : null,
+        lightbox && lightIds[lightIndex] ? h('div', { className: 'bm-light', onClick: () => setLightbox(null) },
+          h('img', {
+            src: attachmentUrl(lightIds[lightIndex]), alt: '大图',
+            onClick: (event) => event.stopPropagation(),
+          }),
+          lightIds.length > 1 ? h('div', { className: 'bm-light-nav' },
+            h('button', {
+              type: 'button', className: 'bm-btn',
+              onClick: (event) => { event.stopPropagation(); setLightbox({ ids: lightIds, index: (lightIndex + lightIds.length - 1) % lightIds.length }) },
+            }, '上一张'),
+            h('button', {
+              type: 'button', className: 'bm-btn',
+              onClick: (event) => { event.stopPropagation(); setLightbox({ ids: lightIds, index: (lightIndex + 1) % lightIds.length }) },
+            }, '下一张')) : null) : null)
+    }
+
+    function IdeaSidebarTab(props) {
+      const info = props.useTabInfo()
+      const navigation = info && info.tab ? info.tab.navigation : null
+      const params = ideaParams(navigation)
+      const actions = info && info.tab ? info.tab.actions : null
+      const revision = navigation && navigation.revision
+      return h('div', { className: 'bm-app bm-side', 'data-bluemanta-sidebar': 'idea' },
+        h('style', null, CSS),
+        params.id
+          ? h(IdeaRailDetail, { key: params.id, id: params.id, actions, revision })
+          : h(IdeaRailList, { actions }))
+    }
+
+    function registerIdeaSidebar(ctx) {
+      // 工具卡片的「打开」只在 ctx.sidebarRight.mounted 有会话时调用 openTab。
+      shell.sidebarRight = ctx.sidebarRight
+      ctx.effect(() => ctx.sidebarRightTabs.register({
+        id: IDEA_TAB_ID,
+        kind: IDEA_TAB_KIND,
+        multiple: true,
+        title: () => '灵感',
+        guide: [{
+          id: 'desk',
+          order: 40,
+          title: () => '灵感台',
+          description: () => '搜索并打开一条灵感',
+          icon: IdeasIcon,
+        }],
+      }), 'bluemanta: idea tab type')
+      ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+        name: 'sidebar.right.pane.tab',
+        key: IDEA_TAB_ID,
+      }, IdeaSidebarTab)), 'bluemanta: idea tab body')
+      ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
+        name: 'sidebar.right.pane.tab.title',
+        key: IDEA_TAB_ID,
+      }, IdeaTabTitle)), 'bluemanta: idea tab title')
+      for (const name of [IDEA_CAPTURE_NAME, IDEA_SEARCH_NAME, IDEA_GET_NAME]) {
+        ctx.effect(() => ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview',
+          key: name,
+        }, IdeaToolView)), 'bluemanta: idea tool view ' + name)
+      }
+    }
+
     return {
-      inject: ['slots'],
+      inject: ['slots', 'sidebarRightTabs', 'sidebarRight'],
       apply(ctx) {
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID }, IdeasPage))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist', id: PANEL_ID, order: 10, label: '灵感台',
         }, IdeasIcon))
+        registerIdeaSidebar(ctx)
       },
     }
   },
