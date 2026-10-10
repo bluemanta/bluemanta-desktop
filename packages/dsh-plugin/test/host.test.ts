@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FetchRoute, HostContext } from '../src/context.js';
 import { resolveDataDir } from '../src/data-dir.js';
+import { ATTACHMENT_PATH, ATTACHMENTS_PATH } from '../src/uploads.js';
+import { COMMANDS_PATH } from '../src/commands.js';
 import { apply, CARDS_PATH, HEALTH_PATH, inject, name } from '../src/index.js';
 
 describe('数据目录', () => {
@@ -25,7 +27,7 @@ describe('宿主插件', () => {
     }
   });
 
-  it('注册两条只读路由，卸载时关闭数据库', async () => {
+  it('注册读取、命令和附件路由，卸载时关闭数据库', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bluemanta-host-'));
     dirs.push(dir);
     const previous = process.env.BLUEMANTA_DATA_DIR;
@@ -54,8 +56,13 @@ describe('宿主插件', () => {
       apply(ctx);
       expect(name).toBe('bluemanta');
       expect(inject).toEqual(['connection']);
-      expect(routes.map((route) => route.path)).toEqual([HEALTH_PATH, CARDS_PATH]);
-      expect(routes.every((route) => route.requestBody === 'buffered' && route.methods.length === 1 && route.methods[0] === 'GET')).toBe(true);
+      expect(routes.map((route) => ({ path: route.path, method: route.methods[0], body: route.requestBody }))).toEqual([
+        { path: HEALTH_PATH, method: 'GET', body: 'buffered' },
+        { path: CARDS_PATH, method: 'GET', body: 'buffered' },
+        { path: COMMANDS_PATH, method: 'POST', body: 'buffered' },
+        { path: ATTACHMENTS_PATH, method: 'POST', body: 'streaming' },
+        { path: ATTACHMENT_PATH, method: 'GET', body: 'buffered' },
+      ]);
 
       const healthFetch = routes[0]?.fetch;
       expect(healthFetch).toBeTypeOf('function');
@@ -107,9 +114,13 @@ describe('包清单与浏览器端', () => {
     expect(client).toContain("const PANEL_ID = 'bluemanta.ideas'");
     expect(client).toContain("fetch(CARDS_ROUTE)");
     expect(client).toContain("const CARDS_ROUTE = 'api/bluemanta/cards?cardType=idea'");
-    expect(client).toContain("const HEALTH_ROUTE = 'api/bluemanta/health'");
-    expect(client).toContain('还没有灵感');
+    expect(client).toContain("label: '灵感台'");
+    expect(client).toContain('还没有记下灵感');
     expect(client).toContain('灵感清单');
+    expect(client).toContain('数据统计');
+    expect(client).toContain('回收站');
+    expect(client).toContain('api/bluemanta/commands');
+    expect(client).toContain('api/bluemanta/attachment?id=');
     expect(client).not.toContain('@deepseek-ai/');
     expect(client).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(client).not.toMatch(/rgba?\(/);

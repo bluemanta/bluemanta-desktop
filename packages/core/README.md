@@ -51,7 +51,7 @@ core.close();
 | Project | `title`、`area`、`status`（active / paused / done / archived）、`background`、`positioning`、`pinned`、`locations` |
 | Task | `title`、`status`（todo / doing / done / canceled）、`blocked`、`blockedReason`、`projectId`、`due`、`priority`、`origin`、`notes`、`ext` |
 | Card | `cardType` 为 `idea` / `scene` / `note`。卡片带 `titleOrigin`（`user` / `fallback`）。只有 idea 有 `fields`（`category`、`categorySource`、`captureGroupId`） |
-| Attachment | 只有元数据。可以按 id 读取、按回收站筛选。普通命令不写附件；导入命令会写入元数据 |
+| Attachment | 只有元数据。可以按 id 读取、按回收站筛选。`attachment.create` 写入元数据；导入命令也会写入 |
 | Link | `from`、`to`、`rel`，并带完整信封 |
 
 追记存在卡片的 JSON 列里，形状是 `{ id, body, createdAt }`。灵感的标题兜底、原始输入补全和自动分类在写入时完成，规则见 `docs/specs/idea-rules.md`。
@@ -114,6 +114,10 @@ npm run import:workbench -- --source <store.json> --data-dir <数据目录> [--c
 映射、附件复制和报告在 `packages/importer`。示例配置是 `packages/importer/workbench-import.example.json`。
 
 字段限制：卡片标题 ≤ 80 字，正文 ≤ 8000 字，追记 ≤ 8000 字（按 Unicode 码位计）。灵感的 `attachmentIds` 最多 4 个。任务截止日期是 `YYYY-MM-DD`。
+
+`attachment.create` 只建元数据，不写文件。`path` 为 `media/<id>.<扩展名>`，文件由调用方放到数据目录。校验对应 idea-rules 第 8 节：`image/jpeg`、`image/png`、`image/gif`、`image/webp`，`byteSize` 为 1 到 8 MB，宽高为 1 到 16384，`sha256` 为 64 位十六进制（入库时转成小写）。
+
+`listStaleUnreferencedAttachments(cutoff)` 返回创建时间不晚于 cutoff、且没有被任何卡片（含回收站）引用的附件。`deleteUnreferencedAttachmentRecords(ids)` 在事务里再次确认无人引用后删除记录，并返回被删的记录，供调用方删除文件。上传后 24 小时的清理和彻底删除时的文件删除都由插件调用这两处完成。
 
 灵感新建或修改后，标题、正文、附件至少要有一项内容；纯空白不算内容，否则 `invalid_input`。没给标题时按正文生成兜底标题；正文折叠后为空、但有附件时，标题为「未命名灵感」。
 

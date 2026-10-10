@@ -117,7 +117,7 @@ export type NoteCard = CardBase & {
 
 export type Card = IdeaCard | SceneCard | NoteCard;
 
-/** 附件只有元数据。本任务不提供写入命令，文件本体不进库。 */
+/** 附件只有元数据。文件本体不进库，由调用方按 `path` 存到数据目录。 */
 export type Attachment = Envelope & {
   mime: string;
   byteSize: number;
