@@ -1,0 +1,22 @@
+{
+  "name": "@bluemanta/spike-s1-panel",
+  "version": "0.0.1",
+  "private": true,
+  "description": "S1 技术验证：在 dsh 左侧栏挂一个只读的灵感清单面板",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  }
+}

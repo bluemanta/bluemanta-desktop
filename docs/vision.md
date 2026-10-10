@@ -14,7 +14,7 @@
 |---|---|
 | 2026-10-10 | `bluemanta-workbench` 冻结，不再更新；其全部内容迁入 Desktop |
 | 2026-10-10 | Notion ContentHub 和 Grok Bot 每日选题流程暂时保留，近期内容更新仍在 Notion 里做；之后整套流程迁入 Desktop，由 Desktop 实现类似 ContentHub 的功能 |
-| 2026-10-10 | dsh Desktop 是唯一的交互外壳；灵感清单、发布台等看板做成 dsh 插件面板（[ADR 0001](decisions/0001-dsh-shell-data-outside.md)，待技术验证 S1 确认） |
+| 2026-10-10 | dsh Desktop 是唯一的交互外壳；灵感清单、发布台等看板做成 dsh 插件面板（[ADR 0001](decisions/0001-dsh-shell-data-outside.md)；S1 已在 web 版验证可行，Desktop 内待验证） |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Claude Code 负责规划与验证，Cursor / Codex 写产品代码 |
 
@@ -62,13 +62,15 @@
 5. 敏感分级的具体级别，以及每一级 agent 能读到什么。
 6. 迁移阶段 Grok Bot 怎么写入本机的 Desktop（webhook 加隧道，或者 Desktop 从云端收件箱拉取）。
 7. workbench 冻结后，`opc-workbench` skill 仍然能写入 workbench，是否停用或改为只读？
+8. 是否关闭 dsh 的会话日志上传（Desktop「设置 → 通用 → 在使用官方模型 API 时上传 Session Log」）。默认开启时，agent 读到的文件和工具结果会随请求发给 DeepSeek。
+9. 面板读写数据的通道如何鉴权：S1 用的 `ctx.webServer` 自定义路由不经过 dsh 的 `/api` 鉴权。
 
 ## 主要风险
 
 - **搭系统陷阱**：范围横跨 7 个领域。对策：一次只推进一个阶段，每个阶段用真实产出验收。
 - **dsh 处于开发者预览**：API 会有破坏性变更。对策：锁版本；插件只做薄适配；页面写成普通 React 组件，必要时能脱离 dsh 独立运行。
 - **多份正本**：对策：遵守正本归属表，迁移只做一次性导入。
-- **数据合规**：客户资料进入第三方模型。对策：分级方案确定前不接入任何客户资料。
+- **数据合规**：客户资料进入第三方模型。dsh 默认还会把会话日志随请求上传给 DeepSeek。对策：分级方案确定前不接入任何客户资料；由用户决定是否关闭会话日志上传。
 
 ## 现有资产
 
