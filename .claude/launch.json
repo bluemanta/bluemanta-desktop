@@ -15,6 +15,19 @@
         "--no-open"
       ],
       "port": 3091
+    },
+    {
+      "name": "dev-dsh",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DSH_TELEMETRY_DISABLED=1",
+        "npm",
+        "--prefix",
+        "/Users/apple/Developer/bluemanta-desktop",
+        "run",
+        "dev:dsh"
+      ],
+      "port": 3092
     }
   ]
 }
