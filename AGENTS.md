@@ -22,7 +22,7 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 
 ## 实现者的工作方式
 
-- 按 issue 的 Linear `gitBranchName` 建分支，一个 issue 一个 PR，PR 目标是 `main`。不要直接推送 `main`。
+- 一个 issue 一个分支、一个 PR，PR 目标是 `main`，PR 描述链接 issue。分支名可用 Linear `gitBranchName`，云端 agent 也可用自己的前缀（如 `cursor/…`）。不要直接推送 `main`。
 - 开工时在 issue 写一条计划评论并移到 In Progress；开完 PR 后写结果评论（做了什么、偏离说明书之处及原因、已知问题、PR 链接）并移到 In Review。
 - 不要把 issue 移到 Done：Done 表示已验收并合并。
 - 只修改说明书"允许修改的路径"中的文件。
