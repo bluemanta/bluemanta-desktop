@@ -4,10 +4,11 @@ import { COMMANDS_PATH, handleCommands } from './commands.js';
 import type { HostContext } from './context.js';
 import { resolveDataDir } from './data-dir.js';
 import { CARDS_PATH, handleCards, handleHealth, HEALTH_PATH, type RouteCore } from './routes.js';
+import { registerIdeaTools } from './register-idea-tools.js';
 import { ATTACHMENT_PATH, ATTACHMENTS_PATH, handleAttachmentRead, handleAttachmentUpload } from './uploads.js';
 
 export const name = 'bluemanta';
-export const inject = ['connection'];
+export const inject = ['connection', 'tools'];
 
 export type { HostContext } from './context.js';
 export { cleanupStaleAttachments } from './cleanup.js';
@@ -17,6 +18,18 @@ export { resolveDataDir } from './data-dir.js';
 export { parseImage } from './images.js';
 export { CARDS_PATH, handleCards, handleHealth, HEALTH_PATH } from './routes.js';
 export type { CardsBody, ErrorBody, HealthBody, RouteCore, SearchedCard } from './routes.js';
+export {
+  AGENT_LIMITATION,
+  AGENT_SOURCE,
+  IDEA_CAPTURE_TOOL,
+  IDEA_GET_TOOL,
+  IDEA_SEARCH_TOOL,
+  captureIdea,
+  getIdea,
+  ideaRequestId,
+  searchIdeas,
+} from './idea-tools.js';
+export { registerIdeaTools } from './register-idea-tools.js';
 export { ATTACHMENT_PATH, ATTACHMENTS_PATH, handleAttachmentRead, handleAttachmentUpload } from './uploads.js';
 
 function adapt<T>(
@@ -67,7 +80,9 @@ export function apply(ctx: HostContext): void {
       requestBody: 'buffered',
       fetch: adapt(core, handleAttachmentRead),
     });
+    const disposeTools = registerIdeaTools(ctx, core);
     return () => {
+      for (const dispose of disposeTools) dispose();
       disposeHealth();
       disposeCards();
       disposeCommands();

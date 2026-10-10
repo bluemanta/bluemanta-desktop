@@ -43,7 +43,11 @@
   "dependencies": {
     "@bluemanta/core": "file:../core"
   },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2"
+  },
   "devDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@types/node": "^24.7.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

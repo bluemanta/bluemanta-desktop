@@ -2,7 +2,9 @@
 
 dsh 0.2.0-rc.2 的组合包。宿主端打开 `@bluemanta/core`，在 dsh 的鉴权路由上提供灵感的读取、写入和图片通道；浏览器端在左侧栏挂「灵感台」（面板 id 仍是 `bluemanta.ideas`）。
 
-运行时不依赖任何 `@deepseek-ai/*` 包。业务规则在 core 里，这个包只做显示和适配。图片文件写在数据目录的 `media/` 下。
+业务规则在 core 里，这个包只做显示和适配。图片文件写在数据目录的 `media/` 下。
+
+宿主端用 peer 依赖 `@deepseek-ai/dsh-tools@0.2.0-rc.2` 注册 agent 工具，实例由 dsh 宿主提供，同时写在 `devDependencies` 里供本地类型检查。浏览器端 `client.js` 不引用任何 `@deepseek-ai/*` 包。
 
 ## 构建
 
@@ -62,3 +64,15 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 | `GET /api/bluemanta/attachment?id=` | 返回图片字节，`content-type` 来自记录，并带长期私有缓存头 |
 
 插件启动时会清理创建超过 24 小时、且没有被任何卡片（含回收站）引用的附件。
+
+## Agent 工具
+
+宿主启动时用 `ctx.tools.register(defineTool(...))` 注册三个工具。执行函数在 `src/idea-tools.ts`，只调用 core，不另写标题、分类或回收站规则。
+
+| 工具 | 作用 |
+|---|---|
+| `bluemanta_idea_capture` | 记下一条灵感。来源固定为 `{ kind: 'agent', name: 'dsh-agent' }`，不传 `rawInput`，`requestId` 由工具调用 id 生成 |
+| `bluemanta_idea_search` | 按关键词查找灵感。默认不含回收站，`limit` 默认 10、最大 50 |
+| `bluemanta_idea_get` | 按 id 读取一条灵感。在回收站中的也会返回 |
+
+不提供修改、收藏、追记、删除。这些只在灵感台界面由人操作。
