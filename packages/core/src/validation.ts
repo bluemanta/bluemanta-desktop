@@ -12,6 +12,20 @@ export function limitChars(max: number, message: string) {
   };
 }
 
+const ISO_DATE_TIME =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})?$/;
+
+export function isIsoDateTime(value: string): boolean {
+  if (!ISO_DATE_TIME.test(value)) return false;
+  return Number.isFinite(Date.parse(value));
+}
+
+export const isoDateTimeSchema = z.string().superRefine((value, ctx) => {
+  if (!isIsoDateTime(value)) {
+    ctx.addIssue({ code: 'custom', message: '时间需要是 ISO 8601' });
+  }
+});
+
 export function isIsoDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;

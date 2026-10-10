@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { listAreas } from './areas.js';
+import { backupStamp, copyDatabaseFiles, uniqueBackupFolder } from './backup.js';
 import {
   addCardExtension,
   createCard,
@@ -75,6 +76,17 @@ import type {
   TaskListQuery,
 } from './types.js';
 import type { CommandResult } from './errors.js';
+import { listImportSources as readImportSources, type ImportSourceRecord } from './import-sources.js';
+import {
+  importAttachment,
+  importEntry,
+  importIdea,
+  importProject,
+  type ImportAttachmentInput,
+  type ImportEntryInput,
+  type ImportIdeaInput,
+  type ImportProjectInput,
+} from './importer.js';
 import { getRow } from './sql.js';
 
 export class Core {
@@ -109,6 +121,14 @@ export class Core {
     delete: (input: LinkDeleteInput) => CommandResult<Link>;
   };
 
+  /** 只给导入脚本用，不从 dsh 暴露。 */
+  readonly importer: {
+    importProject: (input: ImportProjectInput) => CommandResult<Project>;
+    importEntry: (input: ImportEntryInput) => CommandResult<Card>;
+    importIdea: (input: ImportIdeaInput) => CommandResult<Card>;
+    importAttachment: (input: ImportAttachmentInput, sourceFile: string) => CommandResult<Attachment>;
+  };
+
   constructor(
     private readonly db: DatabaseSync,
     readonly dataDir: string,
@@ -141,6 +161,20 @@ export class Core {
       create: (input) => createLink(this.db, input),
       delete: (input) => deleteLink(this.db, input),
     };
+    this.importer = {
+      importProject: (input) => importProject(this.db, input),
+      importEntry: (input) => importEntry(this.db, input),
+      importIdea: (input) => importIdea(this.db, input),
+      importAttachment: (input, sourceFile) => importAttachment(this.db, this.dataDir, sourceFile, input),
+    };
+  }
+
+  /** 真正写入导入数据之前调用。目录名带 `before-import`。 */
+  backupBeforeImport(now = new Date()): string {
+    this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+    const folder = uniqueBackupFolder(this.dataDir, `${backupStamp(now)}-before-import`);
+    copyDatabaseFiles(this.dbPath, folder);
+    return folder;
   }
 
   close(): void {
@@ -208,5 +242,9 @@ export class Core {
 
   listHistory(query?: HistoryListQuery): HistoryEntry[] {
     return listHistory(this.db, query);
+  }
+
+  listImportSources(): ImportSourceRecord[] {
+    return readImportSources(this.db);
   }
 }

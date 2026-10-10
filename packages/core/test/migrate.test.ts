@@ -31,7 +31,17 @@ describe('迁移', () => {
         .all() as Array<{ name: string }>;
       db.close();
       expect(names.map((row) => row.name)).toEqual(
-        expect.arrayContaining(['areas', 'attachments', 'cards', 'history', 'links', 'projects', 'schema_meta', 'tasks']),
+        expect.arrayContaining([
+          'areas',
+          'attachments',
+          'cards',
+          'history',
+          'import_sources',
+          'links',
+          'projects',
+          'schema_meta',
+          'tasks',
+        ]),
       );
     } finally {
       core?.close();
@@ -185,6 +195,46 @@ describe('迁移', () => {
       backup.close();
       expect(version.version).toBe(1);
       expect(JSON.parse(row.data)).not.toHaveProperty('titleOrigin');
+    } finally {
+      core.close();
+      removeDir(dir);
+    }
+  });
+
+  it('版本 2 的库打开后建立导入台账，且迁移前有备份', () => {
+    const dir = tempDir();
+    const dbPath = join(dir, 'store.sqlite');
+    const db = openSqlite(dbPath);
+    db.exec(`
+      CREATE TABLE schema_meta (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        version INTEGER NOT NULL
+      );
+      INSERT INTO schema_meta (id, version) VALUES (1, 2);
+    `);
+    db.close();
+
+    const core = openCore({ dataDir: dir });
+    try {
+      expect(core.schemaVersion).toBe(SCHEMA_VERSION);
+      expect(core.listImportSources()).toEqual([]);
+      const live = openSqlite(core.dbPath, { readOnly: true });
+      const table = live
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'import_sources'")
+        .get() as { name: string } | undefined;
+      live.close();
+      expect(table?.name).toBe('import_sources');
+
+      const backups = readdirSync(join(dir, 'backups'));
+      expect(backups).toHaveLength(1);
+      const backup = openSqlite(join(dir, 'backups', backups[0] ?? '', 'store.sqlite'), { readOnly: true });
+      const version = backup.prepare('SELECT version FROM schema_meta WHERE id = 1').get() as { version: number };
+      const ledger = backup
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'import_sources'")
+        .get();
+      backup.close();
+      expect(version.version).toBe(2);
+      expect(ledger).toBeUndefined();
     } finally {
       core.close();
       removeDir(dir);

@@ -1,11 +1,23 @@
 import './silence-sqlite.js';
 
+export { DEFAULT_AREAS } from './areas.js';
 export { Core } from './core.js';
 export { UnsupportedSchemaError } from './errors.js';
 export type { CommandErrorCode, CommandFailure, CommandResult, CommandSuccess } from './errors.js';
+export { readImportLedger, WORKBENCH_SOURCE_SYSTEM } from './import-sources.js';
+export type { ImportSourceRecord, ImportSourceType } from './import-sources.js';
+export {
+  validateImportAttachment,
+  validateImportEntry,
+  validateImportIdea,
+  validateImportProject,
+  workbenchImportRequestId,
+} from './importer.js';
+export type { ImportAttachmentInput, ImportEntryInput, ImportIdeaInput, ImportProjectInput } from './importer.js';
 export { SCHEMA_VERSION } from './migrate.js';
 export { defaultDataDir, openCore } from './open.js';
 export type { OpenCoreOptions } from './open.js';
+export { fallbackTitleFromBody } from './titles.js';
 export type {
   Area,
   Attachment,

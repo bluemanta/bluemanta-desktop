@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_AREAS } from './areas.js';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 const SCHEMA_V1 = `
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -145,9 +145,26 @@ function migrateTo2(db: DatabaseSync): void {
   `);
 }
 
+/** 导入台账。失败的导入不写这里，所以可以下次重试。 */
+function migrateTo3(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS import_sources (
+      source_system TEXT NOT NULL,
+      source_type TEXT NOT NULL CHECK (source_type IN ('project', 'entry', 'idea', 'attachment')),
+      source_id TEXT NOT NULL,
+      source_updated_at TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      imported_at TEXT NOT NULL,
+      raw_json TEXT NOT NULL CHECK (json_valid(raw_json)),
+      PRIMARY KEY (source_system, source_type, source_id)
+    );
+  `);
+}
+
 const MIGRATIONS: readonly Migration[] = [
   { version: 1, up: migrateTo1 },
   { version: 2, up: migrateTo2 },
+  { version: 3, up: migrateTo3 },
 ];
 
 export function readSchemaVersion(db: DatabaseSync): number | null {
