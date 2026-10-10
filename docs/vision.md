@@ -22,6 +22,7 @@
 | 2026-10-10 | 场景卡字段和脱敏流程由用户先重新梳理 Notion，阶段 2 再设计；阶段 1 只做灵感卡片、项目、任务和 core |
 | 2026-10-10 | 领域按"长期责任/角色"划分为工作、内容、产品、成长、家庭，可配置；知识不是领域，而是贯穿所有领域的卡片层；灵感、场景卡、笔记统一为卡片（[对象模型](object-model.md)） |
 | 2026-10-10 | 阶段 1 计划见 [phase-1.md](phase-1.md) |
+| 2026-10-10 | Desktop 能接收新灵感之前，workbench 继续作为灵感收件箱（Grok Bot 等入口照常写入）；导入做成可重复执行的增量导入，阶段 1 结束时最后导一次，再把写入入口切到 Desktop，此后 workbench 只读 |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
@@ -41,7 +42,7 @@
 
 | 数据 | 当前正本 | 状态 | 去向 |
 |---|---|---|---|
-| 灵感（29 条）及内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 冻结，只读 | 阶段 1 一次性导入 Desktop |
+| 灵感及内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 灵感仍在接收新增（收件箱），其余只读 | 阶段 1 一次性导入 Desktop |
 | 场景卡、选题卡（内容台账） | Notion ContentHub | 活跃，暂留 | 阶段 2 功能对齐后导入 Desktop，Notion 归档为只读 |
 | 成长 / 项目档案（英语学习、AI 基础、个人北极星等） | workbench `store.json` | 冻结，只读 | 迁入 Desktop，阶段待定 |
 | 本地 ContentHub Markdown | `~/Documents/ContentHub` | 待确认是否仍在使用 | 知识库阶段导入 |
