@@ -7,7 +7,7 @@ import { applied, execute } from '../execute.js';
 import { guardActiveCard, guardInTrash, guardRev, requireLiveProject } from '../guards.js';
 import { createId } from '../ids.js';
 import { deleteCardRow, deleteLinksOf, getCard, insertCard, saveCard } from '../rows.js';
-import { hasCardContent, resolveIdeaTitle } from '../titles.js';
+import { hasIdeaContent, resolveIdeaTitle } from '../titles.js';
 import type {
   Card,
   CardExtension,
@@ -49,7 +49,7 @@ const cardCreateSchema = z.discriminatedUnion('cardType', [
       title: cardTitleSchema.optional(),
       rawInput: rawInputSchema.optional(),
       attachmentIds: z.array(z.string().min(1)).max(IDEA_ATTACHMENT_LIMIT).optional(),
-      fields: ideaFieldsInputSchema,
+      fields: ideaFieldsInputSchema.optional(),
     })
     .strict(),
   z
@@ -176,10 +176,10 @@ export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
         }
         const body = input.body ?? '';
         const attachmentIds = input.attachmentIds ?? [];
-        const title = resolveStoredTitle(input.cardType, null, input.title, body);
-        if (input.cardType === 'idea' && !hasCardContent(title.title, body, attachmentIds)) {
+        if (input.cardType === 'idea' && !hasIdeaContent(input.title ?? '', body, attachmentIds)) {
           return commandFailure('invalid_input', CONTENT_MESSAGE);
         }
+        const title = resolveStoredTitle(input.cardType, null, input.title, body);
         const rawInput =
           input.cardType === 'idea' ? (input.rawInput ?? defaultRawInput(input.source, title.title, body)) : input.rawInput;
         const shared = {
@@ -203,7 +203,7 @@ export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
         };
         const record: Card =
           input.cardType === 'idea'
-            ? { ...shared, cardType: 'idea', fields: resolveIdeaFields(input.fields, title.title, body) }
+            ? { ...shared, cardType: 'idea', fields: resolveIdeaFields(input.fields ?? {}, title.title, body) }
             : input.cardType === 'scene'
               ? { ...shared, cardType: 'scene', fields: {} }
               : { ...shared, cardType: 'note', fields: {} };
@@ -239,10 +239,11 @@ export function updateCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
           return commandFailure('invalid_input', 'scene 和 note 不使用类型字段');
         }
         const body = input.body ?? current.body;
-        const title = resolveStoredTitle(current.cardType, current, input.title, body);
-        if (current.cardType === 'idea' && !hasCardContent(title.title, body, attachmentIds)) {
+        const titleForContent = input.title === undefined ? current.title : input.title;
+        if (current.cardType === 'idea' && !hasIdeaContent(titleForContent, body, attachmentIds)) {
           return commandFailure('invalid_input', CONTENT_MESSAGE);
         }
+        const title = resolveStoredTitle(current.cardType, current, input.title, body);
         const fields: IdeaFields | Record<string, never> =
           current.cardType === 'idea'
             ? resolveIdeaFields(input.fields ?? {}, title.title, body, current.fields)

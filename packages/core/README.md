@@ -97,7 +97,9 @@ core.close();
 
 字段限制：卡片标题 ≤ 80 字，正文 ≤ 8000 字，追记 ≤ 8000 字（按 Unicode 码位计）。灵感的 `attachmentIds` 最多 4 个。任务截止日期是 `YYYY-MM-DD`。
 
-灵感新建时 `fields.category` 可省略，省略则按关键词自动分类，`categorySource` 为 `auto`。传入 `fields.category` 则 `categorySource` 为 `user`，之后修改标题或正文不会再自动改分类。调用方不要传 `categorySource`。`fields.captureGroupId` 可省略，省略即 `null`。`channel: 'bot'` 和 `{ status: 'legacy' }` 只在调用方显式传入 `rawInput` 时出现。
+灵感新建或修改后，标题、正文、附件至少要有一项内容；纯空白不算内容，否则 `invalid_input`。没给标题时按正文生成兜底标题；正文折叠后为空、但有附件时，标题为「未命名灵感」。
+
+灵感新建时 `fields` 可整体省略。省略 `fields` 或省略其中的 `category`，都按关键词自动分类，`categorySource` 为 `auto`，`captureGroupId` 为 `null`。传入 `fields.category` 则 `categorySource` 为 `user`，之后修改标题或正文不会再自动改分类。调用方不要传 `categorySource`。`channel: 'bot'` 和 `{ status: 'legacy' }` 只在调用方显式传入 `rawInput` 时出现。
 
 ## 读取
 

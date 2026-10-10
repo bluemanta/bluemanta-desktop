@@ -70,7 +70,7 @@ describe('命令与读取', () => {
     });
   });
 
-  it('scene 和 note 只有类型位，idea 必须带 fields，原始输入不能改', () => {
+  it('scene 和 note 只有类型位，idea 可以不带 fields，原始输入不能改', () => {
     withCore((core) => {
       const scene = must(
         core.card.create({
@@ -95,9 +95,13 @@ describe('命令与读取', () => {
       expect(note.fields).toEqual({});
       expect(note.title).toBe('');
 
-      const incomplete = idea();
-      delete (incomplete as { fields?: unknown }).fields;
-      expect(core.card.create(incomplete)).toMatchObject({ ok: false, code: 'invalid_input' });
+      const withoutFields = idea();
+      delete (withoutFields as { fields?: unknown }).fields;
+      const defaulted = must(core.card.create(withoutFields));
+      expect(defaulted.cardType).toBe('idea');
+      if (defaulted.cardType === 'idea') {
+        expect(defaulted.fields).toEqual({ category: 'other', categorySource: 'auto', captureGroupId: null });
+      }
       expect(
         core.card.create({
           requestId: req(),

@@ -10,7 +10,7 @@ export function collapseWhitespace(value: string): string {
 
 /**
  * 用户没给标题时，用正文生成兜底标题。
- * 正文折叠后为空，标题为「未命名灵感」。
+ * 正文折叠后为空时返回「未命名灵感」；调用方须先确认还有附件，否则应拒绝。
  */
 export function fallbackTitleFromBody(body: string): string {
   const collapsed = collapseWhitespace(body);
@@ -34,7 +34,10 @@ export function resolveIdeaTitle(
   return { title, titleOrigin: 'user' };
 }
 
-/** 标题、正文、附件至少有一项非空。兜底标题生成后再检查。 */
-export function hasCardContent(title: string, body: string, attachmentIds: readonly string[]): boolean {
-  return title !== '' || body !== '' || attachmentIds.length > 0;
+/**
+ * 标题、正文、附件至少一项有内容。纯空白不算内容。
+ * 这里看的是用户给出的标题，不是兜底标题。
+ */
+export function hasIdeaContent(title: string, body: string, attachmentIds: readonly string[]): boolean {
+  return collapseWhitespace(title) !== '' || collapseWhitespace(body) !== '' || attachmentIds.length > 0;
 }

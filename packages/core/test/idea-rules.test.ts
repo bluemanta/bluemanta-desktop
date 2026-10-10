@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { hasCardContent } from '../src/titles.js';
 import { agent, human, idea, must, req, withCore } from './helpers.js';
 
 const otherHuman = { kind: 'human' as const, name: '另一人' };
@@ -34,21 +33,6 @@ describe('灵感规则', () => {
       expect(Array.from(truncated.title)).toHaveLength(80);
       expect(truncated.title).toBe(Array.from('开头' + '字'.repeat(100)).slice(0, 80).join(''));
       expect(truncated.titleOrigin).toBe('fallback');
-
-      const unnamed = must(
-        core.card.create({
-          requestId: req(),
-          source: human,
-          cardType: 'idea',
-          title: '',
-          body: '',
-          fields: {},
-        }),
-      );
-      expect(unnamed.title).toBe('未命名灵感');
-      expect(unnamed.titleOrigin).toBe('fallback');
-      expect(hasCardContent(unnamed.title, unnamed.body, unnamed.attachmentIds)).toBe(true);
-      expect(hasCardContent('', '', [])).toBe(false);
 
       const renamed = must(
         core.card.update({
@@ -86,6 +70,108 @@ describe('灵感规则', () => {
       );
       expect(reset.title).toBe('重新 生成');
       expect(reset.titleOrigin).toBe('fallback');
+    });
+  });
+
+  it('没有实质内容时拒绝，未命名灵感只在正文为空且有附件时出现', () => {
+    withCore((core) => {
+      const emptyCases = [
+        { title: '', body: '   ' },
+        { title: '', body: '' },
+        { body: ' \n\t ' },
+        { title: '   ', body: '' },
+        {},
+      ];
+      for (const patch of emptyCases) {
+        const result = core.card.create({
+          requestId: req(),
+          source: human,
+          cardType: 'idea',
+          ...patch,
+        });
+        expect(result, JSON.stringify(patch)).toMatchObject({ ok: false, code: 'invalid_input' });
+        if (!result.ok) expect(result.message, JSON.stringify(patch)).toContain('至少');
+      }
+      expect(core.listCards({ deleted: 'all' })).toEqual([]);
+      expect(core.listHistory()).toEqual([]);
+
+      const unnamed = must(
+        core.card.create({
+          requestId: req(),
+          source: human,
+          cardType: 'idea',
+          title: '',
+          body: '',
+          attachmentIds: ['attachment_only'],
+        }),
+      );
+      expect(unnamed.title).toBe('未命名灵感');
+      expect(unnamed.titleOrigin).toBe('fallback');
+      expect(unnamed.attachmentIds).toEqual(['attachment_only']);
+
+      const whitespaceBody = must(
+        core.card.create({
+          requestId: req(),
+          source: human,
+          cardType: 'idea',
+          title: '',
+          body: '   ',
+          attachmentIds: ['attachment_space'],
+        }),
+      );
+      expect(whitespaceBody.title).toBe('未命名灵感');
+      expect(whitespaceBody.titleOrigin).toBe('fallback');
+
+      const rejected = core.card.update({
+        requestId: req(),
+        source: human,
+        id: unnamed.id,
+        rev: unnamed.rev,
+        title: '',
+        body: ' \n ',
+        attachmentIds: [],
+      });
+      expect(rejected).toMatchObject({ ok: false, code: 'invalid_input' });
+      expect(core.getCard(unnamed.id)).toEqual(unnamed);
+
+      const stillNamed = must(
+        core.card.create({
+          requestId: req(),
+          source: human,
+          cardType: 'idea',
+          title: '原标题',
+          body: '原正文',
+          attachmentIds: ['attachment_keep'],
+        }),
+      );
+      const cleared = core.card.update({
+        requestId: req(),
+        source: human,
+        id: stillNamed.id,
+        rev: stillNamed.rev,
+        title: '   ',
+        body: '',
+        attachmentIds: [],
+      });
+      expect(cleared).toMatchObject({ ok: false, code: 'invalid_input' });
+      expect(core.getCard(stillNamed.id)).toEqual(stillNamed);
+    });
+  });
+
+  it('新建 idea 可以不传 fields，省略则自动分类且 captureGroupId 为 null', () => {
+    withCore((core) => {
+      const card = must(
+        core.card.create({
+          requestId: req(),
+          source: human,
+          cardType: 'idea',
+          title: '读书笔记',
+        }),
+      );
+      expect(card.cardType).toBe('idea');
+      if (card.cardType === 'idea') {
+        expect(card.fields).toEqual({ category: 'learning', categorySource: 'auto', captureGroupId: null });
+      }
     });
   });
 
