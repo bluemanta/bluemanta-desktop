@@ -8,15 +8,24 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 
 ## 分工
 
-- **Claude Code**：规划文档、任务说明书、技术验证（`spikes/`）、代码审查和运行验收。
-- **Cursor / Codex**：按 `docs/tasks/` 里的说明书实现产品代码。
-- **用户**：拍板决策；用真实使用来验收；授权所有对外或不可逆的动作。
+详见 [ADR 0004](docs/decisions/0004-dev-workflow.md)。
+
+- **Cursor**：唯一的产品代码实现者。从 Linear「BlueManta-Desktop」项目领取委派给自己的 issue，一次一个。
+- **Claude Code**：项目经理。规划、写说明书、委派任务、处理技术阻塞、技术验证（`spikes/`）、验收、合并。
+- **用户**：回答产品决策题；阶段开始时批准计划，结束时试用。
 
 ## 开工前必读
 
 1. [docs/vision.md](docs/vision.md)：定位、已拍板的决定、路线
 2. [docs/decisions/](docs/decisions/)：全部架构决策记录（ADR）
-3. 当前任务的说明书 `docs/tasks/<id>.md`；没有说明书的工作先补说明书，再动手
+3. 当前 Linear issue 的描述（即任务说明书）。说明书不清楚或与 ADR 冲突时，不要自行猜测：在 issue 中写明问题，加 `Blocked` 标签，停下来等待答复
+
+## 实现者的工作方式
+
+- 按 issue 的 Linear `gitBranchName` 建分支，一个 issue 一个 PR，PR 目标是 `main`。不要直接推送 `main`。
+- 开工时在 issue 写一条计划评论并移到 In Progress；开完 PR 后写结果评论（做了什么、偏离说明书之处及原因、已知问题、PR 链接）并移到 In Review。
+- 不要把 issue 移到 Done：Done 表示已验收并合并。
+- 只修改说明书"允许修改的路径"中的文件。
 
 ## 硬规则
 
@@ -24,7 +33,11 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 2. **正式数据只读。** `bluemanta-workbench` 已冻结，数据目录 `~/Library/Application Support/BluemantaOPC/` 只能读。Notion ContentHub 在迁移完成前仍是内容线正本，不写入。
 3. **私人数据不进仓库。** 灵感、内容、账号信息、客户资料都不能进入代码、fixtures、测试快照或构建产物。测试用虚构样例，运行数据放在仓库外或已被 gitignore 的目录。
 4. **客户资料默认视为机密。** 数云及其客户的任何资料，在敏感分级方案确定之前，不进入任何模型请求，也不接入 Desktop。
-5. **dsh 版本锁定为 0.2.0-rc.2。** dsh 的 API 以 `~/Developer/bluemanta-harness`（分支 `ref/dsh-0.2.0-rc.2`）中的文档和源码为准，不凭记忆写。不修改 fork 的源码。见 [ADR 0002](docs/decisions/0002-dsh-version-and-reference-source.md)。
+5. **dsh 版本锁定为 0.2.0-rc.2。** dsh 的 API 以该版本的文档和源码为准，不凭记忆写：
+   - 云端 agent：读上游提交 `c1b47e41fc` 的公开源码 <https://github.com/deepseek-ai/deepseek-harness/tree/c1b47e41fc>，例如 `packages/client/ui-sidebar/README.zh.md`；
+   - 本机：`~/Developer/bluemanta-harness` 的 `ref/dsh-0.2.0-rc.2` 分支（同一提交）。
+   - 写插件前先读 dsh 自带的插件开发指南 `packages/preset/agent-preset/skills/cordis-plugin-development/`（SKILL.md 和 references/），以及 [spikes/s1-panel](spikes/s1-panel/README.md) 的已验证写法。
+   - 不修改 fork 的源码。见 [ADR 0002](docs/decisions/0002-dsh-version-and-reference-source.md)。
 6. **业务规则不写进 dsh 插件。** 插件只负责显示和适配，正本读写和业务规则放在 Desktop 自己的 core 里。见 [ADR 0001](docs/decisions/0001-dsh-shell-data-outside.md)。
 7. **改动用户环境前先问。** 包括：往用户的 dsh Desktop profile 装插件、修改 `~/.dsh`、全局安装或升级软件。验证一律使用隔离的 `DSH_HOME`。
 
@@ -45,7 +58,7 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 |---|---|
 | `docs/vision.md` | 定位、决定、路线、现有资产 |
 | `docs/decisions/` | 架构决策记录，编号递增，不改写已采纳的记录，变更时新增一条 |
-| `docs/tasks/` | 任务说明书，模板见 `_template.md` |
+| `docs/tasks/_template.md` | 任务说明书模板；说明书本身写在 Linear issue 描述里 |
 | `spikes/` | 技术验证用的一次性代码，不作为产品代码复用 |
 
 产品代码的目录结构在阶段 1 开始前确定。

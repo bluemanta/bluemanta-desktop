@@ -19,7 +19,8 @@
 | 2026-10-10 | 产品核心用 TypeScript 重写，灵感台 Python 核心只作为规格来源（[ADR 0003](decisions/0003-typescript-core.md)） |
 | 2026-10-10 | 跨模块数据（如统一任务看板）通过公共对象实现：任务、项目、人、卡片在 core 中只有一份，各模块写入并带来源模块和敏感级别；不做插件之间的数据同步 |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
-| 2026-10-10 | 分工：Claude Code 负责规划与验证，Cursor / Codex 写产品代码 |
+| 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
+| 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
 
 ## 架构
 
