@@ -15,7 +15,9 @@
 | 2026-10-10 | `bluemanta-workbench` 冻结，不再更新；其全部内容迁入 Desktop |
 | 2026-10-10 | Notion ContentHub 和 Grok Bot 每日选题流程暂时保留，近期内容更新仍在 Notion 里做；之后整套流程迁入 Desktop，由 Desktop 实现类似 ContentHub 的功能 |
 | 2026-10-10 | dsh Desktop 是唯一的交互外壳；灵感清单、发布台等看板做成 dsh 插件面板（[ADR 0001](decisions/0001-dsh-shell-data-outside.md)；S1 已在 web 版和 Desktop 内验证可行） |
-| 2026-10-10 | 关闭 dsh Desktop 的会话日志上传（Desktop profile 中 `session-log-deepseek.enabled: false`）；命令行 `dsh web` 使用的 web profile 尚未关闭 |
+| 2026-10-10 | 关闭 dsh 的会话日志上传：Desktop profile 与命令行 web profile 均设为 `session-log-deepseek.enabled: false` |
+| 2026-10-10 | 产品核心用 TypeScript 重写，灵感台 Python 核心只作为规格来源（[ADR 0003](decisions/0003-typescript-core.md)） |
+| 2026-10-10 | 跨模块数据（如统一任务看板）通过公共对象实现：任务、项目、人、卡片在 core 中只有一份，各模块写入并带来源模块和敏感级别；不做插件之间的数据同步 |
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Claude Code 负责规划与验证，Cursor / Codex 写产品代码 |
 
@@ -48,7 +50,7 @@
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| 0 | 本仓库的规划文档；技术验证 S1（dsh 面板扩展点）；确认正本归属表；对象模型草案（参照 Notion 两个库和灵感台 schema 6） | 文档定稿；S1 结论为 verified 或 failed |
+| 0 | 本仓库的规划文档；技术验证 S1（dsh 面板扩展点，已通过）；确认正本归属表；对象模型草案，先定公共对象（任务、项目、人、卡片），再定各模块对象（参照 Notion 两个库和灵感台 schema 6） | 文档定稿；S1 结论为 verified 或 failed |
 | 1 | Desktop core；灵感清单面板；agent 读写灵感的工具；导入 workbench 冻结数据 | 日常记录和回看灵感都在 Desktop 里完成，不再打开 workbench |
 | 2 | 内容线：场景卡、选题、产出、发布台、内容台账面板，对齐 Notion ContentHub；Grok Bot 改为写入 Desktop | 连续 2 周内容生产全部在 Desktop 完成，每周发布 N 篇（N 由用户定） |
 | 3 | 知识库：知识卡片、检索、导入本地 ContentHub 和 Obsidian | 随口问一个半年前的想法，能找回来 |
@@ -59,11 +61,11 @@
 1. 本地 `~/Documents/ContentHub` 还在用吗？它和 Notion ContentHub 是什么关系？
 2. 灵感台 L1 云端版里有没有真实数据？
 3. 小红书账号名不一致：`ContentHub/CLAUDE.md` 写的是「被迫进化的打工人」，Notion 写卡 skill 写的是「深蓝夜航」。
-4. 产品 core 的语言：灵感台现有 core 是 Python，dsh 插件是 TypeScript。是把 core 移植成 TypeScript，还是保留 Python、通过 CLI / MCP 调用？阶段 1 开始前决定。
+4. ~~产品 core 的语言~~ 已决定用 TypeScript 重写（ADR 0003）。
 5. 敏感分级的具体级别，以及每一级 agent 能读到什么。
 6. 迁移阶段 Grok Bot 怎么写入本机的 Desktop（webhook 加隧道，或者 Desktop 从云端收件箱拉取）。
 7. workbench 冻结后，`opc-workbench` skill 仍然能写入 workbench，是否停用或改为只读？
-8. ~~是否关闭 dsh 的会话日志上传~~ Desktop 已于 2026-10-10 关闭。命令行 `dsh web` 使用的 web profile 是否也关闭，待用户决定。
+8. ~~是否关闭 dsh 的会话日志上传~~ Desktop 和 web profile 均已于 2026-10-10 关闭。
 9. 面板读写数据的通道如何鉴权：S1 用的 `ctx.webServer` 自定义路由不经过 dsh 的 `/api` 鉴权。
 
 ## 主要风险
