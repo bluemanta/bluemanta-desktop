@@ -17,8 +17,15 @@
 | T4 | 导入 workbench 数据 | T3 | 灵感（含原 id 映射、追记、附件文件、收藏）、5 个成长/项目档案；**增量、可重复执行**：已导入的跳过，只导新增；只读来源，不改动 workbench |
 | T5 | 灵感台正式版 | T2、T3 | 左侧栏一个入口「灵感台」，主区内二级菜单（灵感清单、数据统计、回收站；选题等阶段 2 再加）；列表、搜索、分类与收藏筛选、详情、新增、编辑、追记、贴图、回收站、频率热力图；交互沿用灵感台，视觉跟随 dsh。规格见 `docs/specs/idea-ui.md` |
 | T6 | agent 灵感工具 | T3 | dsh 中可用的工具：记录灵感、查找灵感；与界面共用 core 命令。agent 不能追记、收藏、彻底删除（灵感台已有规则，见 `docs/specs/idea-rules.md`） |
+| T7 | 本机灵感命令与 MCP 服务 | T6 | 供 Grok Bot 等本机 agent 写入 Desktop 的命令行（JSON 从标准输入读，不落临时文件，语义对齐 workbench `module-submit`），以及供 Claude Code / Codex 使用的 MCP 服务；均复用 T6 的工具函数 |
 
-阶段 1 收尾：最后执行一次 T4 导入，把 Grok Bot 等灵感写入入口切到 Desktop，此后 workbench 只读。然后由用户在 Desktop 中试用并决定是否进入阶段 2。
+阶段 1 收尾（T7 合并后）：
+
+1. 最后执行一次 T4 增量导入。
+2. 把 Grok Bot 的写入命令从 workbench 的 `backend.py module-submit` 换成 T7 的命令。Grok Bot 的指令由用户在 Grok Bot 中更新，Claude Code 提供替换文本。
+3. 让 Grok Bot 写一条测试灵感，确认出现在 Desktop 灵感台。
+4. workbench 从此只读；`opc-workbench` skill 停用或改为只读（待用户确认）。
+5. 用户在 Desktop 中试用，决定是否进入阶段 2。
 
 在此之前，workbench 继续作为灵感收件箱，用户记灵感的方式不变。
 
