@@ -17,6 +17,21 @@
       "port": 3091
     },
     {
+      "name": "spike-s2-brand",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DSH_HOME=/Users/apple/Developer/bluemanta-desktop/spikes/s2-brand/.dsh-home",
+        "DSH_TELEMETRY_DISABLED=1",
+        "dsh",
+        "--profile",
+        "s2",
+        "--port",
+        "3093",
+        "--no-open"
+      ],
+      "port": 3093
+    },
+    {
       "name": "dev-dsh",
       "runtimeExecutable": "env",
       "runtimeArgs": [

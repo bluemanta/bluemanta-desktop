@@ -1,0 +1,7 @@
+# 官方品牌插件占着 single slot，第二个占位者会报错，所以先停用它。
+- id: ui-brand-official
+  disabled: true
+
+- insert:
+    - id: bluemanta-spike-s2-brand
+      name: '@bluemanta/spike-s2-brand'

@@ -1,0 +1,22 @@
+{
+  "name": "@bluemanta/spike-s2-brand",
+  "version": "0.0.1",
+  "private": true,
+  "description": "S2 技术验证：用占位 logo 和 bluemanta 名称替换 dsh 侧栏品牌",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}
