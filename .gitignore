@@ -1,0 +1,15 @@
+# 依赖与构建产物
+node_modules/
+dist/
+lib/
+*.tsbuildinfo
+
+# 本机 agent 设置
+.claude/settings.local.json
+
+# 技术验证用的隔离 dsh home 与运行时数据
+spikes/**/.dsh-home/
+spikes/**/.data/
+
+# 系统文件
+.DS_Store
