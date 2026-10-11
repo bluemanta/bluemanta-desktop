@@ -48,6 +48,20 @@
       "port": 3094
     },
     {
+      "name": "design-docs",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4399",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "/Users/apple/Developer/bluemanta-desktop/docs/design"
+      ],
+      "port": 4399
+    },
+    {
       "name": "dev-dsh",
       "runtimeExecutable": "env",
       "runtimeArgs": [

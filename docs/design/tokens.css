@@ -1,0 +1,136 @@
+/*
+ * bluemanta 工作台设计变量 v1.0（方向 2「温暖精致」）
+ * 本文件是视觉数值的唯一编辑入口。说明见 DESIGN.md，样例见 reference.html。
+ *
+ * 用法：
+ *   - 根元素加 data-theme="light" 或 "dark"；未设置时跟随系统 prefers-color-scheme。
+ *   - 嵌在 dsh 里时，由消息桥 bm:theme 只同步深浅色，设置 data-theme，不取 dsh 的配色（ADR 0005）。
+ *   - 组件只引用 --bm-* 变量，不写散落的十六进制颜色。
+ */
+
+:root {
+  /* 字体 */
+  --bm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  --bm-font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+
+  /* 字号（px；正文遵循浏览器字号设置时可整体换算为 rem） */
+  --bm-fs-xs: 11px;   /* 仅用于键盘提示、徽标数字，不承载信息性正文 */
+  --bm-fs-sm: 12px;   /* 时间、元信息、筛选、标签 */
+  --bm-fs: 13px;      /* 正文、列表、控件 */
+  --bm-fs-md: 14px;   /* 页头标题、详情正文、输入框主字段 */
+  --bm-fs-lg: 18px;   /* 详情标题 */
+  --bm-fs-xl: 22px;   /* 指标数值 */
+  --bm-lh: 1.5;       /* 列表与控件 */
+  --bm-lh-read: 1.65; /* 详情长文 */
+
+  /* 间距：4 的倍数；2 / 6 只用于图标与文字的微调 */
+  --bm-sp-2: 2px; --bm-sp-4: 4px; --bm-sp-6: 6px; --bm-sp-8: 8px; --bm-sp-10: 10px;
+  --bm-sp-12: 12px; --bm-sp-16: 16px; --bm-sp-20: 20px; --bm-sp-24: 24px; --bm-sp-32: 32px; --bm-sp-48: 48px;
+
+  /* 尺寸 */
+  --bm-row: 34px;        /* 单行列表项 */
+  --bm-ctl: 28px;        /* 紧凑控件（鼠标） */
+  --bm-ctl-sm: 24px;     /* 卡片内小按钮；也是 WCAG 2.2 AA 的最小目标 */
+  --bm-ctl-touch: 36px;  /* 粗指针设备 */
+  --bm-head: 46px;       /* 页头 */
+  --bm-side: 208px;      /* 侧栏展开 */
+  --bm-side-mini: 52px;  /* 侧栏折叠 */
+  --bm-detail: 420px;    /* 详情默认宽度，可拖动 320–720 */
+
+  /* 形状 */
+  --bm-r-sm: 4px;   /* 键盘提示、小图标按钮 */
+  --bm-r: 7px;      /* 控件、列表行 */
+  --bm-r-lg: 10px;  /* 卡片、详情面板 */
+  --bm-r-xl: 14px;  /* 弹窗、命令面板 */
+  --bm-r-pill: 11px;/* 筛选胶囊、来源徽标；只用于这两类 */
+
+  /* 动效 */
+  --bm-t: 120ms;
+  --bm-t-pop: 140ms;
+  --bm-ease: cubic-bezier(.2, .7, .2, 1);
+
+  /* 分类色（深浅色共用；只做色点，文字仍用 --bm-text-2） */
+  --bm-cat-product: #6E7BF2;
+  --bm-cat-learning: #2E9E7A;
+  --bm-cat-work: #D9822B;
+  --bm-cat-life: #D45B8A;
+  --bm-cat-other: #9AA0A6;
+}
+
+/* ---------- 浅色 ---------- */
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bm-canvas: #F7F6F2;      /* 页面底 */
+  --bm-surface: #FFFFFF;     /* 卡片、详情、选中行、输入框 */
+  --bm-side-bg: #EFEDE7;     /* 侧栏 */
+  --bm-hover: #EAE7E0;       /* 悬停、分段控件底 */
+  --bm-sel: #E4EFE9;         /* 命令面板选中项 */
+  --bm-text: #24272A;
+  --bm-text-2: #4B5049;
+  --bm-text-3: #63675F;      /* 在所有底色上 ≥4.5:1 */
+  --bm-line: #E7E4DC;        /* 装饰分隔，不承担控件边界 */
+  --bm-line-strong: #D8D4CA; /* 按钮描边、原文引用线 */
+  --bm-accent: #2A715A;
+  --bm-accent-hover: #225E4B;
+  --bm-accent-soft: #E3F0EA;
+  --bm-on-accent: #FFFFFF;
+  --bm-star: #D99A12;
+  --bm-raw-bg: #F7F5EF;
+  --bm-mark: #FBEBB8;        /* 搜索高亮 */
+  --bm-danger: #B42318; --bm-danger-soft: #FEF3F2; --bm-on-danger: #FFFFFF;
+  --bm-warn: #93370D;   --bm-warn-soft: #FFF6E5;
+  --bm-shadow-row: 0 1px 3px rgba(40, 36, 28, .10), 0 0 0 1px var(--bm-line);
+  --bm-shadow-card: 0 4px 16px rgba(40, 36, 28, .07);
+  --bm-shadow-pop: 0 12px 36px rgba(40, 36, 28, .18), 0 0 0 1px rgba(40, 36, 28, .06);
+  --bm-scrim: rgba(36, 32, 24, .22);
+}
+
+/* ---------- 深色 ---------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bm-canvas: #1A1917;
+  --bm-surface: #22211E;
+  --bm-side-bg: #1D1C19;
+  --bm-hover: #2B2A26;
+  --bm-sel: #213A31;
+  --bm-text: #ECEAE4;
+  --bm-text-2: #C4C0B8;
+  --bm-text-3: #A3A097;
+  --bm-line: #2F2D29;
+  --bm-line-strong: #3C3A35;
+  --bm-accent: #5DB592;
+  --bm-accent-hover: #6FC4A1;
+  --bm-accent-soft: #1F352C;
+  --bm-on-accent: #0F241B;
+  --bm-star: #E8B23A;
+  --bm-raw-bg: #262521;
+  --bm-mark: #5A4A1C;
+  --bm-danger: #FA7F75; --bm-danger-soft: #3A1E1B; --bm-on-danger: #2A0E0B;
+  --bm-warn: #F5B356;   --bm-warn-soft: #36291A;
+  --bm-shadow-row: 0 1px 3px rgba(0, 0, 0, .45), 0 0 0 1px var(--bm-line-strong);
+  --bm-shadow-card: 0 4px 18px rgba(0, 0, 0, .35);
+  --bm-shadow-pop: 0 14px 40px rgba(0, 0, 0, .55), 0 0 0 1px var(--bm-line-strong);
+  --bm-scrim: rgba(0, 0, 0, .45);
+}
+
+/* 未显式设置时跟随系统 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bm-canvas: #1A1917; --bm-surface: #22211E; --bm-side-bg: #1D1C19; --bm-hover: #2B2A26; --bm-sel: #213A31;
+    --bm-text: #ECEAE4; --bm-text-2: #C4C0B8; --bm-text-3: #A3A097; --bm-line: #2F2D29; --bm-line-strong: #3C3A35;
+    --bm-accent: #5DB592; --bm-accent-hover: #6FC4A1; --bm-accent-soft: #1F352C; --bm-on-accent: #0F241B;
+    --bm-star: #E8B23A; --bm-raw-bg: #262521; --bm-mark: #5A4A1C;
+    --bm-danger: #FA7F75; --bm-danger-soft: #3A1E1B; --bm-on-danger: #2A0E0B; --bm-warn: #F5B356; --bm-warn-soft: #36291A;
+    --bm-shadow-row: 0 1px 3px rgba(0, 0, 0, .45), 0 0 0 1px var(--bm-line-strong);
+    --bm-shadow-card: 0 4px 18px rgba(0, 0, 0, .35);
+    --bm-shadow-pop: 0 14px 40px rgba(0, 0, 0, .55), 0 0 0 1px var(--bm-line-strong);
+    --bm-scrim: rgba(0, 0, 0, .45);
+  }
+}
+
+/* 全局底线 */
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

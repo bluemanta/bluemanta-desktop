@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bluemanta 工作台 · 组件样例 v1.0</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+/* 样例页自身的排版；组件样式只引用 --bm-* 变量 */
+* { box-sizing: border-box; }
+body { margin: 0; font: var(--bm-fs)/var(--bm-lh) var(--bm-font); background: var(--bm-canvas); color: var(--bm-text); -webkit-font-smoothing: antialiased; }
+.page { max-width: 1080px; margin: 0 auto; padding: 24px 24px 64px; }
+.top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.top h1 { font-size: var(--bm-fs-lg); margin: 0; }
+.top p { margin: 0; color: var(--bm-text-3); font-size: var(--bm-fs-sm); }
+section { margin-top: 24px; }
+section > h2 { font-size: var(--bm-fs-sm); font-weight: 600; color: var(--bm-accent); margin: 0 0 8px; }
+.panel { background: var(--bm-surface); border: 1px solid var(--bm-line); border-radius: var(--bm-r-lg); box-shadow: var(--bm-shadow-card); padding: 12px 16px; }
+.flex { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.sw { border: 1px solid var(--bm-line); border-radius: var(--bm-r); overflow: hidden; font-size: var(--bm-fs-sm); background: var(--bm-surface); }
+.sw i { display: block; height: 36px; }
+.sw div { padding: 4px 8px; color: var(--bm-text-2); }
+.sw code { font: var(--bm-fs-xs) var(--bm-font-mono); color: var(--bm-text-3); }
+.note { color: var(--bm-text-3); font-size: var(--bm-fs-sm); margin: 6px 0 0; }
+kbd { font: var(--bm-fs-xs) var(--bm-font-mono); color: var(--bm-text-3); background: var(--bm-canvas); border: 1px solid var(--bm-line); border-radius: var(--bm-r-sm); padding: 0 4px; line-height: 16px; }
+:where(button, [tabindex], input, textarea):focus-visible { outline: 2px solid var(--bm-accent); outline-offset: 1px; }
+
+/* ---------- 组件 ---------- */
+.btn { height: var(--bm-ctl); display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--bm-r); border: 1px solid var(--bm-line-strong); background: var(--bm-surface); color: var(--bm-text); font: inherit; font-size: var(--bm-fs-sm); cursor: pointer; transition: background var(--bm-t) var(--bm-ease); }
+.btn:hover { background: var(--bm-hover); }
+.btn.sm { height: var(--bm-ctl-sm); padding: 0 8px; }
+.btn.primary { background: var(--bm-accent); border-color: transparent; color: var(--bm-on-accent); font-weight: 500; }
+.btn.primary:hover { background: var(--bm-accent-hover); }
+.btn.primary kbd { background: rgba(255,255,255,.2); border-color: transparent; color: inherit; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--bm-text-2); }
+.btn.ghost:hover { background: var(--bm-hover); color: var(--bm-text); }
+.btn.danger { color: var(--bm-danger); }
+.btn.danger-fill { background: var(--bm-danger); border-color: transparent; color: var(--bm-on-danger); }
+.btn:disabled { color: var(--bm-text-3); background: var(--bm-canvas); cursor: not-allowed; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--bm-hover); border-radius: calc(var(--bm-r) + 2px); }
+.seg button { border: 0; background: transparent; color: var(--bm-text-2); font: inherit; font-size: var(--bm-fs-sm); height: 22px; padding: 0 10px; border-radius: var(--bm-r); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--bm-surface); color: var(--bm-text); font-weight: 500; box-shadow: 0 1px 2px rgba(40,36,28,.10); }
+.chip { height: 22px; display: inline-flex; align-items: center; gap: 5px; padding: 0 9px; border-radius: var(--bm-r-pill); border: 1px solid var(--bm-line); background: var(--bm-surface); color: var(--bm-text-2); font: inherit; font-size: var(--bm-fs-sm); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--bm-accent-soft); border-color: transparent; color: var(--bm-accent); font-weight: 500; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+.search { width: 300px; height: var(--bm-ctl); display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid var(--bm-line); border-radius: var(--bm-r); background: var(--bm-surface); color: var(--bm-text-3); }
+.search:focus-within { border-color: var(--bm-accent); }
+.search input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--bm-text); font: inherit; }
+.list { background: var(--bm-canvas); border-radius: var(--bm-r-lg); padding: 0 8px 8px; border: 1px solid var(--bm-line); }
+.group { color: var(--bm-accent); font-size: var(--bm-fs-sm); font-weight: 600; padding: 10px 8px 4px; }
+.group span { color: var(--bm-text-3); font-weight: 400; margin-left: 4px; }
+.row { height: var(--bm-row); display: flex; align-items: center; gap: 10px; padding: 0 8px; margin: 1px 0; border-radius: var(--bm-r); }
+.row.hover { background: var(--bm-hover); }
+.row[aria-selected="true"] { background: var(--bm-surface); box-shadow: var(--bm-shadow-row); }
+.star { width: 18px; text-align: center; color: var(--bm-text-3); opacity: .45; }
+.star.on { color: var(--bm-star); opacity: 1; }
+.row .t { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; }
+.row .ex { flex: 1; min-width: 0; color: var(--bm-text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .hit { font-size: var(--bm-fs-xs); color: var(--bm-accent); }
+.cat { display: inline-flex; align-items: center; gap: 5px; font-size: var(--bm-fs-sm); color: var(--bm-text-2); white-space: nowrap; }
+.src { font-size: var(--bm-fs-xs); color: var(--bm-text-3); border: 1px solid var(--bm-line); border-radius: 10px; padding: 0 6px; line-height: 16px; }
+.time { width: 44px; text-align: right; font-size: var(--bm-fs-sm); color: var(--bm-text-3); font-variant-numeric: tabular-nums; }
+mark { background: var(--bm-mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+.capture { padding: 10px 12px; background: var(--bm-surface); border-radius: var(--bm-r-lg); box-shadow: var(--bm-shadow-row); }
+.capture .t { font-size: var(--bm-fs-md); font-weight: 500; color: var(--bm-text-3); }
+.capture .b { color: var(--bm-text-3); margin: 4px 0 8px; }
+.detail { width: 420px; background: var(--bm-surface); border: 1px solid var(--bm-line); border-radius: var(--bm-r-lg); box-shadow: var(--bm-shadow-card); overflow: hidden; }
+.tabs { display: flex; gap: 2px; padding: 0 6px; border-bottom: 1px solid var(--bm-line); height: 36px; align-items: flex-end; }
+.tab { height: 30px; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 10px; font-size: var(--bm-fs-sm); color: var(--bm-text-2); position: relative; max-width: 150px; white-space: nowrap; }
+.tab span { overflow: hidden; text-overflow: ellipsis; }
+.tab.on { color: var(--bm-text); font-weight: 500; }
+.tab.on::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px; background: var(--bm-accent); }
+.tab .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--bm-accent); }
+.dbody { padding: 12px 16px 16px; }
+.dtitle { font-size: var(--bm-fs-lg); font-weight: 600; line-height: 1.35; margin: 8px 0 6px; }
+.dmeta { display: flex; gap: 12px; font-size: var(--bm-fs-sm); color: var(--bm-text-3); margin-bottom: 10px; }
+.dtext { font-size: var(--bm-fs-md); line-height: var(--bm-lh-read); margin: 0; }
+.sec { font-size: var(--bm-fs-sm); font-weight: 600; color: var(--bm-text-2); margin: 14px 0 6px; }
+.raw { color: var(--bm-text-2); background: var(--bm-raw-bg); border-left: 2px solid var(--bm-line-strong); border-radius: 0 var(--bm-r) var(--bm-r) 0; padding: 8px 10px; }
+.ext { border-top: 1px solid var(--bm-line); padding: 8px 0; }
+.ext small { display: block; color: var(--bm-text-3); font-size: var(--bm-fs-xs); }
+.banner { padding: 8px 10px; border-radius: var(--bm-r); font-size: var(--bm-fs-sm); display: flex; align-items: center; gap: 8px; }
+.banner.warn { background: var(--bm-warn-soft); color: var(--bm-warn); }
+.banner.error { background: var(--bm-danger-soft); color: var(--bm-danger); }
+.banner .btn { margin-left: auto; }
+.toast { display: inline-flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-radius: var(--bm-r-lg); background: var(--bm-text); color: var(--bm-canvas); box-shadow: var(--bm-shadow-pop); }
+.toast button { border: 0; background: rgba(255,255,255,.14); color: inherit; border-radius: 5px; padding: 3px 8px; font: inherit; font-size: var(--bm-fs-sm); }
+.confirm { width: 360px; padding: 16px; background: var(--bm-surface); border-radius: var(--bm-r-xl); box-shadow: var(--bm-shadow-pop); }
+.confirm h3 { margin: 0 0 6px; font-size: var(--bm-fs-md); }
+.confirm p { margin: 0 0 14px; color: var(--bm-text-2); }
+.confirm .acts { display: flex; justify-content: flex-end; gap: 6px; }
+.empty { text-align: center; color: var(--bm-text-2); padding: 16px; flex: 1; min-width: 220px; }
+.empty .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--bm-accent-soft); color: var(--bm-accent); display: grid; place-items: center; margin: 0 auto 10px; }
+.empty h3 { margin: 0 0 4px; font-size: var(--bm-fs-md); color: var(--bm-text); }
+.empty p { margin: 0 0 10px; font-size: var(--bm-fs-sm); }
+.palette { width: 460px; background: var(--bm-surface); border-radius: var(--bm-r-xl); box-shadow: var(--bm-shadow-pop); overflow: hidden; }
+.palette .in { height: 46px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--bm-line); color: var(--bm-text-3); font-size: var(--bm-fs-md); }
+.palette .res { padding: 6px; }
+.palette .pc { font-size: var(--bm-fs-xs); color: var(--bm-text-3); padding: 6px 10px 4px; }
+.palette .pi { height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: var(--bm-r); }
+.palette .pi.on { background: var(--bm-sel); }
+.palette .pi kbd { margin-left: auto; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--bm-surface); border: 1px solid var(--bm-line); border-radius: var(--bm-r-lg); }
+.kpi { padding: 10px 14px; border-right: 1px solid var(--bm-line); }
+.kpi:last-child { border-right: 0; }
+.kpi b { display: block; font-size: var(--bm-fs-xl); font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi span { font-size: var(--bm-fs-sm); color: var(--bm-text-3); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <h1>工作台组件样例 v1.0</h1>
+    <div class="seg" id="theme"><button data-v="light" aria-pressed="true">浅色</button><button data-v="dark" aria-pressed="false">深色</button></div>
+  </div>
+  <p class="note">全部取自 <code>tokens.css</code>，虚构数据。规则见 <code>DESIGN.md</code>；交互细节以 <code>prototypes/workbench-v1</code> 为准。</p>
+
+  <section><h2>颜色</h2>
+    <div class="grid" id="swatches"></div>
+  </section>
+
+  <section><h2>字号层级</h2>
+    <div class="panel">
+      <div style="font-size:var(--bm-fs-xl);font-weight:600;font-variant-numeric:tabular-nums">128 <span style="font-size:var(--bm-fs-sm);color:var(--bm-text-3);font-weight:400">指标 22 / 600</span></div>
+      <div style="font-size:var(--bm-fs-lg);font-weight:600">详情标题 18 / 600</div>
+      <div style="font-size:var(--bm-fs-md);font-weight:600">页头模块名 14 / 600</div>
+      <div style="font-size:var(--bm-fs-md);line-height:var(--bm-lh-read)">详情正文 14 / 1.65：会后十分钟内，纪要里的“谁负责、何时交”自动生成任务卡。</div>
+      <div>正文与列表 13 / 1.5</div>
+      <div style="color:var(--bm-text-2)">次要文字 13，text-2</div>
+      <div style="font-size:var(--bm-fs-sm);color:var(--bm-text-3)">时间、元信息 12，text-3</div>
+      <div><kbd>⌘K</kbd> <span style="font-size:var(--bm-fs-sm);color:var(--bm-text-3)">键盘提示 11 等宽</span></div>
+    </div>
+  </section>
+
+  <section><h2>按钮与输入</h2>
+    <div class="panel flex">
+      <button class="btn primary">＋ 记一条 <kbd>N</kbd></button>
+      <button class="btn">编辑 <kbd>E</kbd></button>
+      <button class="btn ghost">移入回收站</button>
+      <button class="btn danger">彻底删除</button>
+      <button class="btn danger-fill">彻底删除</button>
+      <button class="btn" disabled>不可用</button>
+      <button class="btn sm">小按钮 24</button>
+      <span class="seg"><button aria-pressed="true">清单</button><button aria-pressed="false">统计</button><button aria-pressed="false">回收站</button></span>
+      <label class="search">⌕ <input placeholder="搜索标题、正文、原文…"></label>
+    </div>
+    <div class="panel flex" style="margin-top:8px">
+      <button class="chip" aria-pressed="true">全部</button><button class="chip" aria-pressed="false">★ 收藏</button>
+      <button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-product)"></i>产品想法</button>
+      <button class="chip" aria-pressed="true"><i class="dot" style="background:var(--bm-cat-learning)"></i>学习备忘</button>
+      <button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-work)"></i>工作事务</button>
+      <button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-life)"></i>生活随想</button>
+      <button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-other)"></i>其他</button>
+    </div>
+  </section>
+
+  <section><h2>列表</h2>
+    <div class="list">
+      <div class="group">今天<span>3</span></div>
+      <div class="row" aria-selected="true"><span class="star on">★</span><span class="t">选中行：把会议纪要自动变成待办</span><span class="ex">会后十分钟内，纪要里的“谁负责、何时交”自动生成任务卡。</span><span class="cat"><i class="dot" style="background:var(--bm-cat-product)"></i>产品想法</span><span class="src">Grokbot</span><span class="time">09:42</span></div>
+      <div class="row hover"><span class="star">☆</span><span class="t">悬停行：咖啡店的「慢时段」定价实验</span><span class="ex">下午两点到四点客流低谷，试试第二杯半价。</span><span class="cat"><i class="dot" style="background:var(--bm-cat-work)"></i>工作事务</span><span class="src">灵感台</span><span class="time">08:15</span></div>
+      <div class="row"><span class="star">☆</span><span class="t">搜索命中：给孩子的周末观察本</span><span class="ex">每周记一件孩子自己发现的小事，月底一起<mark>翻看</mark>。</span><span class="hit">匹配正文</span><span class="cat"><i class="dot" style="background:var(--bm-cat-life)"></i>生活随想</span><span class="src">Grokbot</span><span class="time">07:30</span></div>
+    </div>
+  </section>
+
+  <section><h2>快速记录与详情</h2>
+    <div class="flex" style="align-items:flex-start;gap:16px">
+      <div style="flex:1;min-width:280px">
+        <div class="capture"><div class="t">标题（可留空，按正文自动生成）</div><div class="b">想到了什么…</div>
+          <div class="flex"><button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-product)"></i>产品想法</button><button class="chip" aria-pressed="false"><i class="dot" style="background:var(--bm-cat-life)"></i>生活随想</button><span style="margin-left:auto;font-size:var(--bm-fs-xs);color:var(--bm-text-3)">⌘↵ 保存 · esc 取消</span><button class="btn sm primary">记下</button></div></div>
+        <div class="kpis" style="margin-top:12px"><div class="kpi"><b>128</b><span>全部灵感</span></div><div class="kpi"><b>9</b><span>近 7 天</span></div><div class="kpi"><b>31</b><span>近 30 天</span></div><div class="kpi"><b>17</b><span>收藏</span></div></div>
+      </div>
+      <div class="detail">
+        <div class="tabs"><div class="tab on"><span>把会议纪要自动变成待办</span></div><div class="tab"><i class="dirty"></i><span>周末整理书架</span></div></div>
+        <div class="dbody">
+          <div class="flex"><button class="btn sm">★ 已收藏</button><button class="btn sm">编辑 <kbd>E</kbd></button><button class="btn sm">在对话中引用</button><span style="flex:1"></span><button class="btn sm ghost">移入回收站</button></div>
+          <div class="dtitle">把会议纪要自动变成待办</div>
+          <div class="dmeta"><span class="cat"><i class="dot" style="background:var(--bm-cat-product)"></i>产品想法</span><span>来源 Grokbot</span><span>2026-10-11 09:42</span></div>
+          <p class="dtext">会后十分钟内，纪要里的“谁负责、何时交”自动生成任务卡，人只需确认。</p>
+          <div class="sec">原文</div><div class="raw">开完会最烦的是整理待办，能不能让纪要直接变成任务？</div>
+          <div class="sec">延展 <span style="font-weight:400;color:var(--bm-text-3)">1</span></div>
+          <div class="ext">先从一个固定的周会开始试。<small>2026-10-11 10:05 · 灵感台</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section><h2>反馈</h2>
+    <div class="banner error" role="alert">⚠ 读取失败：本地服务没有响应，下面显示的是 10:12 的缓存，可能不是最新。<button class="btn sm">重试</button></div>
+    <div class="banner warn" style="margin-top:8px">结果待确认：写入请求已发出，但没有收到确认，请稍后刷新核实。</div>
+    <div class="flex" style="margin-top:12px;align-items:flex-start;gap:16px">
+      <div class="toast" role="status">已移入回收站：咖啡店的「慢时段」… <button>撤销</button></div>
+      <div class="confirm" role="alertdialog"><h3>有未保存的修改</h3><p>关闭这个标签会丢掉这次编辑。</p><div class="acts"><button class="btn">取消</button><button class="btn danger-fill">丢弃修改</button></div></div>
+    </div>
+  </section>
+
+  <section><h2>空状态</h2>
+    <div class="panel flex" style="align-items:stretch">
+      <div class="empty"><div class="ic">💡</div><h3>还没有灵感</h3><p>想到什么就记一笔。</p><button class="btn sm primary">＋ 记第一条</button></div>
+      <div class="empty"><div class="ic">🔍</div><h3>没有匹配的灵感</h3><p>换个关键词，或者清除筛选条件。</p><button class="btn sm">清除筛选</button></div>
+      <div class="empty"><div class="ic">🗑</div><h3>回收站是空的</h3><p>移入回收站的灵感会保留 30 天。</p></div>
+    </div>
+  </section>
+
+  <section><h2>命令面板</h2>
+    <div class="palette"><div class="in">搜索灵感、跳转、执行命令…</div><div class="res"><div class="pc">命令</div><div class="pi on">＋ 记一条灵感<kbd>N</kbd></div><div class="pi">切换到统计<kbd>G S</kbd></div><div class="pc">灵感</div><div class="pi"><i class="dot" style="background:var(--bm-cat-product)"></i>把会议纪要自动变成<mark>待办</mark></div></div></div>
+  </section>
+</div>
+<script>
+const SW = [['canvas','页面底'],['surface','卡片'],['side-bg','侧栏'],['hover','悬停'],['sel','命令选中'],['text','主要文字'],['text-2','次要文字'],['text-3','辅助文字'],['line','分隔'],['line-strong','描边'],['accent','主色'],['accent-soft','主色浅底'],['star','收藏'],['mark','搜索高亮'],['danger','危险'],['warn','警告']]
+document.getElementById('swatches').innerHTML = SW.map(([k, n]) => `<div class="sw"><i style="background:var(--bm-${k})"></i><div>${n}<br><code>--bm-${k}</code></div></div>`).join('')
+document.getElementById('theme').onclick = e => { const b = e.target.closest('button'); if (!b) return; document.documentElement.dataset.theme = b.dataset.v; document.querySelectorAll('#theme button').forEach(x => x.setAttribute('aria-pressed', String(x === b))) }
+</script>
+</body>
+</html>

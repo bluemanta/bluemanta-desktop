@@ -16,10 +16,10 @@
 }
 [data-mode="light"] {
   --canvas: #F7F6F2; --surface: #FFFFFF; --side-bg: #EFEDE7; --hover: #EAE7E0; --sel: #E4EFE9;
-  --text: #24272A; --text-2: #5A5F57; --text-3: #848880; --line: #E7E4DC; --line-strong: #D8D4CA;
-  --accent: #2E7A62; --accent-hover: #256650; --accent-soft: #E3F0EA; --on-accent: #fff;
+  --text: #24272A; --text-2: #4B5049; --text-3: #63675F; --line: #E7E4DC; --line-strong: #D8D4CA;
+  --accent: #2A715A; --accent-hover: #225E4B; --accent-soft: #E3F0EA; --on-accent: #fff;
   --star: #D99A12; --raw-bg: #F7F5EF; --mark: #FBEBB8;
-  --danger: #B42318; --danger-soft: #FEF3F2; --warn: #93370D; --warn-soft: #FFF6E5;
+  --danger: #B42318; --danger-soft: #FEF3F2; --on-danger: #FFFFFF; --warn: #93370D; --warn-soft: #FFF6E5;
   --shadow-row: 0 1px 3px rgba(40,36,28,.10), 0 0 0 1px var(--line);
   --shadow-card: 0 4px 16px rgba(40,36,28,.07);
   --shadow-pop: 0 12px 36px rgba(40,36,28,.18), 0 0 0 1px rgba(40,36,28,.06);
@@ -27,16 +27,17 @@
 }
 [data-mode="dark"] {
   --canvas: #1A1917; --surface: #22211E; --side-bg: #1D1C19; --hover: #2B2A26; --sel: #213A31;
-  --text: #ECEAE4; --text-2: #B0ACA3; --text-3: #85817A; --line: #2F2D29; --line-strong: #3C3A35;
+  --text: #ECEAE4; --text-2: #C4C0B8; --text-3: #A3A097; --line: #2F2D29; --line-strong: #3C3A35;
   --accent: #5DB592; --accent-hover: #6FC4A1; --accent-soft: #1F352C; --on-accent: #0F241B;
   --star: #E8B23A; --raw-bg: #262521; --mark: #5A4A1C;
-  --danger: #F97066; --danger-soft: #3A1E1B; --warn: #F5B356; --warn-soft: #36291A;
+  --danger: #FA7F75; --danger-soft: #3A1E1B; --on-danger: #2A0E0B; --warn: #F5B356; --warn-soft: #36291A;
   --shadow-row: 0 1px 3px rgba(0,0,0,.45), 0 0 0 1px var(--line-strong);
   --shadow-card: 0 4px 18px rgba(0,0,0,.35);
   --shadow-pop: 0 14px 40px rgba(0,0,0,.55), 0 0 0 1px var(--line-strong);
   --scrim: rgba(0,0,0,.45);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; font-family: var(--font); font-size: var(--fs); color: var(--text); background: #2A2B2F; -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 kbd { font: 10.5px var(--mono); color: var(--text-3); background: var(--canvas); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; line-height: 16px; }
@@ -106,7 +107,7 @@ kbd { font: 10.5px var(--mono); color: var(--text-3); background: var(--canvas);
 .btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); }
 .btn.ghost:hover { background: var(--hover); color: var(--text); }
 .btn.danger { color: var(--danger); }
-.btn.danger-fill { background: var(--danger); border-color: transparent; color: #fff; }
+.btn.danger-fill { background: var(--danger); border-color: transparent; color: var(--on-danger); }
 :where(button, [tabindex], input, textarea, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .filters { height: 32px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 16px; font-size: var(--fs-sm); color: var(--text-2); overflow-x: auto; white-space: nowrap; }
