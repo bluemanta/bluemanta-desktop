@@ -1,6 +1,6 @@
 # bluemanta Desktop：定位、决定与路线
 
-最后更新：2026-10-10
+最后更新：2026-10-11
 
 ## 定位
 
@@ -30,6 +30,8 @@
 | 2026-10-10 | dsh 锁定 0.2.0-rc.2；参考源码放在 `~/Developer/bluemanta-harness`（[ADR 0002](decisions/0002-dsh-version-and-reference-source.md)） |
 | 2026-10-10 | 分工：Cursor 单线开发；Claude Code 当项目经理（委派、验收、合并、更新本地版本）；用户只做产品决策和阶段试用；任务在 Linear「BlueManta-Desktop」项目管理（[ADR 0004](decisions/0004-dev-workflow.md)） |
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
+| 2026-10-11 | 架构调整：核心功能（灵感台、内容线、发布台等）做成独立网页，由本地服务提供，dsh 只做入口并嵌入网页；dsh 插件不再开发业务界面。取代 2026-10-10「看板做成 dsh 插件面板」的决定（[ADR 0005](decisions/0005-web-app-dsh-entry.md)；S3 已在 web 版和 Desktop 内验证可行） |
+| 2026-10-11 | 内容线正本先放本机；接口、鉴权、写入协议按将来可迁往云端设计（ADR 0005 决定 4），是否迁云阶段 2 设计时再定 |
 | 2026-10-11 | Grok Bot 改为调用 Desktop 的本机命令写入灵感（T7，JSON 经 heredoc 从标准输入传入，`body` 只放摘要、`raw` 只放原话）；用户已在 Grok Bot 中更新指令，测试写入已确认 |
 | 2026-10-11 | workbench 数据目录 `~/Library/Application Support/BluemantaOPC` 去掉写权限（`chmod u-w`），任何写入都会失败，读取不受影响；恢复用 `chmod u+w` |
 | 2026-10-11 | `opc-workbench` skill 停用：manifest 中 Codex、Claude 安装改为 `pending`，链接移到 `~/Documents/AgentSkills/disabled/`，源目录保留。Desktop 支持项目笔记后再决定是否改写 |
@@ -39,10 +41,12 @@
 
 自上而下四层，下层不依赖上层：
 
-1. **交互层**：dsh Desktop。对话在主区；看板做成左侧栏的面板；编辑器放在右栏 tab；agent 写入的结果在对话里显示成卡片。
+1. **交互层**：两部分（[ADR 0005](decisions/0005-web-app-dsh-entry.md)）。
+   - **网页应用**：灵感台、内容线、发布台等核心功能做成独立网页，由本地服务提供，浏览器里可直接用；
+   - **dsh Desktop**：对话和 agent 的入口。左侧栏入口和右栏 tab 嵌入上面的网页；agent 写入的结果在对话里显示成卡片；网页经消息桥请 dsh 执行对话相关操作。
 2. **Agent 层**：dsh 的 skills、subagent、定时、MCP 客户端。skills 复用 AgentSkillRepos 体系。
 3. **能力层**：按领域划分的模块（内容线、知识库、交付、开发、家庭），通过 CLI 和 MCP 暴露，任何 agent 都能调用。
-4. **数据正本层**：本地优先，文件加 SQLite，可导出。沿用 workbench 已验证的写入协议：来源区分 human 和 agent、版本冲突检测、幂等 `request_id`、先预览后写入。
+4. **数据正本层**：本地优先，文件加 SQLite，可导出；网页只经 HTTP 接口访问，接口与鉴权按将来可迁往云端设计。沿用 workbench 已验证的写入协议：来源区分 human 和 agent、版本冲突检测、幂等 `request_id`、先预览后写入。
 
 领域先登记，后建模块：交付、开发、家庭在出现高频重复操作之前，只建档案页和文件夹链接。
 

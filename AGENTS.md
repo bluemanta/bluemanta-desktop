@@ -1,10 +1,10 @@
 # bluemanta Desktop
 
-Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的交互外壳，逐步收拢内容创作、知识库、交付项目、代码项目和家庭事务。本文件是所有 agent（Claude Code、Cursor、Codex 等）的统一入口。
+Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepSeek Harness（dsh）Desktop 作为对话与 agent 的入口并嵌入这些网页（[ADR 0005](docs/decisions/0005-web-app-dsh-entry.md)），逐步收拢内容创作、知识库、交付项目、代码项目和家庭事务。本文件是所有 agent（Claude Code、Cursor、Codex 等）的统一入口。
 
 ## 当前阶段
 
-阶段 0：规划与技术验证。仓库里还没有产品代码。路线和阶段划分见 [docs/vision.md](docs/vision.md)。
+阶段 1（core 与灵感清单）开发已完成，用户试用中；阶段 2（内容线）规划中，按 ADR 0005 的新架构进行。路线和阶段划分见 [docs/vision.md](docs/vision.md)，阶段 1 记录见 [docs/phase-1.md](docs/phase-1.md)。
 
 ## 分工
 
@@ -38,7 +38,7 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
    - 本机：`~/Developer/bluemanta-harness` 的 `ref/dsh-0.2.0-rc.2` 分支（同一提交）。
    - 写插件前先读 dsh 自带的插件开发指南 `packages/preset/agent-preset/skills/cordis-plugin-development/`（SKILL.md 和 references/），以及 [spikes/s1-panel](spikes/s1-panel/README.md) 的已验证写法。
    - 不修改 fork 的源码。见 [ADR 0002](docs/decisions/0002-dsh-version-and-reference-source.md)。
-6. **业务规则不写进 dsh 插件。** 插件只负责显示和适配，正本读写和业务规则放在 Desktop 自己的 core 里。见 [ADR 0001](docs/decisions/0001-dsh-shell-data-outside.md)。
+6. **业务规则和业务界面都不写进 dsh 插件。** 正本读写和业务规则放在 core 里；核心功能的界面做成独立网页，由本地服务提供。dsh 插件只保留入口与嵌入框、agent 工具、工具卡片、消息桥和本地服务的启停。网页只经 HTTP 接口访问数据。见 [ADR 0001](docs/decisions/0001-dsh-shell-data-outside.md)、[ADR 0005](docs/decisions/0005-web-app-dsh-entry.md)。
 7. **改动用户环境前先问。** 包括：往用户的 dsh Desktop profile 装插件、修改 `~/.dsh`、全局安装或升级软件。验证一律使用隔离的 `DSH_HOME`。
 
 ## Git
@@ -61,6 +61,9 @@ Chris 的个人工作台：以 DeepSeek Harness（dsh）Desktop 作为唯一的�
 | `docs/tasks/_template.md` | 任务说明书模板；说明书本身写在 Linear issue 描述里 |
 | `spikes/` | 技术验证用的一次性代码，不作为产品代码复用 |
 | `packages/core` | 产品核心的数据层：对象、存储与写入命令 |
-| `packages/dsh-plugin` | dsh 插件：宿主端只读数据通道，浏览器端左侧栏灵感清单 |
+| `packages/cli` | 本机灵感命令（Grok Bot 等经标准输入调用）与共用的灵感工具函数 |
+| `packages/mcp` | 供 Claude Code、Codex 使用的 MCP 服务（stdio） |
+| `packages/importer` | workbench 数据增量导入 |
+| `packages/dsh-plugin` | dsh 插件：宿主端数据通道与 agent 工具，浏览器端灵感台（按 ADR 0005 将改为嵌入网页）、右侧栏与工具卡片 |
 
-产品代码的目录结构在阶段 1 开始前确定。
+新增的本地服务包和网页包，目录在阶段 2 计划中确定。
