@@ -14,14 +14,14 @@ function cameFromList(): boolean {
 
 /**
  * 窄屏整页详情（idea-ui 第 9 节）。从列表进来时「← 返回」走浏览器后退，列表恢复滚动位置；
- * 直接打开链接时回到清单。dsh 右侧栏（`embed=sidebar`）里没有返回。
+ * 直接打开链接时回到清单。右侧栏标签一打开就是单条灵感时没有返回；从清单点进来的仍按窄屏规则。
  */
 export function NarrowDetail({ id }: { id: string }) {
   const navigate = useAppNavigate();
-  const { embed } = useLaunch();
+  const { embed, sidebarDirect } = useLaunch();
   const { dirtyIds, discardSessions, ignoreNextPop } = useIdeasState();
   const confirm = useConfirm();
-  const canGoBack = embed !== 'sidebar';
+  const canGoBack = embed !== 'sidebar' || !sidebarDirect;
 
   const back = () => {
     const run = () => {

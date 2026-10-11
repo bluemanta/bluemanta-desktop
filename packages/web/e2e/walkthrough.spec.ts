@@ -178,7 +178,7 @@ test.describe('清单', () => {
 });
 
 test.describe('详情', () => {
-  test('↵ 打开焦点行，内容顺序正确，引用入口仍不在', async ({ page }) => {
+  test('↵ 打开焦点行，内容顺序正确，独立打开没有引用按钮', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const target = row(page, SEEDED.rich);
@@ -204,9 +204,12 @@ test.describe('详情', () => {
     await expect(panel.getByRole('button', { name: '编辑' })).toBeVisible();
     await expect(panel.getByRole('button', { name: '移入回收站' })).toBeVisible();
     await expect(panel.getByRole('button', { name: '追加延展' })).toBeDisabled();
-    for (const name of ['在对话中引用', '在右侧栏打开']) {
+    for (const name of ['在对话中引用', '在右侧栏打开', '引用到对话', '侧栏打开']) {
       await expect(panel.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
+    const bar = panel.getByRole('toolbar', { name: '操作' });
+    await expect(bar).toBeVisible();
+    expect(await bar.evaluate((node) => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     await expect(panel.getByRole('textbox', { name: '追加延展' })).toBeVisible();
     await expect(panel.getByRole('textbox', { name: '标题' })).toHaveCount(0);
   });
@@ -366,6 +369,16 @@ test.describe('窄屏', () => {
     await page.goto(`${url}?embed=sidebar#token=${app.token}`);
     await expect(page.getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
     await expect(page.getByRole('button', { name: '返回' })).toHaveCount(0);
+  });
+
+  test('右侧栏从清单点进详情仍有返回', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 900 });
+    await openApp(page, { path: '/ideas?embed=sidebar' });
+    await row(page, SEEDED.rich).click();
+    await expect(page.getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    await page.getByRole('button', { name: '返回' }).click();
+    await expect(page.getByTestId('idea-count')).toHaveText(`${SEEDED.total} 条`);
+    await expect(page).toHaveURL(/\/ideas\?embed=sidebar$/);
   });
 });
 

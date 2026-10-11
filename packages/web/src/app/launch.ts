@@ -15,9 +15,14 @@ export type LaunchHash = {
 export const TOKEN_KEY = 'bluemanta.token';
 export const PARENT_KEY = 'bluemanta.parentOrigin';
 
-/** 只接受形如 `https://host[:port]` 的 origin，其他写法一律不认。 */
+/** Desktop 主窗口的 origin。这个协议在普通页面里是不透明的，不能靠 `URL.origin` 判断。 */
+export const DSH_APP_ORIGIN = 'dsh-app://app';
+
+/** 只接受 `http(s)://host[:port]`，以及 Desktop 的 `dsh-app://app`。 */
 export function normalizeOrigin(value: string | null): string | null {
   if (!value) return null;
+  const trimmed = value.trim().replace(/\/$/, '');
+  if (trimmed === DSH_APP_ORIGIN) return DSH_APP_ORIGIN;
   try {
     const url = new URL(value);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
@@ -45,7 +50,20 @@ export type Launch = {
   token: string | null;
   parentOrigin: string | null;
   embed: EmbedMode;
+  /**
+   * 右侧栏标签打开时地址就是 `/ideas/<id>`。
+   * 这种详情不显示返回；从清单点进来的不算。
+   */
+  sidebarDirect: boolean;
 };
+
+/** 右侧栏一打开就是单条灵感（不是统计、回收站或清单）。 */
+export function isDirectSidebarIdea(pathname: string, embed: EmbedMode): boolean {
+  if (embed !== 'sidebar') return false;
+  const match = pathname.match(/^\/ideas\/([^/]+)\/?$/);
+  if (!match || !match[1]) return false;
+  return match[1] !== 'stats' && match[1] !== 'trash';
+}
 
 type BrowserLike = {
   location: { pathname: string; search: string; hash: string };
@@ -63,9 +81,11 @@ export function readLaunch(win: BrowserLike): Launch {
     const url = `${win.location.pathname}${win.location.search}${hash.rest ? `#${hash.rest}` : ''}`;
     win.history.replaceState(win.history.state, '', url);
   }
+  const embed = parseEmbed(win.location.search);
   return {
     token: hash.token ?? win.localStorage.getItem(TOKEN_KEY),
     parentOrigin: hash.parentOrigin ?? normalizeOrigin(win.sessionStorage.getItem(PARENT_KEY)),
-    embed: parseEmbed(win.location.search),
+    embed,
+    sidebarDirect: isDirectSidebarIdea(win.location.pathname, embed),
   };
 }

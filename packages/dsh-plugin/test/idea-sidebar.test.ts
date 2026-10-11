@@ -216,6 +216,6 @@ describe('浏览器端注册', () => {
     expect(client).toContain('灵感台');
     expect(client).toContain('已记录灵感：');
     expect(client).toContain('ctx.sidebarRight.mounted');
-    expect(client).toContain("inject: ['slots', 'sidebarRightTabs', 'sidebarRight']");
+    expect(client).toContain("inject: ['slots', 'sidebarRightTabs', 'sidebarRight', 'sessions']");
   });
 });

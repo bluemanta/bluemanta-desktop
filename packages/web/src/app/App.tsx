@@ -5,7 +5,7 @@ import { auth } from '../api/client';
 import { createQueryClient, listenWindowFocus } from '../api/queries';
 import { CommandPaletteProvider } from '../ideas/CommandPalette';
 import { IdeasPage } from '../ideas/IdeasPage';
-import { IdeasStateProvider } from '../ideas/IdeasState';
+import { IdeasStateProvider, useIdeasState } from '../ideas/IdeasState';
 import { IdeaHotkeys } from '../ideas/hotkeys';
 import { NavigationGuard } from '../ideas/NavigationGuard';
 import { StatsPage } from '../ideas/StatsPage';
@@ -15,9 +15,22 @@ import { Shell } from '../shell/Shell';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { ToastProvider } from '../ui/Toast';
 import { TooltipProvider } from '../ui/Tooltip';
-import { LaunchContext, useAppNavigate } from './context';
+import { postToParent } from './bridge';
+import { LaunchContext, useAppNavigate, useLaunch } from './context';
 import type { Launch } from './launch';
 import { useTheme } from './theme';
+
+/** 嵌入时把未保存状态告诉 dsh，右侧栏关标签前由插件确认。 */
+function EmbedDirty() {
+  const { embed, parentOrigin } = useLaunch();
+  const { dirtyIds } = useIdeasState();
+  const dirty = dirtyIds.size > 0;
+  useEffect(() => {
+    if (embed === null) return;
+    postToParent(window, parentOrigin, { type: 'bm:dirty', dirty });
+  }, [embed, parentOrigin, dirty]);
+  return null;
+}
 
 function RedirectToIdeas() {
   const navigate = useAppNavigate();
@@ -70,6 +83,7 @@ export function App({ launch }: { launch: Launch }) {
       <ConfirmProvider>
         <IdeasStateProvider>
           <CommandPaletteProvider>
+            <EmbedDirty />
             <NavigationGuard />
             <IdeaHotkeys />
             <Routes />

@@ -1,23 +1,24 @@
 import { defaultDataDir, openCore } from '@bluemanta/core';
-import { cleanupStaleAttachments } from './cleanup.js';
-import { COMMANDS_PATH, handleCommands } from './commands.js';
 import type { HostContext } from './context.js';
 import { resolveDataDir } from './data-dir.js';
-import { CARDS_PATH, handleCards, handleHealth, HEALTH_PATH, type RouteCore } from './routes.js';
+import {
+  createLocalServer,
+  failingServer,
+  loadWebConfig,
+  probeHealth,
+  resolveServerCli,
+  resolveServerPort,
+  spawnNodeServer,
+  WEB_CONFIG_PATH,
+  type LocalServer,
+} from './local-server.js';
 import { registerIdeaTools } from './register-idea-tools.js';
-import { ATTACHMENT_PATH, ATTACHMENTS_PATH, handleAttachmentRead, handleAttachmentUpload } from './uploads.js';
 
 export const name = 'bluemanta';
 export const inject = ['connection', 'tools'];
 
 export type { HostContext } from './context.js';
-export { cleanupStaleAttachments } from './cleanup.js';
-export { COMMANDS_PATH, DESKTOP_SOURCE, handleCommands, statusForCommandCode } from './commands.js';
-export type { CommandGateway, DeskCommandName } from './commands.js';
 export { resolveDataDir } from './data-dir.js';
-export { parseImage } from './images.js';
-export { CARDS_PATH, handleCards, handleHealth, HEALTH_PATH } from './routes.js';
-export type { CardsBody, ErrorBody, HealthBody, RouteCore, SearchedCard } from './routes.js';
 export {
   AGENT_LIMITATION,
   AGENT_SOURCE,
@@ -30,64 +31,68 @@ export {
   searchIdeas,
 } from './idea-tools.js';
 export { registerIdeaTools } from './register-idea-tools.js';
-export { ATTACHMENT_PATH, ATTACHMENTS_PATH, handleAttachmentRead, handleAttachmentUpload } from './uploads.js';
+export {
+  DEFAULT_SERVER_PORT,
+  HEALTH_TIMEOUT_MS,
+  WEB_CONFIG_PATH,
+  createLocalServer,
+  failingServer,
+  loadWebConfig,
+  occupiedReason,
+  probeHealth,
+  readServerToken,
+  resolveServerCli,
+  resolveServerPort,
+  spawnNodeServer,
+} from './local-server.js';
+export type { EnsureResult, HealthState, LocalServer, WebConfig } from './local-server.js';
 
-function adapt<T>(
-  core: T,
-  handler: (core: T, request: Request) => Response | Promise<Response>,
-): (request: Request) => Promise<Response> {
-  return async (request) => {
-    try {
-      return await handler(core, request);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return Response.json({ error: message }, { status: 500, headers: { 'cache-control': 'no-store' } });
-    }
-  };
+export type ApplyOptions = {
+  /** 测试注入。缺省时按环境变量检查并按需拉起本地服务。 */
+  server?: LocalServer;
+  dataDir?: string;
+};
+
+function defaultServer(dataDir: string): LocalServer {
+  const port = resolveServerPort(process.env.BLUEMANTA_SERVER_PORT);
+  if (!port.ok) return failingServer(port.reason);
+  return createLocalServer({
+    port: port.port,
+    dataDir,
+    execPath: process.execPath,
+    scriptPath: () => resolveServerCli(),
+    probe: probeHealth,
+    spawnServer: spawnNodeServer,
+    baseEnv: process.env,
+  });
 }
 
-export function apply(ctx: HostContext): void {
-  const core = openCore({ dataDir: resolveDataDir(process.env.BLUEMANTA_DATA_DIR, defaultDataDir) });
+const NO_STORE = { 'cache-control': 'no-store' };
+
+export function apply(ctx: HostContext, options: ApplyOptions = {}): void {
+  const dataDir = options.dataDir ?? resolveDataDir(process.env.BLUEMANTA_DATA_DIR, defaultDataDir);
+  const server = options.server ?? defaultServer(dataDir);
+  const core = openCore({ dataDir });
   ctx.effect(() => {
-    cleanupStaleAttachments(core);
-    const disposeHealth = ctx.connection.fetch.register({
-      path: HEALTH_PATH,
-      methods: ['GET'],
-      requestBody: 'buffered',
-      fetch: adapt(core, handleHealth),
-    });
-    const disposeCards = ctx.connection.fetch.register({
-      path: CARDS_PATH,
-      methods: ['GET'],
-      requestBody: 'buffered',
-      fetch: adapt(core satisfies RouteCore, handleCards),
-    });
-    const disposeCommands = ctx.connection.fetch.register({
-      path: COMMANDS_PATH,
-      methods: ['POST'],
-      requestBody: 'buffered',
-      fetch: adapt(core, handleCommands),
-    });
-    const disposeUploads = ctx.connection.fetch.register({
-      path: ATTACHMENTS_PATH,
-      methods: ['POST'],
-      requestBody: 'streaming',
-      fetch: adapt(core, handleAttachmentUpload),
-    });
-    const disposeAttachment = ctx.connection.fetch.register({
-      path: ATTACHMENT_PATH,
-      methods: ['GET'],
-      requestBody: 'buffered',
-      fetch: adapt(core, handleAttachmentRead),
-    });
     const disposeTools = registerIdeaTools(ctx, core);
+    const disposeRoute = ctx.connection.fetch.register({
+      path: WEB_CONFIG_PATH,
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: async () => {
+        try {
+          return Response.json(await loadWebConfig(server, dataDir), { headers: NO_STORE });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return Response.json({ ok: false, reason: `本地服务没有启动：${message}` }, { headers: NO_STORE });
+        }
+      },
+    });
+    void server.ensure().catch(() => undefined);
     return () => {
+      disposeRoute();
       for (const dispose of disposeTools) dispose();
-      disposeHealth();
-      disposeCards();
-      disposeCommands();
-      disposeUploads();
-      disposeAttachment();
+      server.stop();
       core.close();
     };
   }, 'bluemanta: core');

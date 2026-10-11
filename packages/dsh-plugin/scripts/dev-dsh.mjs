@@ -4,12 +4,14 @@
  *
  * dsh 锁定为 @deepseek-ai/dsh@0.2.0-rc.2，装在 .dsh-dev/cli，不写进仓库依赖。
  * profile 用 web 模板初始化（--dump-config 只建配置、不启动服务），装上本插件后再监听 3092。
+ * 数据目录是 .dsh-dev/data。插件拉起的本地服务用 4311，避开用户本机的 4310。
+ * 数据目录还没有 store.sqlite 时，写入网页包的虚构种子。
  */
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pluginNeedsAdd, profileNeedsCreate } from '../src/dev-dsh-plan.js';
+import { dataDirNeedsSeed, DEV_SERVER_PORT, pluginNeedsAdd, profileNeedsCreate } from '../src/dev-dsh-plan.js';
 
 const DSH_PACKAGE = '@deepseek-ai/dsh@0.2.0-rc.2';
 // 脚本在 packages/dsh-plugin/scripts/，向上四级才是仓库根。
@@ -66,6 +68,7 @@ const devEnv = {
   DSH_HOME: home,
   DSH_TELEMETRY_DISABLED: '1',
   BLUEMANTA_DATA_DIR: dataDir,
+  BLUEMANTA_SERVER_PORT: DEV_SERVER_PORT,
 };
 
 function dependencyNames(profileDir) {
@@ -76,6 +79,11 @@ function dependencyNames(profileDir) {
 }
 
 await run('npm', ['run', 'build'], baseEnv);
+if (dataDirNeedsSeed(existsSync(dataDir) ? readdirSync(dataDir) : [])) {
+  await run('node', ['packages/web/scripts/seed-cli.ts', '--data-dir', dataDir], baseEnv);
+} else {
+  console.error('dev:dsh 数据目录已有 store.sqlite，跳过虚构数据');
+}
 await ensureDsh(baseEnv);
 const profileDir = join(home, 'profiles', 'bluemanta-dev');
 if (profileNeedsCreate(existsSync(profileDir))) {
