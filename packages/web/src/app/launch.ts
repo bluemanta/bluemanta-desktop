@@ -50,7 +50,20 @@ export type Launch = {
   token: string | null;
   parentOrigin: string | null;
   embed: EmbedMode;
+  /**
+   * 右侧栏标签打开时地址就是 `/ideas/<id>`。
+   * 这种详情不显示返回；从清单点进来的不算。
+   */
+  sidebarDirect: boolean;
 };
+
+/** 右侧栏一打开就是单条灵感（不是统计、回收站或清单）。 */
+export function isDirectSidebarIdea(pathname: string, embed: EmbedMode): boolean {
+  if (embed !== 'sidebar') return false;
+  const match = pathname.match(/^\/ideas\/([^/]+)\/?$/);
+  if (!match || !match[1]) return false;
+  return match[1] !== 'stats' && match[1] !== 'trash';
+}
 
 type BrowserLike = {
   location: { pathname: string; search: string; hash: string };
@@ -68,9 +81,11 @@ export function readLaunch(win: BrowserLike): Launch {
     const url = `${win.location.pathname}${win.location.search}${hash.rest ? `#${hash.rest}` : ''}`;
     win.history.replaceState(win.history.state, '', url);
   }
+  const embed = parseEmbed(win.location.search);
   return {
     token: hash.token ?? win.localStorage.getItem(TOKEN_KEY),
     parentOrigin: hash.parentOrigin ?? normalizeOrigin(win.sessionStorage.getItem(PARENT_KEY)),
-    embed: parseEmbed(win.location.search),
+    embed,
+    sidebarDirect: isDirectSidebarIdea(win.location.pathname, embed),
   };
 }

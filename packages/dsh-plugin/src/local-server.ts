@@ -4,15 +4,13 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_SERVER_PORT = 4310;
 export const HEALTH_TIMEOUT_MS = 10_000;
 export const WEB_CONFIG_PATH = '/api/bluemanta/web-config';
 export const TOKEN_FILE = 'local-server.json';
-
-const require = createRequire(import.meta.url);
 
 export type HealthState = 'bluemanta' | 'other' | 'down';
 
@@ -37,9 +35,16 @@ export function resolveServerPort(envValue: string | undefined): { ok: true; por
   return { ok: true, port };
 }
 
-/** 经包解析找到 `dist/cli.js`，不写死仓库路径。 */
-export function resolveServerCli(resolvePkg: (id: string) => string = (id) => require.resolve(id)): string {
-  return join(dirname(resolvePkg('@bluemanta/server/package.json')), 'dist', 'cli.js');
+function pathFromResolved(resolved: string): string {
+  return resolved.startsWith('file:') ? fileURLToPath(resolved) : resolved;
+}
+
+/**
+ * 经包解析找到 `dist/cli.js`，不写死仓库路径。
+ * 服务包的 `exports` 没有 `./package.json`，只能解析入口 `dist/index.js`，再取同目录的 `cli.js`。
+ */
+export function resolveServerCli(resolvePkg: (id: string) => string = (id) => import.meta.resolve(id)): string {
+  return join(dirname(pathFromResolved(resolvePkg('@bluemanta/server'))), 'cli.js');
 }
 
 export type Probe = (port: number) => Promise<HealthState>;
@@ -64,7 +69,8 @@ export type LocalServerOptions = {
   port: number;
   dataDir: string;
   execPath: string;
-  scriptPath: string;
+  /** 字符串，或拉起前才调用的解析函数。已有服务时不会调用。 */
+  scriptPath: string | (() => string);
   probe: Probe;
   spawnServer: SpawnServer;
   baseEnv?: NodeJS.ProcessEnv;
@@ -142,9 +148,10 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
     if (child) return waitUntilHealthy(child);
     let started: ServerChild;
     try {
+      const scriptPath = typeof options.scriptPath === 'function' ? options.scriptPath() : options.scriptPath;
       started = options.spawnServer({
         execPath: options.execPath,
-        args: [options.scriptPath, 'start'],
+        args: [scriptPath, 'start'],
         env: {
           ...options.baseEnv,
           ELECTRON_RUN_AS_NODE: '1',

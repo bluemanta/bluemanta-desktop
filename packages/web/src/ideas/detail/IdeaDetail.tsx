@@ -7,6 +7,7 @@ import { describeError } from '../../api/client';
 import { addExtension, deleteExtension, idempotencyId, isVersionConflict, reloadIdea, updateIdea } from '../../api/writes';
 import { Button } from '../../ui/Button';
 import { useToast } from '../../ui/Toast';
+import { Tooltip } from '../../ui/Tooltip';
 import { DISCARD_CONFIRM, useConfirm } from '../../ui/ConfirmDialog';
 import { AuthImage } from '../../ui/AuthImage';
 import { CategoryTag } from '../CategoryTag';
@@ -28,12 +29,87 @@ type IdeaDetailProps = {
   leading?: ReactNode;
 };
 
+/** 嵌入 dsh 时的两个动作。宽一点时用短文案加 tooltip；窄到放不下时收进「更多」。 */
+function EmbedActions({ onQuote, onOpen }: { onQuote: () => void; onOpen: () => void }) {
+  const [open, setOpen] = useState(false);
+  const more = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!more.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <div className={styles.embedInline}>
+        <Tooltip label="在对话中引用">
+          <Button size="sm" onClick={onQuote}>
+            引用到对话
+          </Button>
+        </Tooltip>
+        <Tooltip label="在右侧栏打开">
+          <Button size="sm" onClick={onOpen}>
+            侧栏打开
+          </Button>
+        </Tooltip>
+      </div>
+      <div className={styles.embedMore}>
+        <div className={styles.more} ref={more}>
+          <Button size="sm" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen((value) => !value)}>
+            更多
+          </Button>
+          {open ? (
+            <div className={styles.menu} role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.menuItem}
+                onClick={() => {
+                  setOpen(false);
+                  onQuote();
+                }}
+              >
+                在对话中引用
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className={styles.menuItem}
+                onClick={() => {
+                  setOpen(false);
+                  onOpen();
+                }}
+              >
+                在右侧栏打开
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function IdeaDetail({ record, leading }: IdeaDetailProps) {
   const { sessions, setSession, editSession, editorActions, bumpBaseRev } = useIdeasState();
   const session = sessions[record.id] ?? null;
   const confirm = useConfirm();
   const toast = useToast();
-  const { parentOrigin } = useLaunch();
+  const { parentOrigin, embed } = useLaunch();
   const client = useQueryClient();
   const { star, trash } = useIdeaCommands();
   const [viewing, setViewing] = useState<number | null>(null);
@@ -213,12 +289,12 @@ export function IdeaDetail({ record, leading }: IdeaDetailProps) {
             <Button size="sm" onClick={startEdit}>
               编辑 <kbd>E</kbd>
             </Button>
-            <Button size="sm" onClick={() => askParent('bm:quote', '已写入输入框')}>
-              在对话中引用
-            </Button>
-            <Button size="sm" onClick={() => askParent('bm:openSidebar', '已在右侧栏打开')}>
-              在右侧栏打开
-            </Button>
+            {embed !== null ? (
+              <EmbedActions
+                onQuote={() => askParent('bm:quote', '已写入输入框')}
+                onOpen={() => askParent('bm:openSidebar', '已在右侧栏打开')}
+              />
+            ) : null}
             <span className={styles.spacer} />
             <Button size="sm" variant="ghost" onClick={() => void trash(record).then(setTrashError)}>
               移入回收站

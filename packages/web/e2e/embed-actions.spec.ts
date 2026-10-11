@@ -1,5 +1,5 @@
 /**
- * 详情里「在对话中引用」「在右侧栏打开」：独立打开用轻提示说明，嵌入时经模拟父窗口收发消息。
+ * 详情里的引用入口：独立打开不显示；嵌入时是「引用到对话」「侧栏打开」，最窄时收进「更多」。
  */
 import { createServer } from 'node:http';
 import { mkdirSync } from 'node:fs';
@@ -69,15 +69,14 @@ async function receivedTypes(page: Page): Promise<string[]> {
   return page.evaluate(() => (window as unknown as { received: { type?: string }[] }).received.map((item) => item.type ?? ''));
 }
 
-test('独立打开时两个按钮仍在，点了说明要在对话里使用', async ({ page }) => {
+test('独立打开时不显示引用和侧栏按钮', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await openApp(page);
   await row(page, SEEDED.rich).click();
   const bar = page.getByRole('toolbar', { name: '操作' });
-  await bar.getByRole('button', { name: '在对话中引用' }).click();
-  await expect(page.getByRole('status')).toContainText('在 dsh 的对话里才能使用');
-  await bar.getByRole('button', { name: '在右侧栏打开' }).click();
-  await expect(page.getByRole('status')).toContainText('在 dsh 的对话里才能使用');
+  await expect(bar.getByRole('button', { name: '引用到对话' })).toHaveCount(0);
+  await expect(bar.getByRole('button', { name: '侧栏打开' })).toHaveCount(0);
+  await expect(bar.getByRole('button', { name: '移入回收站' })).toBeVisible();
 });
 
 test('右侧栏嵌入显示整页详情，两个按钮把结果交给父窗口', async ({ page }) => {
@@ -93,9 +92,12 @@ test('右侧栏嵌入显示整页详情，两个按钮把结果交给父窗口',
     await expect(frame.getByRole('listbox')).toHaveCount(0);
     await page.screenshot({ path: join(SHOTS, 'embed-sidebar.png') });
 
-    await frame.getByRole('button', { name: '在对话中引用' }).click();
+    const bar = frame.getByRole('toolbar', { name: '操作' });
+    await bar.getByRole('button', { name: '引用到对话' }).hover();
+    await expect(frame.getByRole('tooltip')).toHaveText('在对话中引用');
+    await bar.getByRole('button', { name: '引用到对话' }).click();
     await expect(frame.getByRole('status')).toContainText('已写入输入框');
-    await frame.getByRole('button', { name: '在右侧栏打开' }).click();
+    await bar.getByRole('button', { name: '侧栏打开' }).click();
     await expect(frame.getByRole('status')).toContainText('已在右侧栏打开');
 
     const messages = () => page.evaluate(() => (window as unknown as { received: { type: string; id?: string }[] }).received);
@@ -126,11 +128,38 @@ test('主区嵌入时父窗口拒绝，轻提示显示原因', async ({ page }) 
     await page.screenshot({ path: join(SHOTS, 'embed-main-dark.png') });
 
     await frame.getByRole('option').filter({ hasText: SEEDED.rich }).click();
-    await frame.getByRole('button', { name: '在右侧栏打开' }).click();
+    const bar = frame.getByRole('toolbar', { name: '操作' });
+    expect(await bar.evaluate((node) => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    const trash = await bar.getByRole('button', { name: '移入回收站' }).boundingBox();
+    const box = await bar.boundingBox();
+    expect(trash && box && Math.abs(box.x + box.width - (trash.x + trash.width)) <= 2).toBe(true);
+    await bar.getByRole('button', { name: '侧栏打开' }).click();
     await expect(frame.getByRole('status')).toContainText('当前不在对话里');
-    await frame.getByRole('button', { name: '在对话中引用' }).click();
+    await bar.getByRole('button', { name: '引用到对话' }).click();
     await expect(frame.getByRole('status')).toContainText('当前不在对话里');
     await expect.poll(() => receivedTypes(page)).toContain('bm:openSidebar');
+  } finally {
+    await parent.close();
+  }
+});
+
+test('详情宽 320px 时两个按钮收进更多，工具条仍是一行', async ({ page }) => {
+  const parent = await serveParent((origin) => parentPage(frameSrc(origin, '/ideas?embed=main'))(origin));
+  try {
+    await page.addInitScript(() => {
+      localStorage.setItem('bluemanta.detailWidth', '320');
+    });
+    await page.setViewportSize({ width: 1200, height: 860 });
+    await page.goto(`${parent.origin}/`);
+    const frame = page.frameLocator('#app');
+    await frame.getByRole('option').filter({ hasText: SEEDED.rich }).click();
+    const bar = frame.getByRole('toolbar', { name: '操作' });
+    await expect(bar.getByRole('button', { name: '更多' })).toBeVisible();
+    await expect(bar.getByRole('button', { name: '引用到对话' })).toHaveCount(0);
+    expect(await bar.evaluate((node) => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await bar.getByRole('button', { name: '更多' }).click();
+    await frame.getByRole('menuitem', { name: '在对话中引用' }).click();
+    await expect(frame.getByRole('status')).toContainText('已写入输入框');
   } finally {
     await parent.close();
   }

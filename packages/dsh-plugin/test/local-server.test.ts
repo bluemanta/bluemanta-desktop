@@ -1,6 +1,8 @@
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createLocalServer,
@@ -65,14 +67,29 @@ describe('端口与 cli 路径', () => {
     expect(resolveServerPort('abc').ok).toBe(false);
   });
 
-  it('cli 路径来自包解析，不写死仓库目录', () => {
+  it('cli 路径来自包入口，不写死仓库目录', () => {
     const seen: string[] = [];
     const path = resolveServerCli((id) => {
       seen.push(id);
-      return '/virtual/node_modules/@bluemanta/server/package.json';
+      return 'file:///virtual/node_modules/@bluemanta/server/dist/index.js';
     });
-    expect(seen).toEqual(['@bluemanta/server/package.json']);
+    expect(seen).toEqual(['@bluemanta/server']);
     expect(path).toBe('/virtual/node_modules/@bluemanta/server/dist/cli.js');
+  });
+
+  it('真实解析出的 cli 存在', () => {
+    // vitest 会换掉 import.meta.resolve。dsh 加载的是构建产物，这里用 Node 直接跑它，不注入解析函数。
+    const entry = pathToFileURL(fileURLToPath(new URL('../dist/local-server.js', import.meta.url))).href;
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { existsSync } from 'node:fs'; import { resolveServerCli } from ${JSON.stringify(entry)}; const path = resolveServerCli(); if (!existsSync(path)) { console.error(path); process.exit(1); } console.log(path);`,
+      ],
+      { encoding: 'utf8' },
+    );
+    expect(output.trim()).toMatch(/[/\\]cli\.js$/);
   });
 });
 
@@ -93,6 +110,47 @@ describe('拉起与停止', () => {
     await expect(server.ensure()).resolves.toEqual({ ok: true, baseUrl: 'http://127.0.0.1:4310', owned: false });
     server.stop();
     expect(spawned).toEqual([]);
+  });
+
+  it('已经是 bluemanta 时不解析 cli，解析失败也不挡住复用', async () => {
+    let resolved = 0;
+    const server = createLocalServer({
+      port: 4310,
+      dataDir: '/tmp/data',
+      execPath: '/usr/bin/node',
+      scriptPath: () => {
+        resolved += 1;
+        throw new Error('Package subpath');
+      },
+      probe: async () => 'bluemanta',
+      spawnServer: () => {
+        throw new Error('不应拉起');
+      },
+    });
+    await expect(server.ensure()).resolves.toEqual({ ok: true, baseUrl: 'http://127.0.0.1:4310', owned: false });
+    expect(resolved).toBe(0);
+  });
+
+  it('需要拉起时路径解析失败，不调用拉起函数', async () => {
+    let spawned = 0;
+    const server = createLocalServer({
+      port: 4310,
+      dataDir: '/tmp/data',
+      execPath: '/usr/bin/node',
+      scriptPath: () => {
+        throw new Error("Package subpath './package.json' is not defined by \"exports\"");
+      },
+      probe: async () => 'down',
+      spawnServer: () => {
+        spawned += 1;
+        throw new Error('不应拉起');
+      },
+    });
+    await expect(server.ensure()).resolves.toEqual({
+      ok: false,
+      reason: "本地服务没有启动：Package subpath './package.json' is not defined by \"exports\"",
+    });
+    expect(spawned).toBe(0);
   });
 
   it('没在跑时拉起，环境变量带上 ELECTRON_RUN_AS_NODE，只停自己拉起的', async () => {

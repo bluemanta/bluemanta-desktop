@@ -22,7 +22,7 @@ describe('启动参数', () => {
   it('从 hash 读口令和父窗口 origin，并从地址栏抹掉', () => {
     const win = fakeWindow('http://127.0.0.1:9/ideas?embed=main#token=abc&parent=http%3A%2F%2Flocalhost%3A5000');
     const launch = readLaunch(win);
-    expect(launch).toEqual({ token: 'abc', parentOrigin: 'http://localhost:5000', embed: 'main' });
+    expect(launch).toEqual({ token: 'abc', parentOrigin: 'http://localhost:5000', embed: 'main', sidebarDirect: false });
     expect(win.localStorage.data.get(TOKEN_KEY)).toBe('abc');
     expect(win.sessionStorage.data.get(PARENT_KEY)).toBe('http://localhost:5000');
     expect(win.replaced).toEqual(['/ideas?embed=main']);
@@ -45,5 +45,13 @@ describe('启动参数', () => {
     expect(normalizeOrigin('dsh-app://other')).toBeNull();
     expect(parseEmbed('?embed=other')).toBeNull();
     expect(parseEmbed('?embed=sidebar')).toBe('sidebar');
+  });
+
+  it('只有右侧栏一开始就是单条灵感时不给返回', () => {
+    expect(readLaunch(fakeWindow('http://127.0.0.1:9/ideas/card_1?embed=sidebar')).sidebarDirect).toBe(true);
+    expect(readLaunch(fakeWindow('http://127.0.0.1:9/ideas?embed=sidebar')).sidebarDirect).toBe(false);
+    expect(readLaunch(fakeWindow('http://127.0.0.1:9/ideas/stats?embed=sidebar')).sidebarDirect).toBe(false);
+    expect(readLaunch(fakeWindow('http://127.0.0.1:9/ideas/trash?embed=sidebar')).sidebarDirect).toBe(false);
+    expect(readLaunch(fakeWindow('http://127.0.0.1:9/ideas/card_1')).sidebarDirect).toBe(false);
   });
 });

@@ -56,18 +56,11 @@ export type ApplyOptions = {
 function defaultServer(dataDir: string): LocalServer {
   const port = resolveServerPort(process.env.BLUEMANTA_SERVER_PORT);
   if (!port.ok) return failingServer(port.reason);
-  let scriptPath: string;
-  try {
-    scriptPath = resolveServerCli();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return failingServer(`本地服务没有启动：${message}`);
-  }
   return createLocalServer({
     port: port.port,
     dataDir,
     execPath: process.execPath,
-    scriptPath,
+    scriptPath: () => resolveServerCli(),
     probe: probeHealth,
     spawnServer: spawnNodeServer,
     baseEnv: process.env,

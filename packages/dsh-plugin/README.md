@@ -16,7 +16,7 @@ dsh 0.2.0-rc.2 的组合包。按 [ADR 0005](../../docs/decisions/0005-web-app-d
 
 插件激活时请求 `http://127.0.0.1:<端口>/api/v1/health`。端口默认 4310，读 `BLUEMANTA_SERVER_PORT`。响应里 `service` 是 `bluemanta` 就直接用（例如开机自启的那个），不另起进程。
 
-没人在听：用 `process.execPath` 加上 `ELECTRON_RUN_AS_NODE=1`，运行 `@bluemanta/server` 的 `dist/cli.js start`。脚本路径经包解析得到，不写死仓库目录。子进程的 `BLUEMANTA_DATA_DIR`、`BLUEMANTA_SERVER_PORT` 和插件一致。健康检查大约等 10 秒。
+没人在听：用 `process.execPath` 加上 `ELECTRON_RUN_AS_NODE=1`，运行 `@bluemanta/server` 的 `dist/cli.js start`。脚本路径用 `import.meta.resolve('@bluemanta/server')` 找到入口 `dist/index.js`，再取同目录的 `cli.js`，不写死仓库目录。已经有 bluemanta 服务时直接复用，这次解析失败也不影响复用。子进程的 `BLUEMANTA_DATA_DIR`、`BLUEMANTA_SERVER_PORT` 和插件一致。健康检查大约等 10 秒。
 
 只停自己拉起的那个：插件停用或 dsh 退出时给这个子进程发 SIGTERM；复用来的不碰。子进程自己退出时记一行日志，下次打开框时重新检查。
 

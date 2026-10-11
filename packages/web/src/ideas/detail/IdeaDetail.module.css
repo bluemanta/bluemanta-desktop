@@ -113,15 +113,77 @@
 }
 
 .toolbar {
+  container-type: inline-size;
+  container-name: detailbar;
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: var(--bm-sp-6);
+  width: 100%;
+  min-width: 0;
   margin-bottom: var(--bm-sp-12);
+}
+
+.embedInline {
+  display: flex;
+  flex: none;
+  gap: var(--bm-sp-6);
+}
+
+.embedMore {
+  display: none;
+  flex: none;
+}
+
+.more {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--bm-sp-4));
+  right: 0;
+  z-index: 5;
+  min-width: 148px;
+  padding: var(--bm-sp-4);
+  background: var(--bm-surface);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r);
+  box-shadow: var(--bm-shadow-pop);
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--bm-text);
+  padding: var(--bm-sp-6) var(--bm-sp-8);
+  border-radius: var(--bm-r-sm);
+  font-size: var(--bm-fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menuItem:hover {
+  background: var(--bm-hover);
+}
+
+/* 详情最窄 320px 时，两个嵌入按钮收进「更多」，工具条保持单行。 */
+@container detailbar (max-width: 360px) {
+  .embedInline {
+    display: none;
+  }
+
+  .embedMore {
+    display: block;
+  }
 }
 
 .spacer {
   flex: 1;
+  min-width: 0;
 }
 
 .error {

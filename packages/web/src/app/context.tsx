@@ -2,7 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { useLocation } from 'wouter';
 import type { Launch } from './launch';
 
-export const LaunchContext = createContext<Launch>({ token: null, parentOrigin: null, embed: null });
+export const LaunchContext = createContext<Launch>({
+  token: null,
+  parentOrigin: null,
+  embed: null,
+  sidebarDirect: false,
+});
 
 export function useLaunch(): Launch {
   return useContext(LaunchContext);
