@@ -74,7 +74,7 @@ core.close();
 
 收藏（`card.setStar`，以及新建时 `starred: true`）和彻底删除（`task.purge`、`card.purge`）拒绝 `agent`。追记的追加和删除也拒绝 `agent`。
 
-`card.setStar` 不改 `updatedAt` 和 `updatedBy`，`rev` 仍然加 1，并照常写历史。
+`card.setStar`、`card.delete` 和 `card.restore` 不改 `updatedAt` 和 `updatedBy`，`rev` 仍然加 1，并照常写历史。移入回收站和恢复只改 `deletedAt`。
 
 回收站中的卡片不能修改、追记或收藏，要先恢复。`card.purge` 和 `task.purge` 只能删除已经在回收站里的记录。`card.purge` 的成功结果是 `{ id, attachmentIds }`，附件文件由调用方清理。
 
@@ -88,7 +88,7 @@ core.close();
 | `task.create` / `task.update` / `task.setStatus` | 新建、改字段、改状态 |
 | `task.delete` / `task.restore` / `task.purge` | 软删除、恢复、彻底删除。彻底删除只接受回收站中的任务 |
 | `card.create` / `card.update` | 新建、改标题/正文/标签/附件 id/项目/idea 字段。灵感的 `title` 和 `rawInput` 新建时可省略：没给标题时按正文生成兜底标题；没给 `rawInput` 时按来源生成 `web` 或 `agent`。`rawInput` 写入后不能改。修改时不带 `title` 不重算标题 |
-| `card.delete` / `card.restore` / `card.purge` | 软删除、恢复、彻底删除。彻底删除只接受回收站中的卡片，并返回附件 id |
+| `card.delete` / `card.restore` / `card.purge` | 软删除、恢复、彻底删除。不改 `updatedAt` / `updatedBy`，只改 `deletedAt` 和 `rev`。彻底删除只接受回收站中的卡片，并返回附件 id |
 | `card.setStar` | 收藏或取消收藏。不改 `updatedAt` / `updatedBy`，`rev` 加 1 |
 | `card.addExtension` / `card.deleteExtension` | 追加一条追记，或按 id 删掉一条。只有人能执行 |
 | `link.create` / `link.delete` | 新建关联、软删除关联 |
@@ -113,7 +113,7 @@ npm run import:workbench -- --source <store.json> --data-dir <数据目录> [--c
 
 映射、附件复制和报告在 `packages/importer`。示例配置是 `packages/importer/workbench-import.example.json`。
 
-字段限制：卡片标题 ≤ 80 字，正文 ≤ 8000 字，追记 ≤ 8000 字（按 Unicode 码位计）。灵感的 `attachmentIds` 最多 4 个。任务截止日期是 `YYYY-MM-DD`。
+字段限制：卡片标题 ≤ 80 字，正文 ≤ 8000 字，追记 ≤ 8000 字（按 Unicode 码位计）。灵感的 `attachmentIds` 最多 4 个。`card.create` 和 `card.update` 写入 `attachmentIds` 时，每个 id 都要对应一条未删除的附件，否则 `invalid_input`，消息里写明不存在的 id。不带 `attachmentIds` 的修改不会重新检查已绑定的附件。任务截止日期是 `YYYY-MM-DD`。
 
 `attachment.create` 只建元数据，不写文件。`path` 为 `media/<id>.<扩展名>`，文件由调用方放到数据目录。校验对应 idea-rules 第 8 节：`image/jpeg`、`image/png`、`image/gif`、`image/webp`，`byteSize` 为 1 到 8 MB，宽高为 1 到 16384，`sha256` 为 64 位十六进制（入库时转成小写）。
 

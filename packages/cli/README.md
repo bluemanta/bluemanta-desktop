@@ -66,11 +66,13 @@ Desktop 开着时也可以写。库是 SQLite WAL。灵感台重新打开清单�
 
 标准输入 `{"query":"关键词","limit":10}`。`query` 必填。`limit` 省略时为 10，最大 50。
 
-成功时的对象与 T6 的 `bluemanta_idea_search` 相同：`ok`、`count`、`limit`、`message`、`items`。没有匹配时 `ok` 仍为 true，`message` 为「没有找到」，退出码 0。每条 `items` 含 `id`、`title`、`category`（中文名）、`createdAt`（`YYYY-MM-DD`）、`field`、`excerpt`。
+成功时的对象与 T6 的 `bluemanta_idea_search` 相同：`ok`、`count`、`limit`、`message`、`items`。没有匹配时 `ok` 仍为 true，`message` 为「没有找到」，退出码 0。每条 `items` 含 `id`、`title`、`category`（中文名）、`createdAt`（`YYYY-MM-DD`，按 Asia/Shanghai 计算，不是 UTC 日期）、`field`、`excerpt`。
 
 ### get
 
 标准输入 `{"id":"card_…"}`。成功时的对象与 T6 的 `bluemanta_idea_get` 相同，含标题、正文、分类中文名、收藏、创建时间、追记和原文。回收站里的也会返回。找不到时 `not_found`，退出码非 0。
+
+`createdAt` 和追记的 `createdAt` 仍是记录上的 ISO UTC 时间。另有 `createdAtLocal`（追记同样有这个字段），是上海时区的本地时间文本，形如 `2026-10-11 07:09`。给模型看的说明文字用本地时间，不用 ISO。UTC `2026-10-10T23:09:00.000Z` 对应 `2026-10-11 07:09`。
 
 ### 错误码
 

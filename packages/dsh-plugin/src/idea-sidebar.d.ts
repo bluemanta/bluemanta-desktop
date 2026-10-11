@@ -63,3 +63,35 @@ export function ideaToolCard(
   resultText: string,
   isError: boolean,
 ): IdeaToolCardModel;
+
+export interface RailOpenTab {
+  sessionId?: string;
+  tabId?: string;
+}
+
+export function tabIsOpen(
+  openTabs: readonly RailOpenTab[] | null | undefined,
+  sessionId: string,
+  tabId: string,
+): boolean;
+
+export type RailOpenPlan = { action: 'focus'; tabId: string } | { action: 'open' };
+
+export function planRailOpen(
+  knownTabId: string,
+  openTabs: readonly RailOpenTab[] | null | undefined,
+  sessionId: string,
+): RailOpenPlan;
+
+export type RailClaimPlan = { action: 'focus-existing'; tabId: string } | { action: 'keep'; tabId: string };
+
+export function planRailClaim(
+  knownTabId: string,
+  openTabs: readonly RailOpenTab[] | null | undefined,
+  sessionId: string,
+  tabId: string,
+): RailClaimPlan;
+
+export function planRailClose(
+  entry: { dirty?: boolean; allow?: boolean } | null | undefined,
+): 'allow' | 'confirm';

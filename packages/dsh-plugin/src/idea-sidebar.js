@@ -192,3 +192,33 @@ export function ideaToolCard(toolName, phase, args, resultText, isError) {
   }
   return { kind: 'error', message: text || '调用失败' };
 }
+
+export function tabIsOpen(openTabs, sessionId, tabId) {
+  if (!tabId || !Array.isArray(openTabs)) return false;
+  for (const tab of openTabs) {
+    if (!tab || tab.tabId !== tabId) continue;
+    if (sessionId && tab.sessionId !== sessionId) continue;
+    return true;
+  }
+  return false;
+}
+
+/** 同一个灵感已经打开时聚焦那个 tab，否则新开。 */
+export function planRailOpen(knownTabId, openTabs, sessionId) {
+  if (tabIsOpen(openTabs, sessionId, knownTabId)) return { action: 'focus', tabId: knownTabId };
+  return { action: 'open' };
+}
+
+/** 后打开的重复标签让位给已经记下的那个。 */
+export function planRailClaim(knownTabId, openTabs, sessionId, tabId) {
+  if (knownTabId && knownTabId !== tabId && tabIsOpen(openTabs, sessionId, knownTabId)) {
+    return { action: 'focus-existing', tabId: knownTabId };
+  }
+  return { action: 'keep', tabId };
+}
+
+/** 未保存时拦截关闭；调用方已经确认过则放行。 */
+export function planRailClose(entry) {
+  if (!entry || entry.dirty !== true || entry.allow === true) return 'allow';
+  return 'confirm';
+}

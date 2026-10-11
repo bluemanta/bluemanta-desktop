@@ -168,6 +168,7 @@ export function registerIdeaTools(ctx: HostContext, core: Core): Array<() => voi
               category: { type: 'string', required: true },
               starred: { type: 'boolean', required: true },
               createdAt: { type: 'string', required: true },
+              createdAtLocal: { type: 'string', required: true },
               inTrash: { type: 'boolean', required: true },
               notice: { type: 'string', required: true },
               extensions: {
@@ -180,6 +181,7 @@ export function registerIdeaTools(ctx: HostContext, core: Core): Array<() => voi
                     id: { type: 'string', required: true },
                     body: { type: 'string', required: true },
                     createdAt: { type: 'string', required: true },
+                    createdAtLocal: { type: 'string', required: true },
                   },
                 },
               },

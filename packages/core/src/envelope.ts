@@ -17,3 +17,11 @@ export function bumpRev<T extends Envelope>(record: T): T {
     rev: record.rev + 1,
   };
 }
+
+/** 移入回收站和恢复只改 deletedAt 并推进版本，不改 updatedAt / updatedBy。 */
+export function setDeleted<T extends Envelope>(record: T, deletedAt: string | null): T {
+  return {
+    ...bumpRev(record),
+    deletedAt,
+  };
+}

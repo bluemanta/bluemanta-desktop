@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
+import type { Core } from '../src/index.js';
 import { agent, human, idea, must, req, withCore } from './helpers.js';
 
 const otherHuman = { kind: 'human' as const, name: '另一人' };
+
+function liveAttachment(core: Core): string {
+  return must(
+    core.attachment.create({
+      requestId: req(),
+      source: human,
+      mime: 'image/png',
+      byteSize: 8,
+      width: 1,
+      height: 1,
+      sha256: req().replace(/[^0-9a-f]/g, 'a').padEnd(64, 'b').slice(0, 64),
+    }),
+  ).id;
+}
 
 describe('灵感规则', () => {
   it('没给标题时用正文生成兜底标题，修改时不带 title 不重算', () => {
@@ -95,6 +110,7 @@ describe('灵感规则', () => {
       expect(core.listCards({ deleted: 'all' })).toEqual([]);
       expect(core.listHistory()).toEqual([]);
 
+      const onlyAttachment = liveAttachment(core);
       const unnamed = must(
         core.card.create({
           requestId: req(),
@@ -102,13 +118,14 @@ describe('灵感规则', () => {
           cardType: 'idea',
           title: '',
           body: '',
-          attachmentIds: ['attachment_only'],
+          attachmentIds: [onlyAttachment],
         }),
       );
       expect(unnamed.title).toBe('未命名灵感');
       expect(unnamed.titleOrigin).toBe('fallback');
-      expect(unnamed.attachmentIds).toEqual(['attachment_only']);
+      expect(unnamed.attachmentIds).toEqual([onlyAttachment]);
 
+      const spaceAttachment = liveAttachment(core);
       const whitespaceBody = must(
         core.card.create({
           requestId: req(),
@@ -116,7 +133,7 @@ describe('灵感规则', () => {
           cardType: 'idea',
           title: '',
           body: '   ',
-          attachmentIds: ['attachment_space'],
+          attachmentIds: [spaceAttachment],
         }),
       );
       expect(whitespaceBody.title).toBe('未命名灵感');
@@ -141,7 +158,7 @@ describe('灵感规则', () => {
           cardType: 'idea',
           title: '原标题',
           body: '原正文',
-          attachmentIds: ['attachment_keep'],
+          attachmentIds: [liveAttachment(core)],
         }),
       );
       const cleared = core.card.update({
@@ -283,7 +300,9 @@ describe('灵感规则', () => {
 
   it('回收站中的卡片不能修改、追记或收藏；不在回收站不能彻底删除', () => {
     withCore((core) => {
-      const card = must(core.card.create(idea({ attachmentIds: ['attachment_a', 'attachment_b'] })));
+      const attachmentA = liveAttachment(core);
+      const attachmentB = liveAttachment(core);
+      const card = must(core.card.create(idea({ attachmentIds: [attachmentA, attachmentB] })));
       const task = must(core.task.create({ requestId: req(), source: human, title: '还在的任务' }));
       const noted = must(
         core.card.addExtension({ requestId: req(), source: human, id: card.id, rev: card.rev, body: '一条追记' }),
@@ -322,8 +341,51 @@ describe('灵感规则', () => {
       expect(core.getTask(task.id)?.deletedAt).toBeNull();
 
       const purged = must(core.card.purge({ requestId: req(), source: human, id: card.id, rev: trashed.rev }));
-      expect(purged).toEqual({ id: card.id, attachmentIds: ['attachment_a', 'attachment_b'] });
+      expect(purged).toEqual({ id: card.id, attachmentIds: [attachmentA, attachmentB] });
       expect(core.getCard(card.id)).toBeNull();
+    });
+  });
+
+  it('移入回收站和恢复不改 updatedAt 和 updatedBy，但 rev 加 1', () => {
+    withCore((core) => {
+      const card = must(core.card.create(idea()));
+      const trashed = must(core.card.delete({ requestId: req(), source: otherHuman, id: card.id, rev: card.rev }));
+      expect(trashed.deletedAt).toEqual(expect.any(String));
+      expect(trashed.updatedAt).toBe(card.updatedAt);
+      expect(trashed.updatedBy).toEqual(card.updatedBy);
+      expect(trashed.rev).toBe(card.rev + 1);
+      const restored = must(
+        core.card.restore({ requestId: req(), source: human, id: card.id, rev: trashed.rev }),
+      );
+      expect(restored.deletedAt).toBeNull();
+      expect(restored.updatedAt).toBe(card.updatedAt);
+      expect(restored.updatedBy).toEqual(card.updatedBy);
+      expect(restored.rev).toBe(trashed.rev + 1);
+    });
+  });
+
+  it('绑定不存在的附件 id 时返回 invalid_input，并写明是哪个', () => {
+    withCore((core) => {
+      const missing = core.card.create(idea({ attachmentIds: ['attachment_missing', 'attachment_also'] }));
+      expect(missing).toMatchObject({ ok: false, code: 'invalid_input' });
+      if (!missing.ok) {
+        expect(missing.message).toContain('attachment_missing');
+        expect(missing.message).toContain('attachment_also');
+      }
+      expect(core.listCards({ deleted: 'all' })).toEqual([]);
+
+      const kept = liveAttachment(core);
+      const card = must(core.card.create(idea({ attachmentIds: [kept] })));
+      const rejected = core.card.update({
+        requestId: req(),
+        source: human,
+        id: card.id,
+        rev: card.rev,
+        attachmentIds: [kept, 'attachment_gone'],
+      });
+      expect(rejected).toMatchObject({ ok: false, code: 'invalid_input' });
+      if (!rejected.ok) expect(rejected.message).toContain('attachment_gone');
+      expect(core.getCard(card.id)?.attachmentIds).toEqual([kept]);
     });
   });
 

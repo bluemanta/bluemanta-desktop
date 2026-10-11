@@ -12,8 +12,12 @@ import {
   ideaToolCard,
   openIdeaTab,
   parseToolArgs,
+  planRailClaim,
+  planRailClose,
+  planRailOpen,
   sidebarIsMounted,
   subscribeSidebarMounted,
+  tabIsOpen,
   toolResultText,
 } from '../src/idea-sidebar.js';
 
@@ -136,6 +140,7 @@ describe('对话工具卡片', () => {
       category: '生活随想',
       starred: false,
       createdAt: '2026-10-10T01:02:03.000Z',
+      createdAtLocal: '2026-10-10 09:02',
       inTrash: true,
       notice: '在回收站中',
       extensions: [],
@@ -159,6 +164,38 @@ describe('对话工具卡片', () => {
     expect(parseToolArgs('{"id":"card_1"}')).toEqual({ id: 'card_1' });
     expect(parseToolArgs('[1]')).toBeNull();
     expect(parseToolArgs('not-json')).toBeNull();
+  });
+});
+
+describe('右侧栏不重复打开', () => {
+  const open = [
+    { sessionId: 'session-1', tabId: 'tab-list', kind: 'bluemanta.idea', contentId: 'sidebar://bluemanta.idea/list' },
+    { sessionId: 'session-1', tabId: 'tab-idea', kind: 'bluemanta.idea', contentId: 'sidebar://bluemanta.idea/1' },
+    { sessionId: 'session-2', tabId: 'tab-other', kind: 'bluemanta.idea', contentId: 'sidebar://bluemanta.idea/2' },
+  ];
+
+  it('已打开的标签聚焦，没有则新开；别的会话里的不算', () => {
+    expect(tabIsOpen(open, 'session-1', 'tab-idea')).toBe(true);
+    expect(tabIsOpen(open, 'session-1', 'tab-other')).toBe(false);
+    expect(planRailOpen('tab-idea', open, 'session-1')).toEqual({ action: 'focus', tabId: 'tab-idea' });
+    expect(planRailOpen('', open, 'session-1')).toEqual({ action: 'open' });
+    expect(planRailOpen('tab-other', open, 'session-1')).toEqual({ action: 'open' });
+  });
+
+  it('后打开的重复标签让位，精简列表同样只留已有的一个', () => {
+    expect(planRailClaim('tab-list', open, 'session-1', 'tab-new')).toEqual({
+      action: 'focus-existing',
+      tabId: 'tab-list',
+    });
+    expect(planRailClaim('', open, 'session-1', 'tab-new')).toEqual({ action: 'keep', tabId: 'tab-new' });
+    expect(planRailClaim('tab-list', open, 'session-1', 'tab-list')).toEqual({ action: 'keep', tabId: 'tab-list' });
+  });
+
+  it('未保存时拦截关闭，已经确认过则放行', () => {
+    expect(planRailClose(null)).toBe('allow');
+    expect(planRailClose({ dirty: false, allow: false })).toBe('allow');
+    expect(planRailClose({ dirty: true, allow: false })).toBe('confirm');
+    expect(planRailClose({ dirty: true, allow: true })).toBe('allow');
   });
 });
 

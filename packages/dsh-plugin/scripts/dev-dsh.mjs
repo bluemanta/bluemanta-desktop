@@ -9,6 +9,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pluginNeedsAdd, profileNeedsCreate } from '../src/dev-dsh-plan.js';
 
 const DSH_PACKAGE = '@deepseek-ai/dsh@0.2.0-rc.2';
 // 脚本在 packages/dsh-plugin/scripts/，向上四级才是仓库根。
@@ -67,8 +68,24 @@ const devEnv = {
   BLUEMANTA_DATA_DIR: dataDir,
 };
 
+function dependencyNames(profileDir) {
+  const manifestPath = join(profileDir, 'package.json');
+  if (!existsSync(manifestPath)) return [];
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  return Object.keys({ ...manifest.dependencies, ...manifest.devDependencies });
+}
+
 await run('npm', ['run', 'build'], baseEnv);
 await ensureDsh(baseEnv);
-await run(dshBin, ['--profile', 'bluemanta-dev', '--from-default-profile', 'web', '--dump-config'], devEnv);
-await run(dshBin, ['plugin', '--profile', 'bluemanta-dev', 'add', './packages/dsh-plugin'], devEnv);
+const profileDir = join(home, 'profiles', 'bluemanta-dev');
+if (profileNeedsCreate(existsSync(profileDir))) {
+  await run(dshBin, ['--profile', 'bluemanta-dev', '--from-default-profile', 'web', '--dump-config'], devEnv);
+} else {
+  console.error('dev:dsh profile 已存在，跳过创建');
+}
+if (pluginNeedsAdd(dependencyNames(profileDir))) {
+  await run(dshBin, ['plugin', '--profile', 'bluemanta-dev', 'add', './packages/dsh-plugin'], devEnv);
+} else {
+  console.error('dev:dsh 插件已安装，跳过 plugin add');
+}
 await run(dshBin, ['--profile', 'bluemanta-dev', '--port', '3092', '--no-open'], devEnv);
