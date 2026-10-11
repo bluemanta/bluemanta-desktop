@@ -61,8 +61,7 @@
 | 网页 → dsh | `bm:openSidebar { id, title }` | 在右侧栏打开这条灵感 |
 | 网页 → dsh | `bm:quote { id, title }` | 在对话中引用（具体做法由 S4 定） |
 | 网页 → dsh | `bm:dirty { dirty }` | 右侧栏 tab 有未保存修改，关闭前由 dsh 确认（保留 T10 的行为） |
-| 网页 → dsh | `bm:shortcut { key }` | 焦点在网页里时，转发 dsh 需要的少数快捷键（清单由 S4 定） |
-| dsh → 网页 | `bm:result { ok, reason }` | 执行结果；不在对话里时回原因，网页用轻提示说明 |
+| 网页 → dsh | dsh → 网页 | `bm:result { ok, reason }` | 执行结果；不在对话里时回原因，网页用轻提示说明 |
 
 - **agent 工具：** 三个工具和工具卡片留在 dsh 插件，继续直接调用 core（和命令行、MCP 一样）；工具卡片里的「打开」改为在右侧栏打开网页。
 
@@ -84,7 +83,7 @@
 
 顺序：T9 → T11 → T12 → T13 → T14 → T15 → T16；S4 与 T11–T14 并行。
 
-模型（2026-10-11 用户决定）：独立验收的任务和 T12 在 issue 描述里写 `[model=claude-opus-5-5]`，其余用 Cursor 默认的 Grok 4.7。
+模型：T11、T12 用 Opus 5.5（issue 描述里写 `[model=claude-opus-5-5]`）；T13 起 Cursor 的第三方模型额度用完，2026-10-11 用户决定其余任务一律用 Cursor 默认的 Grok 4.7，质量由独立验收兜底。
 
 验收触发（2026-10-11 起）：Claude Code 在会话里每 10 分钟巡检一次，PR 的 CI 跑完且 Cursor 写了结果评论后自动验收，不再等用户说「验收」。
 
