@@ -10,13 +10,12 @@ import type {
   CommandErrorCode,
   CommandResult,
   PurgedCard,
-  Source,
 } from '@bluemanta/core';
-import { removeStoredFile } from './media.js';
+import { DESKTOP_SOURCE, discardPurgedAttachments, statusForCommandCode } from '@bluemanta/core';
+
+export { DESKTOP_SOURCE, discardPurgedAttachments, statusForCommandCode };
 
 export const COMMANDS_PATH = '/api/bluemanta/commands';
-
-export const DESKTOP_SOURCE: Source = { kind: 'human', name: 'desktop' };
 
 const COMMAND_NAMES = [
   'card.create',
@@ -50,20 +49,6 @@ export type CommandGateway = {
 
 const JSON_HEADERS = { 'cache-control': 'no-store' };
 
-export function statusForCommandCode(code: CommandErrorCode): number {
-  switch (code) {
-    case 'invalid_input':
-      return 400;
-    case 'not_found':
-      return 404;
-    case 'version_conflict':
-    case 'duplicate_request_mismatch':
-      return 409;
-    case 'forbidden_source':
-      return 403;
-  }
-}
-
 function failure(status: number, code: CommandErrorCode, message: string): Response {
   return Response.json({ ok: false, code, message }, { status, headers: JSON_HEADERS });
 }
@@ -91,14 +76,6 @@ function runCommand(core: CommandGateway, command: DeskCommandName, input: unkno
       return core.card.addExtension(input as CardAddExtensionInput);
     case 'card.deleteExtension':
       return core.card.deleteExtension(input as CardDeleteExtensionInput);
-  }
-}
-
-/** 彻底删除成功后，删掉不再被任何卡片引用的附件文件和记录。 */
-export function discardPurgedAttachments(core: CommandGateway, ids: readonly string[]): void {
-  const removed = core.deleteUnreferencedAttachmentRecords(ids);
-  for (const attachment of removed) {
-    removeStoredFile(core.dataDir, attachment.path);
   }
 }
 

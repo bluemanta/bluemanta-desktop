@@ -4,7 +4,17 @@ export {
   UNREFERENCED_ATTACHMENT_TTL_MS,
   unreferencedAttachmentCutoff,
 } from './attachment-gc.js';
+export { cleanupStaleAttachments, discardPurgedAttachments } from './attachment-files.js';
+export type { AttachmentCleanupGateway, PurgedAttachmentGateway } from './attachment-files.js';
 export { DEFAULT_AREAS } from './areas.js';
+export { readLimitedBody } from './body.js';
+export { DESKTOP_SOURCE, statusForCommandCode } from './desktop.js';
+export { checkImageBytes, readImageUpload } from './image-upload.js';
+export type { CheckedImageUpload, ImageUploadMeta, RejectedImageUpload } from './image-upload.js';
+export { imageWithinLimits, parseImage } from './images.js';
+export type { ParsedImage } from './images.js';
+export { readStoredFile, removeStoredFile, resolveStoredFile, writeStoredFile } from './media.js';
+export { foldSpace, shouldShowRaw } from './raw-text.js';
 export { Core } from './core.js';
 export { UnsupportedSchemaError } from './errors.js';
 export type { CommandErrorCode, CommandFailure, CommandResult, CommandSuccess } from './errors.js';
