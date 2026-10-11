@@ -178,7 +178,7 @@ test.describe('清单', () => {
 });
 
 test.describe('详情', () => {
-  test('↵ 打开焦点行，内容顺序正确，引用入口仍不在', async ({ page }) => {
+  test('↵ 打开焦点行，内容顺序正确，引用入口在工具条上', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const target = row(page, SEEDED.rich);
@@ -205,7 +205,7 @@ test.describe('详情', () => {
     await expect(panel.getByRole('button', { name: '移入回收站' })).toBeVisible();
     await expect(panel.getByRole('button', { name: '追加延展' })).toBeDisabled();
     for (const name of ['在对话中引用', '在右侧栏打开']) {
-      await expect(panel.getByRole('button', { name, exact: true })).toHaveCount(0);
+      await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
     }
     await expect(panel.getByRole('textbox', { name: '追加延展' })).toBeVisible();
     await expect(panel.getByRole('textbox', { name: '标题' })).toHaveCount(0);
