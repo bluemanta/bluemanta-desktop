@@ -1,0 +1,54 @@
+.card {
+  margin: var(--bm-sp-6) 0 var(--bm-sp-8);
+  padding: var(--bm-sp-10) var(--bm-sp-12);
+  background: var(--bm-surface);
+  border-radius: var(--bm-r-lg);
+  box-shadow: var(--bm-shadow-row);
+}
+
+.title,
+.body {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--bm-text);
+  resize: none;
+}
+
+.title {
+  font-size: var(--bm-fs-md);
+  font-weight: 500;
+  margin-bottom: var(--bm-sp-4);
+}
+
+.body {
+  color: var(--bm-text-2);
+  line-height: 1.55;
+  min-height: var(--bm-sp-32);
+}
+
+.title:focus-visible,
+.body:focus-visible {
+  outline: none;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bm-sp-6);
+  margin-top: var(--bm-sp-8);
+}
+
+.hint {
+  margin-left: auto;
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+}
+
+.error {
+  margin-top: var(--bm-sp-8);
+  color: var(--bm-danger);
+  font-size: var(--bm-fs-sm);
+}

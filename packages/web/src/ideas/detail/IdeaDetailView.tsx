@@ -4,18 +4,22 @@ import { Banner } from '../../ui/Banner';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { formatClock } from '../model/time';
+import { type ReactNode } from 'react';
 import { IdeaDetail } from './IdeaDetail';
 import styles from './IdeaDetailView.module.css';
 
 /** 按 id 读取一条灵感并处理读取中、读取失败、不存在和已在回收站的情况。 */
-export function IdeaDetailView({ id }: { id: string }) {
+export function IdeaDetailView({ id, leading }: { id: string; leading?: ReactNode }) {
   const query = useIdea(id);
 
   if (query.data && query.data.deletedAt !== null) {
     return (
-      <EmptyState icon="idea" title="这条灵感在回收站里">
-        回收站里的灵感不在详情里打开。
-      </EmptyState>
+      <>
+        {leading}
+        <EmptyState icon="idea" title="这条灵感在回收站里">
+          回收站里的灵感不在详情里打开。
+        </EmptyState>
+      </>
     );
   }
 
@@ -32,7 +36,7 @@ export function IdeaDetailView({ id }: { id: string }) {
             </Banner>
           </div>
         ) : null}
-        <IdeaDetail record={query.data} />
+        <IdeaDetail record={query.data} leading={leading} />
       </>
     );
   }
@@ -40,12 +44,17 @@ export function IdeaDetailView({ id }: { id: string }) {
   if (query.isError) {
     if (query.error instanceof ApiError && query.error.status === 404) {
       return (
-        <EmptyState icon="idea" title="这条灵感不存在">
-          可能已被彻底删除。
-        </EmptyState>
+        <>
+          {leading}
+          <EmptyState icon="idea" title="这条灵感不存在">
+            可能已被彻底删除。
+          </EmptyState>
+        </>
       );
     }
     return (
+      <>
+      {leading}
       <EmptyState
         icon="alert"
         tone="danger"
@@ -58,16 +67,20 @@ export function IdeaDetailView({ id }: { id: string }) {
       >
         {describeError(query.error)}
       </EmptyState>
+      </>
     );
   }
 
   return (
-    <div className={styles.skeleton} aria-busy="true" aria-label="正在读取详情">
-      <span data-size="title" />
-      <span data-size="meta" />
-      <span data-size="line" />
-      <span data-size="line" />
-      <span data-size="short" />
-    </div>
+    <>
+      {leading}
+      <div className={styles.skeleton} aria-busy="true" aria-label="正在读取详情">
+        <span data-size="title" />
+        <span data-size="meta" />
+        <span data-size="line" />
+        <span data-size="line" />
+        <span data-size="short" />
+      </div>
+    </>
   );
 }

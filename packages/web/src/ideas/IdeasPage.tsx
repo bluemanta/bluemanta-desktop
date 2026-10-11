@@ -5,8 +5,11 @@ import { useIdea, useIdeaList, useIdeaSearch } from '../api/queries';
 import { Shell } from '../shell/Shell';
 import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
+import { DISCARD_CONFIRM, useConfirm } from '../ui/ConfirmDialog';
 import { EmptyState } from '../ui/EmptyState';
-import { Tooltip } from '../ui/Tooltip';
+import { useToast } from '../ui/Toast';
+import { QuickCapture } from './capture/QuickCapture';
+import { useOpenCapture } from './capture/openCapture';
 import { DetailPanel } from './detail/DetailPanel';
 import { useDetailWidth } from './detail/detailWidth';
 import { Resizer } from './detail/Resizer';
@@ -50,7 +53,10 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
   const navigate = useAppNavigate();
   const { embed } = useLaunch();
   const state = useIdeasState();
-  const { searchQuery, filters, tabs, openTab, closeTab, lastActive, listScroll, setQuery, clearFilters } = state;
+  const { searchQuery, filters, tabs, openTab, closeTab, lastActive, listScroll, setQuery, clearFilters, capture, dirtyIds, discardSessions } = state;
+  const confirm = useConfirm();
+  const toast = useToast();
+  const openCapture = useOpenCapture();
   const list = useIdeaList();
   const search = useIdeaSearch(searchQuery);
   const active = useIdea(narrow ? null : activeId);
@@ -65,16 +71,26 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
 
   useEffect(() => {
     if (activeId === null || narrow) return;
-    openTab(activeId);
+    const opened = openTab(activeId);
     lastActive.current = activeId;
-  }, [activeId, narrow, openTab, lastActive]);
+    if (!opened) {
+      toast.show('已打开的灵感都有未保存的修改，先保存或关闭一条。');
+      const fallback = tabs.find((tab) => tab !== activeId) ?? null;
+      navigate(fallback ? `/ideas/${encodeURIComponent(fallback)}` : '/ideas', { replace: true });
+    }
+  }, [activeId, narrow, openTab, lastActive, navigate, tabs, toast]);
 
-  // 被移入回收站或彻底删除的灵感，标签自动关闭（当前这条由详情说明原因）。
+  // 被移入回收站或彻底删除的灵感，标签自动关闭。
   useEffect(() => {
     if (!list.data || list.isError) return;
     const alive = new Set(list.data.items.map((item) => item.id));
-    for (const tab of tabs) if (tab !== activeId && !alive.has(tab)) closeTab(tab);
-  }, [list.data, list.isError, tabs, activeId, closeTab]);
+    for (const tab of tabs) {
+      if (alive.has(tab)) continue;
+      const neighbor = closeTab(tab);
+      discardSessions([tab]);
+      if (tab === activeId) navigate(neighbor ? `/ideas/${encodeURIComponent(neighbor)}` : '/ideas');
+    }
+  }, [list.data, list.isError, tabs, activeId, closeTab, discardSessions, navigate]);
 
   const searching = searchQuery !== '';
   const source = searching ? search : list;
@@ -98,8 +114,18 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
   };
 
   const onCloseTab = (id: string) => {
-    const neighbor = closeTab(id);
-    if (id === activeId) navigate(neighbor ? `/ideas/${encodeURIComponent(neighbor)}` : '/ideas');
+    const run = () => {
+      discardSessions([id]);
+      const neighbor = closeTab(id);
+      if (id === activeId) navigate(neighbor ? `/ideas/${encodeURIComponent(neighbor)}` : '/ideas');
+    };
+    if (!dirtyIds.has(id)) {
+      run();
+      return;
+    }
+    void confirm(DISCARD_CONFIRM).then((ok) => {
+      if (ok) run();
+    });
   };
 
   const resetAll = () => {
@@ -130,25 +156,23 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
         </EmptyState>
       </div>
     );
-  } else if (libraryEmpty && !searching) {
+  } else if (libraryEmpty && !searching && !capture) {
     body = (
       <div className={styles.listArea}>
         <EmptyState
           icon="idea"
           title="还没有灵感"
           action={
-            <Tooltip label="快速记录在 T13 上线">
-              <Button variant="primary" size="sm" aria-disabled="true" aria-label="记第一条（T13 上线）">
-                ＋ 记第一条 <kbd>N</kbd>
-              </Button>
-            </Tooltip>
+            <Button variant="primary" size="sm" onClick={openCapture}>
+              记第一条 <kbd>N</kbd>
+            </Button>
           }
         >
           想到什么就记一笔。也可以让 Grok Bot 或对话里的 agent 帮你记。
         </EmptyState>
       </div>
     );
-  } else if (showFiltersEmpty) {
+  } else if (showFiltersEmpty && !capture) {
     body = (
       <div className={styles.listArea}>
         <EmptyState
@@ -174,6 +198,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
         onOpen={openIdea}
         restoreScroll={restoreScroll}
         onRestored={onRestored}
+        header={capture ? <QuickCapture /> : null}
       />
     );
   }
@@ -198,6 +223,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
               tabs={tabs}
               activeId={activeId}
               titles={titles}
+              dirtyIds={dirtyIds}
               width={width}
               onSelect={(id) => navigate(`/ideas/${encodeURIComponent(id)}`)}
               onClose={onCloseTab}

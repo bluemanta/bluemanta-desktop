@@ -28,19 +28,13 @@ export type ListSection = {
   items: IdeaListItem[];
 };
 
-/** 按创建时间倒序（idea-ui 第 2 节）；接口的顺序不作保证，这里统一排一次。 */
-export function newestFirst<T extends IdeaListItem>(items: readonly T[]): T[] {
-  return [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-}
-
-/** 非搜索时按上海自然日分组；搜索时只有一组「搜索结果」。 */
+/** 非搜索时按上海自然日分组；顺序沿用接口（创建时间倒序），网页不再重排。搜索时只有一组「搜索结果」。 */
 export function buildSections(items: readonly IdeaListItem[], searching: boolean, nowMs: number): ListSection[] {
   if (items.length === 0) return [];
-  const sorted = newestFirst(items);
-  if (searching) return [{ key: 'search', label: '搜索结果', items: sorted }];
+  if (searching) return [{ key: 'search', label: '搜索结果', items: [...items] }];
   const order: DayGroup[] = ['today', 'yesterday', 'week', 'earlier'];
   const buckets = new Map<DayGroup, IdeaListItem[]>();
-  for (const item of sorted) {
+  for (const item of items) {
     const group = dayGroup(item.createdAt, nowMs);
     const bucket = buckets.get(group);
     if (bucket) bucket.push(item);

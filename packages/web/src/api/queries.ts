@@ -7,6 +7,7 @@ export const REFRESH_MS = 30_000;
 
 export const ideaKeys = {
   list: ['ideas', 'active'] as const,
+  trash: ['ideas', 'trash'] as const,
   search: (query: string) => ['ideas', 'search', query] as const,
   detail: (id: string) => ['idea', id] as const,
 };
@@ -43,6 +44,14 @@ export function useIdeaList() {
   return useQuery({
     queryKey: ideaKeys.list,
     queryFn: ({ signal }) => apiJson<IdeaListResponse>('/api/v1/ideas', { signal }),
+    refetchInterval: REFRESH_MS,
+  });
+}
+
+export function useTrashList() {
+  return useQuery({
+    queryKey: ideaKeys.trash,
+    queryFn: ({ signal }) => apiJson<IdeaListResponse>('/api/v1/ideas?scope=trash', { signal }),
     refetchInterval: REFRESH_MS,
   });
 }

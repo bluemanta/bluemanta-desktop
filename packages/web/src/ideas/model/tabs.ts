@@ -1,10 +1,20 @@
 export const MAX_TABS = 6;
 
-/** 打开一个标签。已打开时不变；超出上限时关闭最早打开的（T13 起跳过有未保存修改的）。 */
-export function openTab(tabs: readonly string[], id: string, max = MAX_TABS): string[] {
-  if (tabs.includes(id)) return [...tabs];
-  const next = [...tabs, id];
-  return next.length > max ? next.slice(next.length - max) : next;
+/**
+ * 打开一个标签。已打开时不变。超出上限时关闭最早打开、且没有未保存修改的；
+ * 全部都有未保存修改时不新开（`opened: false`）。
+ */
+export function openTab(
+  tabs: readonly string[],
+  id: string,
+  max = MAX_TABS,
+  dirty: ReadonlySet<string> = new Set(),
+): { tabs: string[]; opened: boolean } {
+  if (tabs.includes(id)) return { tabs: [...tabs], opened: true };
+  if (tabs.length < max) return { tabs: [...tabs, id], opened: true };
+  const victim = tabs.findIndex((tab) => !dirty.has(tab));
+  if (victim === -1) return { tabs: [...tabs], opened: false };
+  return { tabs: [...tabs.filter((_, index) => index !== victim), id], opened: true };
 }
 
 /** 关闭后应该切到哪一个：优先右边的邻居，没有就左边。 */

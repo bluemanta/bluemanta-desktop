@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { useAppNavigate, useLaunch } from '../app/context';
 import { Button } from '../ui/Button';
+import { DISCARD_CONFIRM, useConfirm } from '../ui/ConfirmDialog';
 import { Icon } from '../ui/Icon';
+import { useIdeasState } from './IdeasState';
 import { IdeaDetailView } from './detail/IdeaDetailView';
 import styles from './NarrowDetail.module.css';
 
@@ -17,36 +19,50 @@ function cameFromList(): boolean {
 export function NarrowDetail({ id }: { id: string }) {
   const navigate = useAppNavigate();
   const { embed } = useLaunch();
+  const { dirtyIds, discardSessions, ignoreNextPop } = useIdeasState();
+  const confirm = useConfirm();
   const canGoBack = embed !== 'sidebar';
 
   const back = () => {
-    if (cameFromList()) window.history.back();
-    else navigate('/ideas', { replace: true });
+    const run = () => {
+      if (cameFromList()) window.history.back();
+      else navigate('/ideas', { replace: true });
+    };
+    if (!dirtyIds.has(id)) {
+      if (cameFromList()) ignoreNextPop.current = true;
+      run();
+      return;
+    }
+    void confirm(DISCARD_CONFIRM).then((ok) => {
+      if (!ok) return;
+      discardSessions([id]);
+      if (cameFromList()) ignoreNextPop.current = true;
+      run();
+    });
   };
 
   useEffect(() => {
     if (!canGoBack) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (document.querySelector('[data-lightbox]')) return;
+      if (document.querySelector('[role="alertdialog"], [data-lightbox], [data-editor], [data-capture]')) return;
       back();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   });
 
+  const leading = canGoBack ? (
+    <Button variant="ghost" size="sm" onClick={back}>
+      <Icon name="back" />
+      返回
+    </Button>
+  ) : null;
+
   return (
     <div className={styles.page}>
-      {canGoBack ? (
-        <div className={styles.toolbar}>
-          <Button variant="ghost" size="sm" onClick={back}>
-            <Icon name="back" />
-            返回
-          </Button>
-        </div>
-      ) : null}
       <div className={styles.scroll}>
-        <IdeaDetailView id={id} />
+        <IdeaDetailView id={id} leading={leading} />
       </div>
     </div>
   );

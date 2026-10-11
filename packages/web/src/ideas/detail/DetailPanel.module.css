@@ -50,6 +50,15 @@
   background: var(--bm-accent);
 }
 
+.dirty {
+  width: var(--bmw-dirty-dot);
+  height: var(--bmw-dirty-dot);
+  margin-left: var(--bm-sp-8);
+  border-radius: var(--bmw-dot-r);
+  background: var(--bm-accent);
+  flex: none;
+}
+
 .tabLabel {
   min-width: 0;
   height: 100%;
@@ -112,6 +121,10 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--bm-sp-12) var(--bm-sp-16) var(--bm-sp-20);
+}
+
+.scroll[hidden] {
+  display: none;
 }
 
 .placeholder {

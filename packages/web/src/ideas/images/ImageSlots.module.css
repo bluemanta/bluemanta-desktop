@@ -1,0 +1,136 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--bm-sp-8);
+}
+
+.wrap[data-drag='true'] {
+  outline: var(--bmw-ring) dashed var(--bm-accent);
+  outline-offset: var(--bm-sp-4);
+  border-radius: var(--bm-r);
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bm-sp-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  position: relative;
+  width: var(--bmw-thumb);
+  height: var(--bmw-thumb);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r);
+  background: var(--bm-hover);
+  overflow: hidden;
+}
+
+.slot img,
+.placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--bm-sp-4);
+  background: var(--bmw-on-text-soft);
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--bm-accent);
+}
+
+.remove,
+.failed button,
+.add {
+  border: 0;
+  background: transparent;
+  color: var(--bm-text-2);
+  cursor: pointer;
+  font-size: var(--bm-fs-sm);
+}
+
+.remove {
+  position: absolute;
+  top: var(--bm-sp-2);
+  right: var(--bm-sp-2);
+  width: var(--bm-sp-16);
+  height: var(--bm-sp-16);
+  display: grid;
+  place-items: center;
+  border-radius: var(--bm-r-sm);
+  background: var(--bm-surface);
+  color: var(--bm-text);
+}
+
+.remove svg {
+  width: var(--bm-sp-12);
+  height: var(--bm-sp-12);
+}
+
+.failed {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--bm-sp-4);
+  padding-bottom: var(--bm-sp-4);
+  background: var(--bm-danger-soft);
+}
+
+.failed button {
+  color: var(--bm-danger);
+  font-weight: 500;
+}
+
+.add {
+  height: var(--bm-ctl-sm);
+  padding: 0 var(--bm-sp-8);
+  border: var(--bmw-line-w) solid var(--bm-line-strong);
+  border-radius: var(--bm-r);
+  background: var(--bm-surface);
+}
+
+.add:hover {
+  background: var(--bm-hover);
+}
+
+.add:disabled {
+  color: var(--bm-text-3);
+  cursor: not-allowed;
+}
+
+.file {
+  position: absolute;
+  width: var(--bmw-line-w);
+  height: var(--bmw-line-w);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.hint {
+  flex: 1 0 100%;
+  color: var(--bm-danger);
+  font-size: var(--bm-fs-sm);
+}

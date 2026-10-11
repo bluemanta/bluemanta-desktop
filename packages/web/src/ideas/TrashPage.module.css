@@ -1,0 +1,71 @@
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--bm-sp-16) var(--bm-sp-16);
+}
+
+.group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--bm-sp-6);
+  padding: var(--bm-sp-10) var(--bm-sp-8) var(--bm-sp-4);
+  background: var(--bm-canvas);
+  color: var(--bm-accent);
+  font-size: var(--bm-fs-sm);
+  font-weight: 600;
+}
+
+.count,
+.note {
+  color: var(--bm-text-3);
+  font-weight: 400;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--bm-sp-8);
+  min-height: var(--bm-row);
+  padding: var(--bm-sp-4) var(--bm-sp-8);
+  border-radius: var(--bm-r);
+}
+
+.row:hover {
+  background: var(--bm-hover);
+}
+
+.title {
+  font-weight: 500;
+  min-width: 0;
+  max-width: 40%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excerpt {
+  flex: 1;
+  min-width: 80px;
+  color: var(--bm-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status,
+.error {
+  padding: var(--bm-sp-16);
+  color: var(--bm-text-2);
+}
+
+.error {
+  flex: 1 0 100%;
+  padding: 0;
+  color: var(--bm-danger);
+  font-size: var(--bm-fs-sm);
+}

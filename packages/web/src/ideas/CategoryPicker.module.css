@@ -1,0 +1,30 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bm-sp-6);
+}
+
+.chip {
+  height: var(--bmw-chip);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bm-sp-4);
+  padding: 0 var(--bm-sp-8);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r-pill);
+  background: var(--bm-surface);
+  color: var(--bm-text-2);
+  font-size: var(--bm-fs-sm);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--bm-line-strong);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--bm-accent-soft);
+  border-color: transparent;
+  color: var(--bm-accent);
+  font-weight: 500;
+}

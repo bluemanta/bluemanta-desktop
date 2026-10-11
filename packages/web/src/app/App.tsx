@@ -5,9 +5,13 @@ import { auth } from '../api/client';
 import { createQueryClient, listenWindowFocus } from '../api/queries';
 import { IdeasPage } from '../ideas/IdeasPage';
 import { IdeasStateProvider } from '../ideas/IdeasState';
+import { IdeaHotkeys } from '../ideas/hotkeys';
+import { NavigationGuard } from '../ideas/NavigationGuard';
+import { TrashPage } from '../ideas/TrashPage';
 import { ComingSoon } from '../shell/ComingSoon';
 import { NeedsReopen } from '../shell/NeedsReopen';
 import { Shell } from '../shell/Shell';
+import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { ToastProvider } from '../ui/Toast';
 import { TooltipProvider } from '../ui/Tooltip';
 import { LaunchContext, useAppNavigate } from './context';
@@ -32,9 +36,7 @@ function Routes() {
         </Shell>
       </Route>
       <Route path="/ideas/trash">
-        <Shell section="trash">
-          <ComingSoon title="回收站即将上线" text="恢复和彻底删除会和写操作一起上线。" />
-        </Shell>
+        <TrashPage />
       </Route>
       <Route path="/ideas/:id">{(params) => <IdeasPage id={decodeURIComponent(params.id)} />}</Route>
       <Route>
@@ -64,9 +66,13 @@ export function App({ launch }: { launch: Launch }) {
   else if (rejected) content = <NeedsReopen reason="rejected" />;
   else
     content = (
-      <IdeasStateProvider>
-        <Routes />
-      </IdeasStateProvider>
+      <ConfirmProvider>
+        <IdeasStateProvider>
+          <NavigationGuard />
+          <IdeaHotkeys />
+          <Routes />
+        </IdeasStateProvider>
+      </ConfirmProvider>
     );
 
   return (

@@ -37,7 +37,7 @@ import {
   type IdeaResponse,
   type IdeaWriteResponse,
 } from './api-types.js';
-import { toAttachmentMeta, toIdeaRecord } from './records.js';
+import { isEditedHistory, sortIdeas, toAttachmentMeta, toIdeaRecord } from './records.js';
 import { SERVER_VERSION } from './version.js';
 
 /** 服务只用到 core 的这些方法，测试可以换成同形状的对象。 */
@@ -201,6 +201,10 @@ export function createApp(options: CreateAppOptions): Hono {
     return card !== null && card.cardType !== 'idea';
   }
 
+  function editedIds(): Set<string> {
+    return isEditedHistory(core.listHistory());
+  }
+
   function ideaWrite(c: Context, requestId: unknown, run: () => CommandResult<Card>): Response {
     const duplicate = seenRequest(requestId);
     const result = run();
@@ -208,7 +212,7 @@ export function createApp(options: CreateAppOptions): Hono {
     if (result.record.cardType !== 'idea') return failure(c, 404, 'not_found', '记录不存在');
     const body: IdeaWriteResponse = {
       ok: true,
-      record: toIdeaRecord(result.record, lookup),
+      record: toIdeaRecord(result.record, lookup, editedIds().has(result.record.id)),
       ...(duplicate ? { duplicate: true as const } : {}),
     };
     return c.json(body, 200, NO_STORE);
@@ -235,18 +239,23 @@ export function createApp(options: CreateAppOptions): Hono {
     const query = queryParam.value;
     if (query !== null && query.trim() === '') return failure(c, 400, 'invalid_input', 'q 不能为空');
 
+    const edited = editedIds();
     let items: IdeaListItem[];
     if (query !== null) {
       items = core
         .searchCards(query, { cardType: 'idea', deleted: scope })
         .filter((hit): hit is typeof hit & { card: IdeaCard } => hit.card.cardType === 'idea')
-        .map((hit) => ({ ...toIdeaRecord(hit.card, lookup), match: { field: hit.field, excerpt: hit.excerpt } }));
+        .map((hit) => ({
+          ...toIdeaRecord(hit.card, lookup, edited.has(hit.card.id)),
+          match: { field: hit.field, excerpt: hit.excerpt },
+        }));
     } else {
       items = core
         .listCards({ cardType: 'idea', deleted: scope })
         .filter((card): card is IdeaCard => card.cardType === 'idea')
-        .map((card) => toIdeaRecord(card, lookup));
+        .map((card) => toIdeaRecord(card, lookup, edited.has(card.id)));
     }
+    items = sortIdeas(items, scope);
     const body: IdeaListResponse = { ok: true, count: items.length, items };
     return c.json(body, 200, NO_STORE);
   });
@@ -269,7 +278,7 @@ export function createApp(options: CreateAppOptions): Hono {
   app.get('/api/v1/ideas/:id', (c) => {
     const card = core.getCard(c.req.param('id'));
     if (!card || card.cardType !== 'idea') return failure(c, 404, 'not_found', '记录不存在');
-    const body: IdeaResponse = { ok: true, record: toIdeaRecord(card, lookup) };
+    const body: IdeaResponse = { ok: true, record: toIdeaRecord(card, lookup, editedIds().has(card.id)) };
     return c.json(body, 200, NO_STORE);
   });
 

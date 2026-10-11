@@ -51,6 +51,27 @@
   color: var(--bm-text);
 }
 
+.danger {
+  border-color: transparent;
+  background: transparent;
+  color: var(--bm-danger);
+}
+
+.danger:hover {
+  background: var(--bm-danger-soft);
+}
+
+.dangerFill {
+  background: var(--bm-danger);
+  border-color: transparent;
+  color: var(--bm-on-danger);
+  font-weight: 500;
+}
+
+.dangerFill:hover {
+  background: var(--bm-danger);
+}
+
 .button:disabled,
 .button[aria-disabled='true'] {
   color: var(--bm-text-3);

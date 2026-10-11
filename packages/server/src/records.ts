@@ -21,7 +21,30 @@ export function toAttachmentMeta(attachment: Attachment): AttachmentMeta {
   };
 }
 
-export function toIdeaRecord(card: IdeaCard, lookup: AttachmentLookup): IdeaRecord {
+/** 只有 `card.update` 算改写。调用方从操作历史得出，不改表结构。 */
+export function isEditedHistory(entries: readonly { command: string; objectId: string | null }[]): Set<string> {
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (entry.command === 'card.update' && entry.objectId) ids.add(entry.objectId);
+  }
+  return ids;
+}
+
+type OrderedIdea = { id: string; createdAt: string; deletedAt: string | null };
+
+/** 清单和搜索按创建时间倒序；回收站（含搜索）按移入时间倒序。同一时刻再用 id 倒序。 */
+export function sortIdeas<T extends OrderedIdea>(items: readonly T[], scope: 'active' | 'trash'): T[] {
+  const key = (item: T) => (scope === 'trash' ? (item.deletedAt ?? '') : item.createdAt);
+  return [...items].sort((a, b) => {
+    const left = key(a);
+    const right = key(b);
+    if (left !== right) return left < right ? 1 : -1;
+    if (a.id === b.id) return 0;
+    return a.id < b.id ? 1 : -1;
+  });
+}
+
+export function toIdeaRecord(card: IdeaCard, lookup: AttachmentLookup, edited: boolean): IdeaRecord {
   const attachments: AttachmentMeta[] = [];
   for (const id of card.attachmentIds) {
     const attachment = lookup(id);
@@ -52,5 +75,6 @@ export function toIdeaRecord(card: IdeaCard, lookup: AttachmentLookup): IdeaReco
     })),
     attachmentIds: [...card.attachmentIds],
     attachments,
+    edited,
   };
 }

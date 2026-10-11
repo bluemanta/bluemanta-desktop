@@ -19,6 +19,18 @@ export const app = {
   get emptyToken() {
     return env('BM_E2E_EMPTY_TOKEN');
   },
+  get writeUrl() {
+    return env('BM_E2E_WRITE_URL');
+  },
+  get writeToken() {
+    return env('BM_E2E_WRITE_TOKEN');
+  },
+  get shotUrl() {
+    return env('BM_E2E_SHOT_URL');
+  },
+  get shotToken() {
+    return env('BM_E2E_SHOT_TOKEN');
+  },
 };
 
 export const VIEWPORTS = [
@@ -37,12 +49,12 @@ export const SEEDED = {
   longTitlePrefix: '用热力图看一年的记录节奏',
 };
 
-type OpenOptions = { path?: string; empty?: boolean; search?: string };
+type OpenOptions = { path?: string; empty?: boolean; write?: boolean; shot?: boolean; search?: string };
 
-/** 带口令打开网页并等清单读完。 */
+/** 带口令打开网页并等清单读完。写操作和截图用各自的库，避免改到只读走查的数据。 */
 export async function openApp(page: Page, options: OpenOptions = {}): Promise<void> {
-  const base = options.empty ? app.emptyUrl : app.url;
-  const token = options.empty ? app.emptyToken : app.token;
+  const base = options.empty ? app.emptyUrl : options.write ? app.writeUrl : options.shot ? app.shotUrl : app.url;
+  const token = options.empty ? app.emptyToken : options.write ? app.writeToken : options.shot ? app.shotToken : app.token;
   await page.goto(`${base}${options.path ?? '/'}${options.search ?? ''}#token=${token}`);
   await expect(page.getByTestId('idea-count')).toHaveText(/\d+ 条/);
 }
@@ -60,8 +72,9 @@ export function detail(page: Page) {
 }
 
 export async function waitImages(page: Page, count: number): Promise<void> {
-  await expect(page.locator('img[src^="blob:"]')).toHaveCount(count);
-  await page.waitForFunction(() => [...document.images].every((image) => image.complete));
+  // 未选中的标签仍挂着，里面的图片不计入当前画面。
+  await expect(page.locator('img[src^="blob:"]:visible')).toHaveCount(count);
+  await page.waitForFunction(() => [...document.images].filter((image) => image.checkVisibility()).every((image) => image.complete));
 }
 
 export async function noHorizontalScroll(page: Page): Promise<void> {
