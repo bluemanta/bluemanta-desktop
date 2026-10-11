@@ -1,0 +1,3 @@
+- insert:
+    - id: bluemanta-spike-s4-bridge
+      name: '@bluemanta/spike-s4-bridge'

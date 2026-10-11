@@ -48,6 +48,21 @@
       "port": 3094
     },
     {
+      "name": "spike-s4-bridge",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DSH_HOME=/Users/apple/Developer/bluemanta-desktop/spikes/s4-bridge/.dsh-home",
+        "DSH_TELEMETRY_DISABLED=1",
+        "/Users/apple/Developer/bm-t7/.dsh-dev/cli/node_modules/.bin/dsh",
+        "--profile",
+        "s4",
+        "--port",
+        "3095",
+        "--no-open"
+      ],
+      "port": 3095
+    },
+    {
       "name": "design-docs",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
