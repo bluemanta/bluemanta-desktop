@@ -1,3 +1,9 @@
+# ui-brand-official 占着品牌 single slot。第二个注册会抛错
+# single slot "..." already has a registration，所以停用这一行。
+# 卸载本组合包后，这条覆盖消失，官方标志自动恢复。
+- id: ui-brand-official
+  disabled: true
+
 - insert:
     - id: bluemanta
       name: '@bluemanta/dsh-plugin'
