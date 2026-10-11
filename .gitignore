@@ -22,3 +22,9 @@ spikes/**/.data/
 
 # 系统文件
 .DS_Store
+
+# 网页开发与走查：虚构数据、Playwright 结果与截图（截图基线登记前不入库）
+packages/web/.dev-data/
+packages/web/test-results/
+packages/web/playwright-report/
+packages/web/screenshots/

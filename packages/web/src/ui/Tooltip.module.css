@@ -1,0 +1,11 @@
+.content {
+  max-width: var(--bmw-tooltip-max);
+  padding: var(--bm-sp-4) var(--bm-sp-8);
+  border-radius: var(--bm-r);
+  background: var(--bm-text);
+  color: var(--bm-canvas);
+  font-size: var(--bm-fs-sm);
+  line-height: var(--bm-lh);
+  box-shadow: var(--bm-shadow-pop);
+  z-index: 50;
+}

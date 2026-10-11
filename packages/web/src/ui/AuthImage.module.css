@@ -1,0 +1,13 @@
+.placeholder {
+  display: inline-grid;
+  place-items: center;
+  background: var(--bm-hover);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+  text-align: center;
+}
+
+.placeholder[data-state='error'] {
+  background: var(--bm-danger-soft);
+  color: var(--bm-danger);
+}

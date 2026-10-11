@@ -1,0 +1,21 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-8);
+  padding: var(--bm-sp-8) var(--bm-sp-10);
+  border-radius: var(--bm-r);
+  background: var(--bm-danger-soft);
+  color: var(--bm-danger);
+  font-size: var(--bm-fs-sm);
+}
+
+.icon {
+  width: var(--bmw-icon);
+  height: var(--bmw-icon);
+  flex: none;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}

@@ -1,0 +1,135 @@
+.head {
+  height: var(--bm-head);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-10);
+  padding: 0 var(--bm-sp-12) 0 var(--bm-sp-16);
+  background: var(--bm-canvas);
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--bm-fs-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.seg {
+  display: flex;
+  flex: none;
+  gap: var(--bm-sp-2);
+  padding: var(--bm-sp-2);
+  background: var(--bm-hover);
+  border-radius: calc(var(--bm-r) + var(--bm-sp-2));
+}
+
+.seg button {
+  height: var(--bmw-chip);
+  padding: 0 var(--bm-sp-10);
+  border: 0;
+  border-radius: var(--bm-r);
+  background: transparent;
+  color: var(--bm-text-2);
+  font-size: var(--bm-fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--bm-surface);
+  color: var(--bm-text);
+  font-weight: 500;
+  box-shadow: var(--bmw-seg-shadow);
+}
+
+.search {
+  flex: 1;
+  min-width: var(--bmw-search-min);
+  max-width: var(--bmw-search-max);
+  height: var(--bm-ctl);
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-6);
+  padding: 0 var(--bm-sp-8);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r);
+  background: var(--bm-surface);
+  color: var(--bm-text-3);
+  transition: border-color var(--bm-t) var(--bm-ease);
+}
+
+.search:focus-within {
+  border-color: var(--bm-accent);
+}
+
+.search > svg {
+  width: var(--bmw-icon-sm);
+  height: var(--bmw-icon-sm);
+  flex: none;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--bm-text);
+  font-size: var(--bm-fs);
+  appearance: none;
+}
+
+.search input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.search input::placeholder {
+  color: var(--bm-text-3);
+}
+
+.clear {
+  width: var(--bmw-star);
+  height: var(--bmw-star);
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--bm-r-sm);
+  background: transparent;
+  color: var(--bm-text-3);
+  cursor: pointer;
+}
+
+.clear:hover {
+  background: var(--bm-hover);
+  color: var(--bm-text);
+}
+
+.clear svg {
+  width: var(--bmw-icon-sm);
+  height: var(--bmw-icon-sm);
+}
+
+.new {
+  flex: none;
+}
+
+/* 嵌在 dsh 右侧栏这类很窄的框里：只留必要元素，保证不出现横向滚动 */
+@media (max-width: 560px) {
+  .title,
+  .new kbd {
+    display: none;
+  }
+
+  .head {
+    gap: var(--bm-sp-8);
+    padding: 0 var(--bm-sp-8);
+  }
+
+  .seg button {
+    padding: 0 var(--bm-sp-8);
+  }
+}

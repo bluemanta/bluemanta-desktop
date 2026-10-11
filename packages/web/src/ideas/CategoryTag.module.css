@@ -1,0 +1,17 @@
+.dot {
+  width: var(--bmw-dot);
+  height: var(--bmw-dot);
+  flex: none;
+  display: inline-block;
+  border-radius: var(--bmw-dot-r);
+}
+
+.tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bm-sp-4);
+  font-size: var(--bm-fs-sm);
+  color: var(--bm-text-2);
+  white-space: nowrap;
+}

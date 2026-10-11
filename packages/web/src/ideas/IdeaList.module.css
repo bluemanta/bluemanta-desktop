@@ -1,0 +1,191 @@
+.list {
+  flex: 1;
+  min-width: var(--bmw-list-min);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 var(--bm-sp-8) var(--bm-sp-16);
+}
+
+.group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: var(--bm-sp-6);
+  padding: var(--bm-sp-10) var(--bm-sp-8) var(--bm-sp-4);
+  background: var(--bm-canvas);
+  color: var(--bm-accent);
+  font-size: var(--bm-fs-sm);
+  font-weight: 600;
+}
+
+.groupCount {
+  color: var(--bm-text-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  height: var(--bm-row);
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-10);
+  margin: var(--bmw-line-w) 0;
+  padding: 0 var(--bm-sp-8);
+  border-radius: var(--bm-r);
+  cursor: default;
+  outline: none;
+  transition:
+    background var(--bm-t) var(--bm-ease),
+    box-shadow var(--bm-t) var(--bm-ease);
+}
+
+.row:not([data-skeleton]):hover {
+  background: var(--bm-hover);
+}
+
+.row[aria-selected='true'] {
+  background: var(--bm-surface);
+  box-shadow: var(--bm-shadow-row);
+}
+
+.row:focus-visible {
+  outline: var(--bmw-ring) solid var(--bm-accent);
+  outline-offset: calc(var(--bmw-ring) * -1);
+}
+
+.star {
+  width: var(--bmw-star);
+  flex: none;
+  text-align: center;
+  color: var(--bm-line-strong);
+  font-size: var(--bm-fs);
+}
+
+.star[data-on='true'] {
+  color: var(--bm-star);
+}
+
+.title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 48%;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bm-sp-2);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.count svg {
+  width: var(--bmw-icon-sm);
+  height: var(--bmw-icon-sm);
+}
+
+.excerpt {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--bm-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hit {
+  flex: none;
+  color: var(--bm-accent);
+  font-size: var(--bm-fs-sm);
+  white-space: nowrap;
+}
+
+.category {
+  flex: none;
+}
+
+.source {
+  flex: none;
+  padding: 0 var(--bm-sp-6);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r-pill);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+  line-height: var(--bmw-kbd-lh);
+  white-space: nowrap;
+}
+
+.time {
+  flex: none;
+  min-width: var(--bmw-time);
+  text-align: right;
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 中屏：隐藏来源徽标（设计规范第 5 节） */
+@media (max-width: 1279px) {
+  .source {
+    display: none;
+  }
+}
+
+/* 窄屏：只留星标、标题、分类、时间 */
+@media (max-width: 1023px) {
+  .excerpt,
+  .hit,
+  .count {
+    display: none;
+  }
+
+  .title {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .list {
+    min-width: 0;
+  }
+}
+
+.skeletonBar {
+  height: var(--bmw-skeleton-h);
+  border-radius: var(--bm-r-sm);
+  background: var(--bm-hover);
+}
+
+.skeletonBar[data-size='group'] {
+  width: var(--bm-sp-48);
+}
+
+.skeletonBar[data-size='star'] {
+  width: var(--bmw-skeleton-h);
+  flex: none;
+}
+
+.skeletonBar[data-size='title'] {
+  flex: 3;
+}
+
+.skeletonBar[data-size='title-short'] {
+  flex: 2;
+}
+
+.skeletonBar[data-size='excerpt'] {
+  flex: 4;
+}
+
+.skeletonBar[data-size='time'] {
+  width: var(--bm-sp-32);
+  flex: none;
+}

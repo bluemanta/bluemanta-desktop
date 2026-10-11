@@ -1,0 +1,115 @@
+.side {
+  width: var(--bm-side);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--bmw-line-w);
+  padding: var(--bm-sp-10) var(--bm-sp-8);
+  background: var(--bm-side-bg);
+  border-right: var(--bmw-line-w) solid var(--bm-line);
+}
+
+.side[data-mini='true'] {
+  width: var(--bm-side-mini);
+  padding: var(--bm-sp-10) var(--bm-sp-6);
+}
+
+.side[data-mini='true'] .label {
+  display: none;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-8);
+  padding: var(--bm-sp-4) var(--bm-sp-8) var(--bm-sp-10);
+  font-size: var(--bm-fs-md);
+  font-weight: 600;
+}
+
+.side[data-mini='true'] .brand {
+  padding: var(--bm-sp-4) var(--bm-sp-6) var(--bm-sp-10);
+}
+
+.mark {
+  width: var(--bmw-brand-mark);
+  height: var(--bmw-brand-mark);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--bm-sp-6);
+  background: var(--bm-accent);
+  color: var(--bm-on-accent);
+  font-size: var(--bm-fs-sm);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.command {
+  height: var(--bm-ctl);
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-8);
+  margin-bottom: var(--bm-sp-8);
+  padding: 0 var(--bm-sp-8);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r);
+  background: var(--bm-surface);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.command kbd {
+  margin-left: auto;
+}
+
+.nav {
+  width: 100%;
+  height: var(--bmw-nav);
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-8);
+  padding: 0 var(--bm-sp-8);
+  border: 0;
+  border-radius: var(--bm-r);
+  background: transparent;
+  color: var(--bm-text-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--bm-t) var(--bm-ease);
+}
+
+.nav:hover {
+  background: var(--bm-hover);
+  color: var(--bm-text);
+}
+
+.nav[aria-current='page'] {
+  background: var(--bm-surface);
+  color: var(--bm-text);
+  font-weight: 500;
+  box-shadow: var(--bm-shadow-row);
+}
+
+.side[data-mini='true'] .command,
+.side[data-mini='true'] .nav {
+  justify-content: center;
+  padding: 0;
+}
+
+.command svg,
+.nav svg {
+  width: var(--bmw-icon);
+  height: var(--bmw-icon);
+  flex: none;
+}
+
+.count {
+  margin-left: auto;
+  font-size: var(--bm-fs-sm);
+  font-weight: 400;
+  color: var(--bm-text-3);
+  font-variant-numeric: tabular-nums;
+}

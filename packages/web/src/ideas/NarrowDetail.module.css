@@ -1,0 +1,27 @@
+.page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bm-surface);
+}
+
+.toolbar {
+  height: var(--bm-head);
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--bm-sp-12);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--bm-sp-4) var(--bm-sp-16) var(--bm-sp-20);
+}
+
+.page > .scroll:first-child {
+  padding-top: var(--bm-sp-16);
+}

@@ -1,0 +1,31 @@
+.resizer {
+  width: var(--bmw-resizer);
+  flex: none;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizer::after {
+  content: '';
+  position: absolute;
+  top: var(--bm-sp-12);
+  bottom: var(--bm-sp-12);
+  left: 50%;
+  width: var(--bm-sp-2);
+  transform: translateX(-50%);
+  border-radius: var(--bm-sp-2);
+  background: transparent;
+  transition: background var(--bm-t) var(--bm-ease);
+}
+
+.resizer:hover::after,
+.resizer:focus-visible::after {
+  background: var(--bm-line-strong);
+}
+
+.resizer:focus-visible {
+  outline: var(--bmw-ring) solid var(--bm-accent);
+  outline-offset: calc(var(--bmw-ring) * -1);
+  border-radius: var(--bm-r-sm);
+}
