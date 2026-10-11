@@ -72,8 +72,8 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 | 工具 | 作用 |
 |---|---|
 | `bluemanta_idea_capture` | 记下一条灵感。来源固定为 `{ kind: 'agent', name: 'dsh-agent' }`，不传 `rawInput`，`requestId` 由工具调用 id 生成 |
-| `bluemanta_idea_search` | 按关键词查找灵感。默认不含回收站，`limit` 默认 10、最大 50 |
-| `bluemanta_idea_get` | 按 id 读取一条灵感。在回收站中的也会返回 |
+| `bluemanta_idea_search` | 按关键词查找灵感。默认不含回收站，`limit` 默认 10、最大 50。结果里的 `createdAt` 是上海时区的 `YYYY-MM-DD` |
+| `bluemanta_idea_get` | 按 id 读取一条灵感。在回收站中的也会返回。`createdAt` 仍是 ISO UTC，另有上海时区的 `createdAtLocal`（追记同样有），形如 `2026-10-11 07:09` |
 
 不提供修改、收藏、追记、删除。这些只在灵感台界面由人操作。
 

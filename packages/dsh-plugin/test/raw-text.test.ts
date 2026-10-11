@@ -11,7 +11,8 @@ describe('原文是否显示', () => {
     expect(shouldShowRaw('  用户原话  ', { ...present, text: '用户原话' })).toBe(false);
     expect(shouldShowRaw('用户   原话', { ...present, text: '用户 原话' })).toBe(false);
     expect(shouldShowRaw('前缀 用户原话 后缀', present)).toBe(false);
-    expect(shouldShowRaw('整理后的正文\n用户原话', { ...present, text: '用户\n原话' })).toBe(false);
+    expect(shouldShowRaw('整理后的正文\n用户  原话', { ...present, text: '用户\n原话' })).toBe(false);
+    expect(shouldShowRaw('整理后的正文\n用户原话', { ...present, text: '用户\n原话' })).toBe(true);
     expect(shouldShowRaw('整理后的正文', { status: 'legacy' })).toBe(false);
     expect(shouldShowRaw('整理后的正文', { status: 'present', channel: 'agent', text: '   ' })).toBe(false);
     expect(shouldShowRaw('整理后的正文', null)).toBe(false);

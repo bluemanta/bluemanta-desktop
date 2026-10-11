@@ -703,68 +703,6 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }
     }
 
-    function snapshotTabs(sidebarRight) {
-      try {
-        const source = sidebarRight && sidebarRight.openTabs
-        if (!source || typeof source.getSnapshot !== 'function') return []
-        const value = source.getSnapshot()
-        return Array.isArray(value) ? value : []
-      } catch {
-        return []
-      }
-    }
-
-    function sessionIdOf(sidebarRight) {
-      try {
-        const mounted = sidebarRight && sidebarRight.mounted
-        if (!mounted || typeof mounted.getSnapshot !== 'function') return ''
-        const value = mounted.getSnapshot()
-        return typeof value === 'string' ? value : ''
-      } catch {
-        return ''
-      }
-    }
-
-    function focusRailTab(sidebarRight, tabId) {
-      if (!tabId || !sidebarRight || typeof sidebarRight.focus !== 'function') return false
-      try {
-        sidebarRight.focus(tabId)
-        return true
-      } catch {
-        return false
-      }
-    }
-
-    function railIdeaKey(sessionId, ideaId) {
-      return sessionId + '\n' + ideaId
-    }
-
-    function openTrackedIdea(sidebarRight, params) {
-      const id = params && typeof params.id === 'string' ? params.id.trim() : ''
-      if (!id) return false
-      const sessionId = sessionIdOf(sidebarRight)
-      if (sessionId) {
-        const known = railIndex.ideas.get(railIdeaKey(sessionId, id)) || ''
-        const plan = planRailOpen(known, snapshotTabs(sidebarRight), sessionId)
-        if (plan.action === 'focus') return focusRailTab(sidebarRight, plan.tabId)
-      }
-      return openIdeaTab(sidebarRight, params)
-    }
-
-    function pruneRailIndex(openTabs) {
-      for (const [sessionId, tabId] of railIndex.lists) {
-        if (tabIsOpen(openTabs, sessionId, tabId)) continue
-        railClose.entries.delete(tabId)
-        railIndex.lists.delete(sessionId)
-      }
-      for (const [key, tabId] of railIndex.ideas) {
-        const sessionId = key.slice(0, key.indexOf('\n'))
-        if (tabIsOpen(openTabs, sessionId, tabId)) continue
-        railClose.entries.delete(tabId)
-        railIndex.ideas.delete(key)
-      }
-    }
-
     function parseToolArgs(raw) {
       if (typeof raw !== 'string' || raw.trim() === '') return null;
       try {
@@ -928,6 +866,69 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       if (!entry || entry.dirty !== true || entry.allow === true) return 'allow';
       return 'confirm';
     }
+
+    function snapshotTabs(sidebarRight) {
+      try {
+        const source = sidebarRight && sidebarRight.openTabs
+        if (!source || typeof source.getSnapshot !== 'function') return []
+        const value = source.getSnapshot()
+        return Array.isArray(value) ? value : []
+      } catch {
+        return []
+      }
+    }
+
+    function sessionIdOf(sidebarRight) {
+      try {
+        const mounted = sidebarRight && sidebarRight.mounted
+        if (!mounted || typeof mounted.getSnapshot !== 'function') return ''
+        const value = mounted.getSnapshot()
+        return typeof value === 'string' ? value : ''
+      } catch {
+        return ''
+      }
+    }
+
+    function focusRailTab(sidebarRight, tabId) {
+      if (!tabId || !sidebarRight || typeof sidebarRight.focus !== 'function') return false
+      try {
+        sidebarRight.focus(tabId)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    function railIdeaKey(sessionId, ideaId) {
+      return sessionId + '\n' + ideaId
+    }
+
+    function openTrackedIdea(sidebarRight, params) {
+      const id = params && typeof params.id === 'string' ? params.id.trim() : ''
+      if (!id) return false
+      const sessionId = sessionIdOf(sidebarRight)
+      if (sessionId) {
+        const known = railIndex.ideas.get(railIdeaKey(sessionId, id)) || ''
+        const plan = planRailOpen(known, snapshotTabs(sidebarRight), sessionId)
+        if (plan.action === 'focus') return focusRailTab(sidebarRight, plan.tabId)
+      }
+      return openIdeaTab(sidebarRight, params)
+    }
+
+    function pruneRailIndex(openTabs) {
+      for (const [sessionId, tabId] of railIndex.lists) {
+        if (tabIsOpen(openTabs, sessionId, tabId)) continue
+        railClose.entries.delete(tabId)
+        railIndex.lists.delete(sessionId)
+      }
+      for (const [key, tabId] of railIndex.ideas) {
+        const sessionId = key.slice(0, key.indexOf('\n'))
+        if (tabIsOpen(openTabs, sessionId, tabId)) continue
+        railClose.entries.delete(tabId)
+        railIndex.ideas.delete(key)
+      }
+    }
+
     function editDraft(card) {
       return {
         title: card.title || '',
