@@ -32,6 +32,7 @@
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
 | 2026-10-11 | 架构调整：核心功能（灵感台、内容线、发布台等）做成独立网页，由本地服务提供，dsh 只做入口并嵌入网页；dsh 插件不再开发业务界面。取代 2026-10-10「看板做成 dsh 插件面板」的决定（[ADR 0005](decisions/0005-web-app-dsh-entry.md)；S3 已在 web 版和 Desktop 内验证可行） |
 | 2026-10-11 | 内容线正本先放本机；接口、鉴权、写入协议按将来可迁往云端设计（ADR 0005 决定 4），是否迁云阶段 2 设计时再定 |
+| 2026-10-11 | 下一步：用户先试用阶段 1；同时开展工作台设计阶段（视觉与交互规范，见 [design/brief.md](design/brief.md)），规范定稿后进入阶段 1.5「灵感台迁网页」（ADR 0005），并顺带处理试用反馈和 T9。设计方向：与 SalesOS Console 同一家族但更规范；工具感、高密度、紧凑；自己的风格，深浅色跟随 dsh；参考 Linear、Things 3 / Craft、Arc / Raycast |
 | 2026-10-11 | 阶段 2 内容线暂缓（Pending）：用户先用 Notion ContentHub 作为中转，把内容创作工作流摸熟，再决定在 Desktop 里怎么做。期间 Notion 仍是场景卡、选题卡的正本，Grok Bot 每日选题流程照旧 |
 | 2026-10-11 | Grok Bot 改为调用 Desktop 的本机命令写入灵感（T7，JSON 经 heredoc 从标准输入传入，`body` 只放摘要、`raw` 只放原话）；用户已在 Grok Bot 中更新指令，测试写入已确认 |
 | 2026-10-11 | workbench 数据目录 `~/Library/Application Support/BluemantaOPC` 去掉写权限（`chmod u-w`），任何写入都会失败，读取不受影响；恢复用 `chmod u+w` |
