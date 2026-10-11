@@ -1,5 +1,6 @@
 /**
- * 浏览器端：左侧栏「灵感台」，以及对话右侧栏里的灵感 tab 和工具卡片。
+ * 浏览器端：左侧栏「灵感台」，对话右侧栏里的灵感 tab 和工具卡片，
+ * 以及侧栏与新会话首屏的 bluemanta 品牌位。
  * 宽屏是清单与详情左右分栏，窄屏是整页详情。
  * 输出格式与 spikes/s1-panel/plugin/client.js 相同。React 来自 dsh 的浏览器模块表。
  * 请求用相对路径、开头不带 /，以兼容 Desktop 的 dsh-app:// 挂载。
@@ -2557,9 +2558,39 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }
     }
 
+    // 占位 logo：圆角方块里一个小写 b。底色是设计规范的固定绿 #2A715A，
+    // 不用 --dsw-alias-brand-primary（深色主题下它是白色，会吃掉白字）。
+    // 正式 logo 到位后只替换这个函数。
+    function BrandMark({ size = 24, className }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', className,
+        role: 'img', 'aria-label': 'bluemanta', 'data-bluemanta-brand': 'mark',
+      },
+      h('rect', { x: 1, y: 1, width: 22, height: 22, rx: 6, fill: '#2A715A' }),
+      h('text', {
+        x: 12, y: 16.5, textAnchor: 'middle', fontSize: 14, fontWeight: 700,
+        fontFamily: 'system-ui, sans-serif', fill: '#FFFFFF',
+      }, 'b'))
+    }
+
+    function BrandName() {
+      return h('span', {
+        'data-bluemanta-brand': 'name',
+        style: { fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--dsw-alias-label-primary)' },
+      }, 'bluemanta')
+    }
+
     return {
       inject: ['slots', 'sidebarRightTabs', 'sidebarRight'],
       apply(ctx) {
+        // 侧栏图标和名称作为一组注册：声明出现才占位，声明消失时一并撤回。
+        ctx.slots.inject('sidebar.brand.mark', () =>
+          ctx.slots.inject('sidebar.brand.name', function* () {
+            yield ctx.slots.register({ name: 'sidebar.brand.mark' }, BrandMark)
+            yield ctx.slots.register({ name: 'sidebar.brand.name' }, BrandName)
+          }))
+        ctx.slots.inject('conversation.hero.brand.mark', () =>
+          ctx.slots.register({ name: 'conversation.hero.brand.mark' }, BrandMark))
         ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: PANEL_ID }, IdeasPage))
         ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
           name: 'sidebar.panellist', id: PANEL_ID, order: 10, label: '灵感台',

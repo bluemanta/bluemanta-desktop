@@ -83,3 +83,21 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 
 - 页类型 `bluemanta.idea`（`multiple: true`）注册到 `ctx.sidebarRightTabs`。开始页入口「灵感台」打开精简列表，已经有列表 tab 时聚焦它，不再新开。点一条，或在工具卡片上点「打开」，会在当前对话的右侧栏打开这条灵感；同一个灵感 id 已经打开时聚焦那个 tab。正文复用灵感详情，写入仍走人的命令通道。标签上的 × 在有未保存修改时会确认；dsh 的 `registerCloseHandler` 抛错会留下标签。
 - `bluemanta_idea_capture`、`bluemanta_idea_search`、`bluemanta_idea_get` 各有一张 `tool.call.toolview` 卡片。主区域不是对话时右侧栏不存在，「打开」不显示，也不会调用 `openTab`。
+
+## 品牌
+
+插件会停用官方品牌插件 `ui-brand-official`。`cordis.patch.yml` 用 `- id: ui-brand-official` 和 `disabled: true` 覆盖这一行：官方标志占着品牌 single slot，第二个注册会抛错 `single slot "..." already has a registration`。卸载本插件后，这条停用随之消失，侧栏的「deepseek HARNESS」和新会话首屏的鱼会自动恢复。
+
+浏览器端填三个 slot。侧栏的两个用嵌套 `ctx.slots.inject` 作为一组注册，和 dsh 的 `ui-brand-official` 一样：
+
+| slot | 内容 |
+|---|---|
+| `sidebar.brand.mark` | `BrandMark`。侧栏展开时和收起后的轨道都用它 |
+| `sidebar.brand.name` | 文字 `bluemanta`，颜色 `--dsw-alias-label-primary` |
+| `conversation.hero.brand.mark` | 同一个 `BrandMark` |
+
+`dsh.client.inject` 里的 `@deepseek-ai/dsh-client-ui-conversation` 只用来排激活顺序，`client.js` 不引用这个包。
+
+正式 logo 还没有。占位图形在 `client.js` 的 `BrandMark({ size, className })`：圆角方块，底色 `#2A715A`，小写 `b` 为 `#FFFFFF`。这两个色是固定的，不用 `--dsw-alias-brand-primary`（深色主题下它是白色，白字会消失）。拿到正式图标后只替换 `BrandMark`，slot 注册不用改。
+
+浏览器标签页标题、Desktop 窗口标题和 Dock 图标由构建期决定，这个插件改不了。

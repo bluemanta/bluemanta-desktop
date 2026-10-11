@@ -128,6 +128,7 @@ describe('包清单与浏览器端', () => {
       inject: [
         '@deepseek-ai/dsh-client-ui-layout',
         '@deepseek-ai/dsh-client-ui-sidebar',
+        '@deepseek-ai/dsh-client-ui-conversation',
         '@deepseek-ai/dsh-client-ui-sidebar-right',
         '@deepseek-ai/dsh-client-ui-tool',
       ],
@@ -155,7 +156,9 @@ describe('包清单与浏览器端', () => {
     expect(client).toContain('api/bluemanta/commands');
     expect(client).toContain('api/bluemanta/attachment?id=');
     expect(client).not.toContain('@deepseek-ai/');
-    expect(client).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    // 灵感界面继续用 CSS 变量。品牌占位图标必须用固定色，只放行这两个。
+    const withoutBrandColors = client.replaceAll('#2A715A', '').replaceAll('#FFFFFF', '');
+    expect(withoutBrandColors).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(client).not.toMatch(/rgba?\(/);
   });
 });
