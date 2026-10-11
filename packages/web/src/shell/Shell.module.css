@@ -1,0 +1,14 @@
+.app {
+  height: 100%;
+  display: flex;
+  background: var(--bm-canvas);
+  color: var(--bm-text);
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}

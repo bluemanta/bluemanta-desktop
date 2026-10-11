@@ -1,0 +1,85 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--bm-scrim);
+}
+
+.content {
+  position: fixed;
+  inset: var(--bm-sp-24);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  background: var(--bm-surface);
+  border-radius: var(--bm-r-xl);
+  box-shadow: var(--bm-shadow-pop);
+  overflow: hidden;
+  outline: none;
+}
+
+.bar {
+  height: var(--bm-head);
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--bm-sp-12) 0 var(--bm-sp-16);
+  border-bottom: var(--bmw-line-w) solid var(--bm-line);
+}
+
+.counter {
+  color: var(--bm-text-2);
+  font-size: var(--bm-fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.iconButton,
+.nav {
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--bm-text-2);
+  cursor: pointer;
+  border-radius: var(--bm-r);
+}
+
+.iconButton {
+  width: var(--bm-ctl);
+  height: var(--bm-ctl);
+}
+
+.nav {
+  width: var(--bm-ctl-touch);
+  height: var(--bm-ctl-touch);
+}
+
+.iconButton:hover,
+.nav:hover {
+  background: var(--bm-hover);
+  color: var(--bm-text);
+}
+
+.iconButton svg,
+.nav svg {
+  width: var(--bmw-icon);
+  height: var(--bmw-icon);
+}
+
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-8);
+  padding: var(--bm-sp-16);
+}
+
+.image {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  object-fit: contain;
+}

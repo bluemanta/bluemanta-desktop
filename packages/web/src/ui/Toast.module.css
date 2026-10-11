@@ -1,0 +1,19 @@
+.region {
+  position: fixed;
+  left: 50%;
+  bottom: var(--bm-sp-16);
+  transform: translateX(-50%);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: min(var(--bmw-toast-max), calc(100vw - var(--bm-sp-32)));
+  padding: var(--bm-sp-8) var(--bm-sp-12);
+  border-radius: var(--bm-r-lg);
+  background: var(--bm-text);
+  color: var(--bm-canvas);
+  font-size: var(--bm-fs);
+  box-shadow: var(--bm-shadow-pop);
+  pointer-events: auto;
+}

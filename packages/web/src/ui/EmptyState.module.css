@@ -1,0 +1,47 @@
+.empty {
+  margin: var(--bm-sp-48) auto;
+  max-width: var(--bmw-empty-max);
+  padding: 0 var(--bm-sp-16);
+  text-align: center;
+  color: var(--bm-text-2);
+}
+
+.icon {
+  width: var(--bmw-empty-icon);
+  height: var(--bmw-empty-icon);
+  margin: 0 auto var(--bm-sp-12);
+  border-radius: var(--bm-sp-12);
+  display: grid;
+  place-items: center;
+  background: var(--bm-accent-soft);
+  color: var(--bm-accent);
+}
+
+.empty[data-tone='danger'] .icon {
+  background: var(--bm-danger-soft);
+  color: var(--bm-danger);
+}
+
+.icon svg {
+  width: var(--bm-sp-20);
+  height: var(--bm-sp-20);
+}
+
+.title {
+  margin-bottom: var(--bm-sp-4);
+  font-size: var(--bm-fs-md);
+  font-weight: 600;
+  color: var(--bm-text);
+}
+
+.text {
+  margin-bottom: var(--bm-sp-12);
+  font-size: var(--bm-fs-sm);
+  line-height: var(--bmw-lh-body);
+}
+
+.action {
+  display: flex;
+  justify-content: center;
+  gap: var(--bm-sp-8);
+}

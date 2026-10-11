@@ -1,0 +1,29 @@
+.banner {
+  margin-bottom: var(--bm-sp-12);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bm-sp-10);
+}
+
+.skeleton span {
+  height: var(--bmw-skeleton-h);
+  border-radius: var(--bm-r-sm);
+  background: var(--bm-hover);
+}
+
+.skeleton span[data-size='title'] {
+  height: var(--bm-fs-lg);
+  width: 70%;
+}
+
+.skeleton span[data-size='meta'] {
+  width: 45%;
+  margin-bottom: var(--bm-sp-8);
+}
+
+.skeleton span[data-size='short'] {
+  width: 55%;
+}

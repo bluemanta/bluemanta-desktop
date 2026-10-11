@@ -1,0 +1,75 @@
+@import '@design/tokens.css';
+@import './local.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--bm-font);
+  font-size: var(--bm-fs);
+  line-height: var(--bm-lh);
+  color: var(--bm-text);
+  background: var(--bm-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+:where(button, a, [tabindex], input, textarea, select):focus-visible {
+  outline: var(--bmw-ring) solid var(--bm-accent);
+  outline-offset: var(--bmw-ring-gap);
+}
+
+kbd {
+  font-family: var(--bm-font-mono);
+  font-size: var(--bm-fs-xs);
+  line-height: var(--bmw-kbd-lh);
+  color: var(--bm-text-3);
+  background: var(--bm-canvas);
+  border: var(--bmw-line-w) solid var(--bm-line);
+  border-radius: var(--bm-r-sm);
+  padding: 0 var(--bm-sp-4);
+}
+
+mark {
+  background: var(--bm-mark);
+  color: inherit;
+  border-radius: var(--bm-sp-2);
+  padding: 0 var(--bmw-line-w);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--bmw-line-w);
+  height: var(--bmw-line-w);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,0 +1,41 @@
+/*
+ * 网页里用到、但 tokens.css 还没有的数值。按 T12 说明书，暂作局部常量，
+ * 由 Claude Code 决定是否并入设计规范；并入后删掉这里对应的一行，改用 --bm-*。
+ * 只放尺寸和由 tokens 派生的值，不放新的颜色。
+ */
+:root {
+  --bmw-chip: 22px;             /* 筛选胶囊、分段控件选项高度（DESIGN 第 7 节） */
+  --bmw-filters: 32px;          /* 筛选条高度（DESIGN 第 2 节） */
+  --bmw-nav: 30px;              /* 侧栏模块项高度（原型） */
+  --bmw-tabs: 36px;             /* 详情标签栏高度（原型） */
+  --bmw-tab: 30px;              /* 单个标签高度（原型） */
+  --bmw-tab-max: 160px;         /* 单个标签最大宽度（原型） */
+  --bmw-dot: 7px;               /* 分类色点（DESIGN 第 3 节） */
+  --bmw-dirty-dot: 6px;
+  --bmw-icon: 16px;             /* 侧栏与按钮图标 */
+  --bmw-icon-sm: 14px;          /* 搜索框、行内计数图标 */
+  --bmw-star: 18px;             /* 星标占位 */
+  --bmw-time: 48px;             /* 列表时间列最小宽度 */
+  --bmw-kbd-lh: 16px;           /* kbd 与来源徽标行高 */
+  --bmw-brand-mark: 20px;       /* 品牌方块 */
+  --bmw-empty-icon: 40px;       /* 空状态图标底 */
+  --bmw-empty-max: 320px;       /* 空状态文字最大宽度 */
+  --bmw-search-max: 340px;      /* 页头搜索框最大宽度（原型） */
+  --bmw-search-min: 120px;
+  --bmw-list-min: 280px;        /* 列表最小宽度，详情再宽也不挤掉它 */
+  --bmw-thumb: 72px;            /* 详情缩略图边长 */
+  --bmw-tooltip-max: 240px;
+  --bmw-toast-max: 480px;
+  --bmw-lh-title: 1.35;         /* 详情标题行高（DESIGN 第 4 节） */
+  --bmw-lh-body: 1.6;           /* 原文、延展行高（原型） */
+  --bmw-ring: 2px;              /* 焦点描边宽度（DESIGN 第 7 节） */
+  --bmw-ring-gap: 1px;          /* 焦点描边间隔 */
+  --bmw-tab-line: 2px;          /* 选中标签下划线 */
+  --bmw-resizer: 8px;           /* 详情拖动条可点范围 */
+  --bmw-line-w: 1px;
+  --bmw-skeleton-h: 10px;
+  --bmw-dot-r: 50%;
+  --bmw-seg-shadow: 0 1px 2px color-mix(in srgb, var(--bm-text) 10%, transparent);
+  --bmw-on-accent-soft: color-mix(in srgb, var(--bm-on-accent) 20%, transparent);
+  --bmw-on-text-soft: color-mix(in srgb, var(--bm-canvas) 16%, transparent);
+}
