@@ -11,7 +11,8 @@
     "packages/cli",
     "packages/dsh-plugin",
     "packages/importer",
-    "packages/mcp"
+    "packages/mcp",
+    "packages/server"
   ],
   "scripts": {
     "check": "npm run check --workspaces --if-present",
@@ -19,6 +20,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs",
     "import:workbench": "node packages/importer/dist/cli.js",
-    "idea": "node packages/cli/dist/idea.js"
+    "idea": "node packages/cli/dist/idea.js",
+    "server": "node packages/server/dist/cli.js start"
   }
 }

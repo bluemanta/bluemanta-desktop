@@ -1,0 +1,40 @@
+{
+  "name": "@bluemanta/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "bluemanta Desktop 的本地服务：只监听 127.0.0.1，提供 /api/v1 接口和网页静态文件",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api-types": {
+      "types": "./dist/api-types.d.ts",
+      "import": "./dist/api-types.js"
+    }
+  },
+  "bin": {
+    "bluemanta-server": "./dist/cli.js"
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build --prefix ../.. -w @bluemanta/core -w @bluemanta/cli && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@bluemanta/cli": "file:../cli",
+    "@bluemanta/core": "file:../core",
+    "@hono/node-server": "^2.1.4",
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
