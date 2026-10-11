@@ -23,6 +23,7 @@
     "import:workbench": "node packages/importer/dist/cli.js",
     "idea": "node packages/cli/dist/idea.js",
     "server": "node packages/server/dist/cli.js start",
+    "service": "node packages/server/dist/cli.js service",
     "dev:web": "npm run build -w @bluemanta/core -w @bluemanta/cli -w @bluemanta/server && npm run dev -w @bluemanta/web",
     "walkthrough": "npm run walkthrough -w @bluemanta/web"
   }

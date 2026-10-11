@@ -33,11 +33,61 @@ node packages/server/dist/cli.js start --data-dir /tmp/bluemanta-try
 
 收到 `SIGTERM` 或 `SIGINT`（Ctrl-C）时关闭监听和数据库后退出。启动时会清理一次上传后 24 小时仍未被引用的附件。
 
-在 DeepSeek Harness Desktop 自带的 Electron 里运行（T15 由插件这样拉起）：
+开机自启见下一节。在 DeepSeek Harness Desktop 自带的 Electron 里运行（T15 由插件这样拉起）：
 
 ```bash
 ELECTRON_RUN_AS_NODE=1 "<DeepSeek Harness.app 里的可执行文件>" packages/server/dist/cli.js start --data-dir /tmp/bluemanta-try
 ```
+
+## 开机自启
+
+macOS 用户级 LaunchAgent（`~/Library/LaunchAgents`）。安装会改你的登录项，请在你同意后再执行；下面的命令只生成文件并调用 `launchctl`。
+
+先构建，再在仓库根目录：
+
+```bash
+npm run build
+npm run service -- print       # 只把 plist 打到标准输出，不写任何文件
+npm run service -- install
+npm run service -- status
+npm run service -- restart     # 代码更新后用这个让 launchd 重新拉起
+npm run service -- uninstall   # 从 launchd 卸下，并把 plist 改名保留，不删除
+```
+
+等价于 `node packages/server/dist/cli.js service <install|uninstall|status|restart|print>`。检查 plist 可以用 `npm run service -- print | plutil -lint -`。
+
+`install` 会检查当前 Node ≥ 24、`packages/server/dist/cli.js` 已经存在（没有就先 `npm run build`）、目标端口没有被别的程序占用，然后写入 `~/Library/LaunchAgents/com.bluemanta.server.plist`，再执行 `launchctl bootstrap gui/<uid> <plist 路径>`。这个 Label 已经加载过时，先 `bootout` 再加载，用来更新配置。加载后会等 `GET /api/v1/health` 通过才报告成功；失败时把 `server.log` 的最后 20 行打到标准错误。目标端口是显式传入的 `--port`，否则是 4310。
+
+日志在 `~/Library/Logs/BluemantaDesktop/server.log`（标准输出和标准错误都写这个文件）。目录不存在时由 `install` 创建。
+
+只在 `install` 或 `print` 的命令行上显式写了 `--data-dir` 或 `--port`，才会放进 plist 的 `EnvironmentVariables`。否则服务用默认数据目录和 4310，不继承当前 shell 的 `BLUEMANTA_DATA_DIR` / `BLUEMANTA_SERVER_PORT`。
+
+```bash
+npm run service -- install --data-dir /tmp/bluemanta-try --port 4400
+```
+
+plist 要点：
+
+| 键 | 值 |
+|---|---|
+| `Label` | `com.bluemanta.server` |
+| `ProgramArguments` | 安装当时的 Node 绝对路径（`process.execPath`）、`cli.js` 的绝对路径、`start` |
+| `WorkingDirectory` | 仓库根目录 |
+| `RunAtLoad` | true，登录后启动 |
+| `KeepAlive` | `{ SuccessfulExit: false }`。异常退出才重启；`start` 发现服务已在运行并以 0 退出时，launchd 不会反复拉起 |
+| `ThrottleInterval` | 10 秒 |
+| `StandardOutPath` / `StandardErrorPath` | `~/Library/Logs/BluemantaDesktop/server.log` |
+
+`ProgramArguments` 记下的是安装当时的 Node。换了 Node 的路径或大版本后要重新 `install`（会先卸下再加载）。
+
+和 dsh 插件（T15）同时存在时的两种情况：
+
+1. **开机自启先在跑。** 插件请求 `/api/v1/health`，看到 `service` 是 `bluemanta` 就复用，不另起进程。插件停用或 dsh 退出时只停自己拉起的进程，不会停开机自启的这个。不开 dsh 时，浏览器也可以直接用 `http://127.0.0.1:4310/`。
+2. **dsh 先拉起，launchd 后拉。** `start` 发现端口上已是 bluemanta，打印「已在运行」并以 0 退出。成功退出不触发 `KeepAlive`，所以 launchd 不会重试，也不会把 dsh 的进程停掉。两边不会抢同一个端口。若要改由开机自启常驻，先退出 dsh（它会停掉自己拉起的服务），再执行 `npm run service -- restart`。`install` 时如果发现端口上已经是 bluemanta，也会把这句话打出来。
+
+更新仓库里的代码之后，已经在内存里的进程还是旧的。`npm run build` 之后执行 `npm run service -- restart`，新进程才会用上新代码。
+
+`uninstall` 先 `launchctl bootout`（launchd 里没有这个 Label 时跳过），再把 plist 改名为 `com.bluemanta.server.plist.disabled-<UTC 时间戳>`，仍留在 `~/Library/LaunchAgents`。不删除文件。`status` 打印是否已安装、launchd 里的 state / pid、健康检查、日志路径；已安装且健康检查通过时退出码为 0。
 
 ## 口令
 
