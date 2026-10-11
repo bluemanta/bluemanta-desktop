@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createAdaptorServer } from '@hono/node-server';
 import { cleanupStaleAttachments, openCore, type Core } from '@bluemanta/core';
 import { parseArgs, USAGE } from './args.js';
+import { runServiceCommand } from './service.js';
 import { createApp } from './app.js';
 import { loadToken } from './token.js';
 
@@ -138,6 +139,16 @@ export async function runServerCommand(io: ServerIo): Promise<number | RunningSe
     io.stderr(args.message);
     io.stderr(USAGE);
     return 2;
+  }
+  if (args.value.command === 'service') {
+    return runServiceCommand({
+      action: args.value.action,
+      explicitDataDir: args.value.explicitDataDir,
+      explicitPort: args.value.explicitPort,
+      stdout: io.stdout,
+      stderr: io.stderr,
+      platform: io.platform,
+    });
   }
   const { command, dataDir, port } = args.value;
 
