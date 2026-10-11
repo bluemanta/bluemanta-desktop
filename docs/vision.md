@@ -32,6 +32,7 @@
 | 2026-10-10 | 代码托管在私有仓库 `bluemanta/bluemanta-desktop` |
 | 2026-10-11 | 架构调整：核心功能（灵感台、内容线、发布台等）做成独立网页，由本地服务提供，dsh 只做入口并嵌入网页；dsh 插件不再开发业务界面。取代 2026-10-10「看板做成 dsh 插件面板」的决定（[ADR 0005](decisions/0005-web-app-dsh-entry.md)；S3 已在 web 版和 Desktop 内验证可行） |
 | 2026-10-11 | 内容线正本先放本机；接口、鉴权、写入协议按将来可迁往云端设计（ADR 0005 决定 4），是否迁云阶段 2 设计时再定 |
+| 2026-10-11 | 阶段 2 内容线暂缓（Pending）：用户先用 Notion ContentHub 作为中转，把内容创作工作流摸熟，再决定在 Desktop 里怎么做。期间 Notion 仍是场景卡、选题卡的正本，Grok Bot 每日选题流程照旧 |
 | 2026-10-11 | Grok Bot 改为调用 Desktop 的本机命令写入灵感（T7，JSON 经 heredoc 从标准输入传入，`body` 只放摘要、`raw` 只放原话）；用户已在 Grok Bot 中更新指令，测试写入已确认 |
 | 2026-10-11 | workbench 数据目录 `~/Library/Application Support/BluemantaOPC` 去掉写权限（`chmod u-w`），任何写入都会失败，读取不受影响；恢复用 `chmod u+w` |
 | 2026-10-11 | `opc-workbench` skill 停用：manifest 中 Codex、Claude 安装改为 `pending`，链接移到 `~/Documents/AgentSkills/disabled/`，源目录保留。Desktop 支持项目笔记后再决定是否改写 |
@@ -71,7 +72,7 @@
 |---|---|---|
 | 0 | 本仓库的规划文档；技术验证 S1（dsh 面板扩展点，已通过）；确认正本归属表；对象模型草案，先定公共对象（任务、项目、人、卡片），再定各模块对象（参照 Notion 两个库和灵感台 schema 6） | 文档定稿；S1 结论为 verified 或 failed |
 | 1 | Desktop core（项目、任务、卡片、写入规则、存储）；灵感清单面板；agent 读写灵感的工具；导入 workbench 冻结数据中的灵感和档案（内容线数据留到阶段 2） | 日常记录和回看灵感都在 Desktop 里完成，不再打开 workbench |
-| 2 | 内容线：场景卡、选题、产出、发布台、内容台账面板，对齐 Notion ContentHub；Grok Bot 改为写入 Desktop；侧栏品牌换成 bluemanta（T9，IFM-281） | 连续 2 周内容生产全部在 Desktop 完成，每周发布 N 篇（N 由用户定） |
+| 2（暂缓） | 内容线：场景卡、选题、产出、发布台、内容台账面板，对齐 Notion ContentHub；Grok Bot 改为写入 Desktop；侧栏品牌换成 bluemanta（T9，IFM-281） | 连续 2 周内容生产全部在 Desktop 完成，每周发布 N 篇（N 由用户定） |
 | 3 | 知识库：知识卡片、检索、导入本地 ContentHub 和 Obsidian | 随口问一个半年前的想法，能找回来 |
 | 4 起 | 交付（SalesOS 只读索引、飞书纪要）、开发项目、家庭 | 按领域分别定义 |
 
