@@ -106,7 +106,12 @@ export function IdeaDetail({ record, leading }: IdeaDetailProps) {
   });
 
   useEffect(() => {
-    if (session) bodyRef.current?.focus();
+    const node = bodyRef.current;
+    if (!session || !node) return;
+    node.focus();
+    const end = node.value.length;
+    node.setSelectionRange(end, end);
+    node.scrollTop = node.scrollHeight;
   }, [session === null]);
 
   const startEdit = () => {

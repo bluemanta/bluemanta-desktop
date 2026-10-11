@@ -1,6 +1,7 @@
 import type { IdeaListItem } from '@bluemanta/server/api-types';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useIdeaCommands } from './commands';
+import { useIdeasState } from './IdeasState';
 import { Icon } from '../ui/Icon';
 import { CategoryTag } from './CategoryTag';
 import { Highlight } from './Highlight';
@@ -23,6 +24,17 @@ type IdeaListProps = {
 
 export function IdeaList({ sections, query, selectedId, nowMs, onOpen, restoreScroll, onRestored, header }: IdeaListProps) {
   const scroller = useRef<HTMLDivElement>(null);
+  const { rowFocus } = useIdeasState();
+
+  useEffect(() => {
+    const id = rowFocus.current;
+    if (!id || !scroller.current) return;
+    const node = scroller.current.querySelector<HTMLElement>(`[data-id="${CSS.escape(id)}"]`);
+    if (!node) return;
+    rowFocus.current = null;
+    node.focus({ preventScroll: true });
+    node.scrollIntoView({ block: 'nearest' });
+  }, [rowFocus, selectedId, sections]);
 
   useEffect(() => {
     if (restoreScroll === null || sections.length === 0 || !scroller.current) return;

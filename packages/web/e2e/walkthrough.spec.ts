@@ -425,13 +425,15 @@ test.describe('空库', () => {
 });
 
 test.describe('外壳', () => {
-  test('侧栏三档宽度；⌘K 入口只提示；记一条可用', async ({ page }) => {
+  test('侧栏三档宽度；搜索或执行打开命令面板；记一条可用', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const side = page.getByRole('navigation', { name: '模块' });
     expect((await side.boundingBox())!.width).toBe(208);
-    await page.getByRole('button', { name: '命令面板（即将上线）' }).click();
-    await expect(page.getByRole('status')).toHaveText('命令面板即将上线');
+    await page.getByRole('button', { name: '搜索或执行' }).click();
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toHaveCount(0);
 
     const add = page.getByRole('button', { name: '＋ 记一条' });
     await expect(add).toBeEnabled();
@@ -463,12 +465,13 @@ test.describe('外壳', () => {
     await expect(page).toHaveURL(/\/ideas\/card_[^?]+\?embed=main$/);
   });
 
-  test('路由：/ 跳到 /ideas，统计仍是占位，回收站列出已删除的，前进后退可用', async ({ page }) => {
+  test('路由：/ 跳到 /ideas，统计页可打开，回收站列出已删除的，前进后退可用', async ({ page }) => {
     await openApp(page);
     await expect(page).toHaveURL(`${app.url}/ideas`);
     await page.getByRole('button', { name: '统计', exact: true }).click();
     await expect(page).toHaveURL(`${app.url}/ideas/stats`);
-    await expect(page.getByRole('heading', { name: '统计即将上线' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '近半年记录频率' })).toBeVisible();
+    await expect(page.getByText('全部灵感')).toBeVisible();
     await page.getByRole('button', { name: '回收站', exact: true }).click();
     await expect(page.getByText('已经移入回收站的一条')).toBeVisible();
     await expect(page.getByText('彻底删除前会一直保留')).toBeVisible();

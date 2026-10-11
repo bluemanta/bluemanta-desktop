@@ -9,11 +9,12 @@ import { CategoryPicker } from '../CategoryPicker';
 import { useIdeasState } from '../IdeasState';
 import { filesFromPaste, ImageSlots, type ImageSlotsHandle } from '../images/ImageSlots';
 import { readyAttachmentIds } from '../model/draft';
+import { passesFilters } from '../model/listing';
 import styles from './QuickCapture.module.css';
 
 /** 列表顶部的快速记录。requestId 在打开时生成，失败重试沿用同一个。 */
 export function QuickCapture() {
-  const { capture, setCapture, closeCapture, setQuery, captureActions } = useIdeasState();
+  const { capture, setCapture, closeCapture, setQuery, clearFilters, filters, captureActions } = useIdeasState();
   const client = useQueryClient();
   const navigate = useAppNavigate();
   const toast = useToast();
@@ -51,7 +52,18 @@ export function QuickCapture() {
       closeCapture();
       setQuery('');
       navigate(`/ideas/${encodeURIComponent(record.id)}`);
-      toast.show('已记下');
+      const hidden = !passesFilters(record, filters);
+      if (hidden) {
+        toast.show('已记下（当前筛选下不显示）', {
+          label: '清除筛选',
+          onClick: () => {
+            clearFilters();
+            setQuery('');
+          },
+        });
+      } else {
+        toast.show('已记下');
+      }
     } catch (error) {
       setCapture((current) => (current ? { ...current, error: describeError(error) } : current));
     } finally {

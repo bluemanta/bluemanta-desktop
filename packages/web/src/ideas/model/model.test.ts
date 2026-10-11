@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { highlightSegments, searchTerms } from './highlight';
 import { applyFilters, buildSections, displayTitle, excerptOf, matchLabel } from './listing';
 import { sourceLabel } from './sources';
-import { dayGroup, formatFullTime, formatListTime } from './time';
+import { dayGroup, formatFullTime, formatListTime, shanghaiDayNumber } from './time';
 
 // 2026-10-11 10:30 上海时间
 const NOW = Date.parse('2026-10-11T02:30:00Z');
@@ -63,9 +63,11 @@ describe('筛选与分组', () => {
   ];
 
   it('收藏与分类叠加，分类之间是或', () => {
-    expect(applyFilters(items, { starredOnly: true, categories: new Set() }).map((x) => x.id)).toEqual(['a', 'c']);
-    expect(applyFilters(items, { starredOnly: false, categories: new Set(['work', 'life']) }).map((x) => x.id)).toEqual(['b', 'c']);
-    expect(applyFilters(items, { starredOnly: true, categories: new Set(['work', 'life']) }).map((x) => x.id)).toEqual(['c']);
+    expect(applyFilters(items, { starredOnly: true, categories: new Set(), day: null }).map((x) => x.id)).toEqual(['a', 'c']);
+    expect(applyFilters(items, { starredOnly: false, categories: new Set(['work', 'life']), day: null }).map((x) => x.id)).toEqual(['b', 'c']);
+    expect(applyFilters(items, { starredOnly: true, categories: new Set(['work', 'life']), day: null }).map((x) => x.id)).toEqual(['c']);
+    const day = shanghaiDayNumber(Date.parse('2026-10-09T01:00:00Z'));
+    expect(applyFilters(items, { starredOnly: true, categories: new Set(), day }).map((x) => x.id)).toEqual(['c']);
   });
 
   it('按日期分组，搜索时只有一组', () => {

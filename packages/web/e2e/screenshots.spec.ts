@@ -219,3 +219,67 @@ test.describe('写操作', () => {
     await context.close();
   });
 });
+
+test.describe('统计、命令面板、日期胶囊', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1024, height: 768 },
+      { width: 720, height: 900 },
+    ]) {
+      const size = `${viewport.width}x${viewport.height}`;
+      test(`统计 ${size} ${theme}`, async ({ browser }) => {
+        const context = await browser.newContext({ viewport, colorScheme: theme });
+        const page = await context.newPage();
+        await openApp(page);
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await page.getByRole('button', { name: '统计', exact: true }).click();
+        await expect(page.getByRole('heading', { name: '近半年记录频率' })).toBeVisible();
+        await expect(page.locator('[data-kpi="total"] strong')).toHaveText(String(SEEDED.total));
+        await shoot(page, `stats-${size}-${theme}`);
+        await context.close();
+      });
+    }
+  }
+
+  test('统计空状态 1440 浅色', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page, { empty: true });
+    await page.getByRole('button', { name: '统计', exact: true }).click();
+    await expect(page.getByText('还没有记下灵感，热力图先空着。')).toBeVisible();
+    await shoot(page, 'stats-empty-1440-light');
+  });
+
+  test('命令面板有搜索词 1440 浅色', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await page.keyboard.press('Control+k');
+    const dialog = page.getByRole('dialog', { name: '命令面板' });
+    await dialog.getByRole('textbox', { name: '命令' }).fill('纪要');
+    await expect(dialog.locator('mark').first()).toHaveText('纪要');
+    await shoot(page, 'palette-search-1440-light');
+  });
+
+  test('日期胶囊 1440 浅色', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await page.getByRole('button', { name: '统计', exact: true }).click();
+    await page.locator('[data-columns] button[data-count="4"]').click();
+    await expect(page.locator('[data-date-chip]')).toBeVisible();
+    await expect(page.getByTestId('idea-count')).toHaveText('4 条');
+    await shoot(page, 'date-chip-1440-light');
+  });
+
+  test('200% 放大的清单与详情 1440 浅色', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openApp(page);
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = '2';
+    });
+    await expect(page.getByTestId('idea-count')).toBeVisible();
+    await shoot(page, 'zoom-200-list-1440-light');
+    await row(page, SEEDED.rich).click();
+    await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    await shoot(page, 'zoom-200-detail-1440-light');
+  });
+});

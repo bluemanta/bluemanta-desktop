@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { useAppNavigate } from '../app/context';
 import { useOpenCapture } from '../ideas/capture/openCapture';
+import { useGoToSection } from '../ideas/goToSection';
 import { useIdeasState } from '../ideas/IdeasState';
 import { Button } from '../ui/Button';
-import { DISCARD_CONFIRM, useConfirm } from '../ui/ConfirmDialog';
 import { Icon } from '../ui/Icon';
 import styles from './Header.module.css';
 
@@ -21,10 +20,9 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export function Header({ section }: { section: Section }) {
-  const navigate = useAppNavigate();
-  const { query, setQuery, tabs, lastActive, dirtyIds, discardSessions, capture, sessions } = useIdeasState();
-  const confirm = useConfirm();
+  const { query, setQuery, capture, sessions } = useIdeasState();
   const openCapture = useOpenCapture();
+  const goTo = useGoToSection();
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,26 +34,6 @@ export function Header({ section }: { section: Section }) {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
-
-  const goTo = (target: Section) => {
-    const run = () => {
-      if (target === 'list') {
-        const last = lastActive.current;
-        navigate(last && tabs.includes(last) ? `/ideas/${encodeURIComponent(last)}` : '/ideas');
-        return;
-      }
-      navigate(SECTIONS.find((item) => item.id === target)?.path ?? '/ideas');
-    };
-    if (target !== 'list' && target !== section && dirtyIds.size > 0) {
-      void confirm(DISCARD_CONFIRM).then((ok) => {
-        if (!ok) return;
-        discardSessions();
-        run();
-      });
-      return;
-    }
-    run();
-  };
 
   const onSearch = (value: string) => {
     setQuery(value);
