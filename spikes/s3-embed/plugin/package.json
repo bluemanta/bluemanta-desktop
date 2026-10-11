@@ -1,0 +1,23 @@
+{
+  "name": "@bluemanta/spike-s3-embed",
+  "version": "0.0.1",
+  "private": true,
+  "description": "S3 技术验证：把独立网页嵌进 dsh 主区和右侧栏",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
+    }
+  }
+}

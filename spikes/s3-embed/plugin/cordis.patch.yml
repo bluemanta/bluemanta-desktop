@@ -1,0 +1,3 @@
+- insert:
+    - id: bluemanta-spike-s3-embed
+      name: '@bluemanta/spike-s3-embed'

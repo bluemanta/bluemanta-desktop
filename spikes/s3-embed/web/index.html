@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>灵感台（S3 网页版）</title>
+<style>
+  /* 独立打开时的默认配色；嵌入 dsh 时由 bm:theme 消息覆盖成 dsh 的计算值 */
+  :root {
+    --label-primary: #1f2329; --label-secondary: #646a73; --label-tertiary: #8f959e;
+    --bg: #ffffff; --bg-2: #f5f6f7; --border: #e5e6eb; --accent: #3370ff; --error: #f54a45;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-themed]) {
+      --label-primary: #ebebeb; --label-secondary: #a6a6a6; --label-tertiary: #757575;
+      --bg: #1b1b1b; --bg-2: #262626; --border: #333; --accent: #4c88ff; color-scheme: dark;
+    }
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--label-primary);
+    font: 14px/22px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+  main { box-sizing: border-box; max-width: 860px; margin: 0 auto; padding: 24px 28px 48px; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 4px; }
+  .meta { color: var(--label-secondary); font-size: 12px; }
+  .row { display: flex; gap: 8px; margin: 16px 0; }
+  input, textarea { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg-2); color: var(--label-primary); font: inherit; }
+  button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+    color: var(--label-primary); font: inherit; cursor: pointer; white-space: nowrap; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  li .title { flex: 1; min-width: 0; }
+  li .cat, li .date { color: var(--label-tertiary); font-size: 12px; white-space: nowrap; }
+  .detail { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-2); }
+  .error { color: var(--error); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="heading">灵感台（S3 网页版）</h1>
+  <div class="meta" id="meta"></div>
+  <div id="detail"></div>
+  <div class="row"><input id="q" placeholder="搜索标题、正文、原文或分类"><button id="search">搜索</button></div>
+  <div class="row"><input id="title" placeholder="新灵感标题（虚构数据）"><button class="primary" id="add">记录</button></div>
+  <p id="status" class="meta"></p>
+  <ul id="list"></ul>
+</main>
+<script>
+(() => {
+  // 两种来源：A 独立本地服务（/api/ideas，带口令）；B dsh 鉴权路由（同目录下的 ideas，靠 dsh cookie）
+  const params = new URLSearchParams(location.search)
+  const viaDsh = location.pathname.endsWith('/api/bluemanta/s3/app')
+  const api = viaDsh ? 'ideas' : '/api/ideas'
+  const token = params.get('token') || ''
+  const focusId = params.get('id') || ''
+  const embedded = window.parent !== window
+  const $ = id => document.getElementById(id)
+  const log = []
+
+  function setMeta(extra) {
+    $('meta').textContent = [
+      viaDsh ? '来源 B：dsh 鉴权路由' : '来源 A：独立本地服务',
+      embedded ? '嵌入在 dsh 中' : '独立打开',
+      `origin ${location.origin}`,
+      extra || '',
+    ].filter(Boolean).join(' · ')
+  }
+
+  async function call(path, init = {}) {
+    const headers = { ...(init.headers || {}) }
+    if (!viaDsh) headers['x-bluemanta-token'] = token
+    const res = await fetch(api + path, { ...init, headers, cache: 'no-store' })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    return body
+  }
+
+  async function load(query) {
+    try {
+      const data = await call(`?q=${encodeURIComponent(query || '')}`)
+      const list = $('list')
+      list.innerHTML = ''
+      for (const item of data.items) {
+        const li = document.createElement('li')
+        li.innerHTML = '<span class="title"></span><span class="cat"></span><span class="date"></span>'
+        li.querySelector('.title').textContent = item.title
+        li.querySelector('.cat').textContent = item.category
+        li.querySelector('.date').textContent = item.createdAt
+        if (embedded) {
+          const open = document.createElement('button')
+          open.textContent = '在右侧栏打开'
+          open.dataset.openId = item.id
+          open.onclick = () => window.parent.postMessage({ type: 'bm:openSidebar', id: item.id, title: item.title }, '*')
+          li.appendChild(open)
+        }
+        list.appendChild(li)
+      }
+      $('status').textContent = `共 ${data.count} 条`
+    } catch (e) {
+      $('status').innerHTML = ''
+      const span = document.createElement('span'); span.className = 'error'; span.textContent = `读取失败：${e.message}`
+      $('status').appendChild(span)
+    }
+  }
+
+  async function showDetail(id) {
+    try {
+      const card = await call(`?id=${encodeURIComponent(id)}`)
+      const box = document.createElement('div'); box.className = 'detail'
+      box.innerHTML = '<strong></strong><p></p><span class="meta"></span>'
+      box.querySelector('strong').textContent = card.title
+      box.querySelector('p').textContent = card.body || '（无正文）'
+      box.querySelector('.meta').textContent = `${card.category} · ${card.createdAtLocal || card.createdAt}`
+      $('detail').replaceChildren(box)
+    } catch (e) {
+      $('detail').textContent = `读取详情失败：${e.message}`
+    }
+  }
+
+  $('search').onclick = () => load($('q').value)
+  $('q').onkeydown = e => { if (e.key === 'Enter') load($('q').value) }
+  $('add').onclick = async () => {
+    const title = $('title').value.trim()
+    if (!title) return
+    try {
+      await call('', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title, requestId: `s3-${Date.now()}` }) })
+      $('title').value = ''
+      await load($('q').value)
+    } catch (e) { $('status').textContent = `写入失败：${e.message}` }
+  }
+
+  // 主题与命令消息：只接受父窗口发来的消息
+  window.addEventListener('message', event => {
+    if (event.source !== window.parent) return
+    const msg = event.data || {}
+    if (msg.type === 'bm:theme') {
+      const root = document.documentElement
+      root.dataset.themed = '1'
+      for (const [name, value] of Object.entries(msg.vars || {})) if (value) root.style.setProperty(name, value)
+      root.style.colorScheme = msg.dark ? 'dark' : 'light'
+      setMeta(`主题已同步（${msg.dark ? '深色' : '浅色'}）`)
+    } else if (msg.type === 'bm:result') {
+      $('status').textContent = msg.ok ? `dsh 已执行：${msg.action}` : `dsh 未执行：${msg.reason}`
+    }
+  })
+
+  setMeta()
+  if (focusId) showDetail(focusId)
+  load('')
+  if (embedded) window.parent.postMessage({ type: 'bm:ready' }, '*')
+})()
+</script>
+</body>
+</html>

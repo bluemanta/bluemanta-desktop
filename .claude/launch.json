@@ -32,6 +32,22 @@
       "port": 3093
     },
     {
+      "name": "spike-s3-embed",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DSH_HOME=/Users/apple/Developer/bluemanta-desktop/spikes/s3-embed/.dsh-home",
+        "DSH_TELEMETRY_DISABLED=1",
+        "S3_DATA_DIR=/Users/apple/Developer/bluemanta-desktop/spikes/s3-embed/.data",
+        "dsh",
+        "--profile",
+        "s3",
+        "--port",
+        "3094",
+        "--no-open"
+      ],
+      "port": 3094
+    },
+    {
       "name": "dev-dsh",
       "runtimeExecutable": "env",
       "runtimeArgs": [
