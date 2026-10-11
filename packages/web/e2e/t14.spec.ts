@@ -88,7 +88,7 @@ function palette(page: Page) {
 
 async function openPalette(page: Page): Promise<void> {
   await page.keyboard.press('Control+k');
-  await expect(palette(page).getByRole('textbox', { name: '命令' })).toBeFocused();
+  await expect(palette(page).getByRole('combobox', { name: '命令面板' })).toBeFocused();
 }
 
 test.describe('统计', () => {
@@ -319,13 +319,13 @@ test.describe('命令面板', () => {
     expect(matched).toBeGreaterThan(6);
 
     await openPalette(page);
-    await palette(page).getByRole('textbox', { name: '命令' }).fill('的');
+    await palette(page).getByRole('combobox', { name: '命令面板' }).fill('的');
     const hits = palette(page).getByRole('option');
     await expect(hits).toHaveCount(6);
     await page.keyboard.press('Escape');
 
     await openPalette(page);
-    const input = palette(page).getByRole('textbox', { name: '命令' });
+    const input = palette(page).getByRole('combobox', { name: '命令面板' });
     await input.fill('纪要');
     const hit = palette(page).getByRole('option', { name: SEEDED.rich });
     await expect(hit.locator('mark')).toHaveText('纪要');
@@ -553,7 +553,7 @@ test.describe('键盘', () => {
 
     await openPalette(page);
     await page.keyboard.type('n');
-    await expect(palette(page).getByRole('textbox', { name: '命令' })).toHaveValue('n');
+    await expect(palette(page).getByRole('combobox', { name: '命令面板' })).toHaveValue('n');
     await expect(page.getByRole('form', { name: '快速记录' })).toHaveCount(0);
   });
 });
@@ -579,6 +579,8 @@ test('200% 缩放下清单、详情、统计和命令面板仍可用', async ({ 
     document.documentElement.style.zoom = '2';
   });
   await page.getByRole('button', { name: '清单', exact: true }).click();
+  await page.getByRole('searchbox', { name: '搜索灵感' }).fill('');
+  await expect(page.getByTestId('idea-count')).toHaveText(`${SEEDED.total} 条`);
   await row(page, SEEDED.fourImages).click();
   await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.fourImages);
   await page.keyboard.press('n');

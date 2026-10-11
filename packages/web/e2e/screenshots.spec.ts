@@ -255,7 +255,7 @@ test.describe('统计、命令面板、日期胶囊', () => {
     await openApp(page);
     await page.keyboard.press('Control+k');
     const dialog = page.getByRole('dialog', { name: '命令面板' });
-    await dialog.getByRole('textbox', { name: '命令' }).fill('纪要');
+    await dialog.getByRole('combobox', { name: '命令面板' }).fill('纪要');
     await expect(dialog.locator('mark').first()).toHaveText('纪要');
     await shoot(page, 'palette-search-1440-light');
   });

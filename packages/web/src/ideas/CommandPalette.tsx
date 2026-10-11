@@ -127,7 +127,11 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           className={styles.palette}
           aria-describedby={undefined}
           data-palette=""
-          onOpenAutoFocus={(event) => event.preventDefault()}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            const content = event.currentTarget;
+            if (content instanceof HTMLElement) content.querySelector('input')?.focus();
+          }}
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
           <Dialog.Title className="visually-hidden">命令面板</Dialog.Title>

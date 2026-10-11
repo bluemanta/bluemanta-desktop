@@ -372,7 +372,7 @@ async function caretAtEnd(body: ReturnType<Page['getByRole']>): Promise<boolean>
 }
 
 async function saveHidden(page: Page, title: string): Promise<void> {
-  await page.keyboard.press('n');
+  await page.getByRole('button', { name: '＋ 记一条' }).click();
   await expect(capture(page).getByRole('textbox', { name: '正文' })).toBeFocused();
   await capture(page).getByRole('textbox', { name: '标题' }).fill(title);
   await page.keyboard.press('ControlOrMeta+Enter');
