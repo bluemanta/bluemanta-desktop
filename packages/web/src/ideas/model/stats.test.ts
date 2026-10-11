@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { heatColumns, heatLevel, HEAT_ROWS, HEAT_WEEKS, summarize, visibleDays } from './stats';
+import { heatLevel, HEAT_ROWS, HEAT_WEEKS, summarize } from './stats';
 
 // 2026-10-11 10:30 上海时间
 const NOW = Date.parse('2026-10-11T02:30:00Z');
@@ -57,14 +57,10 @@ describe('统计', () => {
     expect(`${cell?.label} · ${cell?.count} 条`).toBe('10月9日 · 3 条');
   });
 
-  it('过窄时按整周减少列数，今天留在最后', () => {
-    expect(heatColumns(800, 8, 4)).toBe(HEAT_WEEKS);
-    expect(heatColumns(200, 8, 4)).toBe(17);
-    expect(heatColumns(0, 8, 4)).toBe(HEAT_WEEKS);
+  it('始终是 26 周，今天在最后一格', () => {
     const days = summarize([idea('2026-10-11T01:00:00Z')], NOW).days;
-    const visible = visibleDays(days, 2);
-    expect(visible).toHaveLength(2 * HEAT_ROWS);
-    expect(visible.at(-1)?.day).toBe(days.at(-1)?.day);
-    expect(visible[0]?.day).toBeGreaterThan(days[0]?.day ?? 0);
+    expect(days).toHaveLength(HEAT_WEEKS * HEAT_ROWS);
+    expect(days.at(-1)?.label).toBe('10月11日');
+    expect(days.at(-1)?.count).toBe(1);
   });
 });

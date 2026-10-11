@@ -406,7 +406,7 @@ test('编辑时光标在正文末尾；收藏、分类、日期筛选下新灵�
   await expect(row(page, '分类筛选下的新灵感')).toBeVisible();
 
   await page.getByRole('button', { name: '统计', exact: true }).click();
-  await page.locator('[data-columns] button[data-count="0"]').first().click();
+  await page.locator('[data-heat] button[data-count="0"]').first().click();
   await expect(page.locator('[data-date-chip]')).toBeVisible();
   await saveHidden(page, '日期筛选下的新灵感');
   await page.getByRole('status').getByRole('button', { name: '清除筛选' }).click();

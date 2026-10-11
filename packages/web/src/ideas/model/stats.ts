@@ -19,13 +19,6 @@ export function heatLevel(count: number): HeatLevel {
   return 3;
 }
 
-/** 卡片放得下几列。过窄时减少列数，至少留一周。 */
-export function heatColumns(width: number, minCell: number, gap: number): number {
-  if (!Number.isFinite(width) || width <= 0 || minCell <= 0) return HEAT_WEEKS;
-  const columns = Math.floor((width + gap) / (minCell + gap));
-  return Math.min(HEAT_WEEKS, Math.max(1, columns));
-}
-
 export type DayCell = {
   day: number;
   count: number;
@@ -89,10 +82,4 @@ export function summarize(items: readonly Counted[], nowMs: number): StatsSummar
       count: byCategory.get(category.id) ?? 0,
     })),
   };
-}
-
-/** 过窄时丢掉更早的整周，今天仍在最后一格。 */
-export function visibleDays(days: readonly DayCell[], columns: number): DayCell[] {
-  const keep = Math.min(days.length, Math.max(1, columns) * HEAT_ROWS);
-  return days.slice(days.length - keep);
 }

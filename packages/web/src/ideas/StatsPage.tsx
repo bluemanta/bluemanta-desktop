@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppNavigate } from '../app/context';
 import { describeError } from '../api/client';
 import { useIdeaList } from '../api/queries';
@@ -8,7 +8,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { CategoryDot } from './CategoryTag';
 import { useIdeasState } from './IdeasState';
 import { categoryColor } from './model/categories';
-import { heatColumns, HEAT_ROWS, HEAT_WEEKS, summarize, visibleDays } from './model/stats';
+import { summarize } from './model/stats';
 import { formatClock } from './model/time';
 import styles from './StatsPage.module.css';
 
@@ -28,22 +28,27 @@ export function StatsPage() {
   const navigate = useAppNavigate();
   const { setDay } = useIdeasState();
   const heatRef = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(HEAT_WEEKS);
   const summary = useMemo(() => (list.data ? summarize(list.data.items, now) : null), [list.data, now]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = heatRef.current;
     if (!node) return;
-    const measure = () => {
-      const style = getComputedStyle(node);
-      const minCell = Number.parseFloat(style.getPropertyValue('--heat-min'));
-      const gap = Number.parseFloat(style.columnGap);
-      setColumns(heatColumns(node.clientWidth, Number.isFinite(minCell) ? minCell : 8, Number.isFinite(gap) ? gap : 4));
+    // 放不下时默认看到今天（最右一列）。用户滚到更早的日子后，不再拉回去。
+    let pinned = true;
+    const pin = () => {
+      if (pinned) node.scrollLeft = node.scrollWidth;
     };
-    measure();
-    const observer = new ResizeObserver(measure);
+    pin();
+    const observer = new ResizeObserver(pin);
     observer.observe(node);
-    return () => observer.disconnect();
+    const onScroll = () => {
+      pinned = node.scrollLeft + node.clientWidth >= node.scrollWidth - 2;
+    };
+    node.addEventListener('scroll', onScroll);
+    return () => {
+      observer.disconnect();
+      node.removeEventListener('scroll', onScroll);
+    };
   }, [summary?.total]);
 
   if (list.isPending && !list.data) {
@@ -73,7 +78,6 @@ export function StatsPage() {
     );
   }
 
-  const days = visibleDays(summary.days, columns);
   const maxCategory = Math.max(1, ...summary.categories.map((category) => category.count));
   const kpis = [
     { id: 'total', label: '全部灵感', value: summary.total },
@@ -104,8 +108,8 @@ export function StatsPage() {
         {summary.total === 0 ? (
           <p className={styles.empty}>还没有记下灵感，热力图先空着。</p>
         ) : (
-          <div ref={heatRef} className={styles.heat} data-columns={columns} style={{ gridTemplateRows: `repeat(${HEAT_ROWS}, auto)` }}>
-            {days.map((cell) => (
+          <div ref={heatRef} className={styles.heat} data-heat="">
+            {summary.days.map((cell) => (
               <button
                 key={cell.day}
                 type="button"
@@ -132,7 +136,7 @@ export function StatsPage() {
                 <CategoryDot category={category.id} />
                 {category.label}
               </span>
-              <span className={styles.track} aria-hidden="true">
+              <span className={styles.track} data-track="" aria-hidden="true">
                 <i style={{ width: `${(category.count / maxCategory) * 100}%`, background: categoryColor(category.id) }} />
               </span>
               <span className={styles.count}>{category.count}</span>

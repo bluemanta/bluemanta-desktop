@@ -119,7 +119,7 @@ test.describe('统计', () => {
     await expect(kpi('total').locator('strong')).toHaveCSS('font-weight', '600');
     await expect(kpi('total').locator('strong')).toHaveCSS('font-variant-numeric', /tabular-nums/);
 
-    const cells = page.locator('[data-columns] button');
+    const cells = page.locator('[data-heat] button');
     await expect(cells).toHaveCount(HEAT_CELLS);
     const levels = await cells.evaluateAll((nodes) =>
       nodes.map((node) => ({
@@ -143,15 +143,28 @@ test.describe('统计', () => {
     }
   });
 
-  test('过窄时热力图减少列数，今天仍在最后一格', async ({ page }) => {
-    await page.setViewportSize({ width: 320, height: 700 });
+  test('热力图格子固定大小，放不下时滚到今天；分类横条左边界对齐', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
-    const expected = expectedStats(await listItems(page), Date.now());
     await page.getByRole('button', { name: '统计', exact: true }).click();
-    const heat = page.locator('[data-columns]');
-    await expect.poll(async () => Number(await heat.getAttribute('data-columns'))).toBeLessThan(26);
-    const columns = Number(await heat.getAttribute('data-columns'));
-    await expect(heat.getByRole('button')).toHaveCount(columns * 7);
+    const heat = page.locator('[data-heat]');
+    await expect(heat.getByRole('button')).toHaveCount(HEAT_CELLS);
+    const cell = await heat.getByRole('button').first().boundingBox();
+    expect(cell?.width).toBe(11);
+    expect(cell?.height).toBe(11);
+    const secondColumn = await heat.getByRole('button').nth(7).boundingBox();
+    expect(secondColumn && cell ? Math.round(secondColumn.x - cell.x) : 0).toBe(14);
+
+    const tracks = page.locator('[data-category] [data-track]');
+    await expect(tracks).toHaveCount(5);
+    const xs = await tracks.evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().x)));
+    expect(new Set(xs).size).toBe(1);
+
+    const expected = expectedStats(await listItems(page), Date.now());
+    await page.setViewportSize({ width: 320, height: 700 });
+    await expect.poll(() => heat.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+    await expect.poll(() => heat.evaluate((node) => node.scrollLeft + node.clientWidth >= node.scrollWidth - 2)).toBe(true);
+    await expect(heat.getByRole('button')).toHaveCount(HEAT_CELLS);
     await expect(heat.getByRole('button').last()).toHaveAttribute('aria-label', `${expected.todayLabel} · ${expected.todayCount} 条`);
   });
 
@@ -162,7 +175,7 @@ test.describe('统计', () => {
       await expect(page.locator(`[data-kpi="${id}"] strong`)).toHaveText('0');
     }
     await expect(page.getByText('还没有记下灵感，热力图先空着。')).toBeVisible();
-    await expect(page.locator('[data-columns] button')).toHaveCount(0);
+    await expect(page.locator('[data-heat] button')).toHaveCount(0);
     await expect(page.getByText('按记下日期统计，上海时区。')).toBeVisible();
     for (const label of Object.values(CATEGORY_LABEL)) {
       await expect(page.getByText(label, { exact: true })).toBeVisible();

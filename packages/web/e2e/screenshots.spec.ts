@@ -264,7 +264,7 @@ test.describe('统计、命令面板、日期胶囊', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     await page.getByRole('button', { name: '统计', exact: true }).click();
-    await page.locator('[data-columns] button[data-count="4"]').click();
+    await page.locator('[data-heat] button[data-count="4"]').click();
     await expect(page.locator('[data-date-chip]')).toBeVisible();
     await expect(page.getByTestId('idea-count')).toHaveText('4 条');
     await shoot(page, 'date-chip-1440-light');
