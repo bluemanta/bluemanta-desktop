@@ -113,6 +113,7 @@
   height: var(--bmw-icon-sm);
 }
 
+.palette,
 .new {
   flex: none;
 }

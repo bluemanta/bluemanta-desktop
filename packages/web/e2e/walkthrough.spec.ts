@@ -443,7 +443,12 @@ test.describe('外壳', () => {
     await openApp(page);
     const side = page.getByRole('navigation', { name: '模块' });
     expect((await side.boundingBox())!.width).toBe(208);
+    await expect(page.locator('header').getByRole('button', { name: '搜索或执行' })).toHaveCount(0);
     await page.getByRole('button', { name: '搜索或执行' }).click();
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toHaveCount(0);
+    await page.keyboard.press('p');
     await expect(page.getByRole('dialog', { name: '命令面板' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: '命令面板' })).toHaveCount(0);
@@ -459,6 +464,11 @@ test.describe('外壳', () => {
     await expect.poll(async () => (await side.boundingBox())?.width).toBe(52);
     await page.setViewportSize({ width: 1000, height: 800 });
     await expect(side).toHaveCount(0);
+    const headerPalette = page.locator('header').getByRole('button', { name: '搜索或执行' });
+    await expect(headerPalette.locator('kbd')).toHaveText('P');
+    await headerPalette.click();
+    await expect(page.getByRole('dialog', { name: '命令面板' })).toBeVisible();
+    await page.keyboard.press('Escape');
   });
 
   test('中屏：52px 图标栏悬停显示名称，列表隐藏来源徽标', async ({ page }) => {
@@ -470,10 +480,27 @@ test.describe('外壳', () => {
     await expect(row(page, SEEDED.rich).getByText('Grok Bot')).toBeHidden();
   });
 
-  test('嵌入模式隐藏侧栏，站内跳转保留 embed', async ({ page }) => {
+  test('嵌入模式隐藏侧栏，站内跳转保留 embed；页头按钮和 P 打开命令面板', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page, { path: '/ideas', search: '?embed=main' });
     await expect(page.getByRole('navigation', { name: '模块' })).toHaveCount(0);
+    const headerPalette = page.locator('header').getByRole('button', { name: '搜索或执行' });
+    await expect(headerPalette.locator('kbd')).toHaveText('P');
+    await headerPalette.click();
+    const palette = page.getByRole('dialog', { name: '命令面板' });
+    await expect(palette).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(palette).toHaveCount(0);
+    const search = page.getByRole('searchbox', { name: '搜索灵感' });
+    await search.focus();
+    await page.keyboard.type('p');
+    await expect(search).toHaveValue('p');
+    await expect(palette).toHaveCount(0);
+    await search.fill('');
+    await search.blur();
+    await page.keyboard.press('p');
+    await expect(palette).toBeVisible();
+    await page.keyboard.press('Escape');
     await row(page, SEEDED.rich).click();
     await expect(page).toHaveURL(/\/ideas\/card_[^?]+\?embed=main$/);
   });

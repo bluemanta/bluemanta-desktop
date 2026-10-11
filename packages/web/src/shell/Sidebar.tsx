@@ -2,6 +2,7 @@ import type { Viewport } from '../app/context';
 import { useAppNavigate } from '../app/context';
 import { useIdeaList } from '../api/queries';
 import { useCommandPalette } from '../ideas/CommandPalette';
+import { PALETTE_KEY_LABEL } from '../ideas/paletteAccess';
 import { Icon } from '../ui/Icon';
 import { commandShortcut } from '../ui/keys';
 import { Tooltip } from '../ui/Tooltip';
@@ -23,11 +24,12 @@ export function Sidebar({ viewport }: { viewport: Exclude<Viewport, 'narrow'> })
         </span>
         <span className={styles.label}>bluemanta</span>
       </div>
-      <Tooltip label={`搜索或执行… ${shortcut}`} side="right" enabled={mini}>
+      <Tooltip label={`搜索或执行… ${shortcut} · ${PALETTE_KEY_LABEL}`} side="right" enabled={mini}>
         <button type="button" className={styles.command} aria-label="搜索或执行" onClick={() => palette.open()}>
           <Icon name="search" />
           <span className={styles.label}>搜索或执行…</span>
           <kbd className={styles.label}>{shortcut}</kbd>
+          <kbd className={styles.label}>{PALETTE_KEY_LABEL}</kbd>
         </button>
       </Tooltip>
       <Tooltip label="灵感台" side="right" enabled={mini}>

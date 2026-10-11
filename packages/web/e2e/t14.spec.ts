@@ -263,7 +263,8 @@ test.describe('命令面板', () => {
   });
 
   test('Ctrl+K 与侧栏入口开关，方向键选择，底部有提示', async ({ page }) => {
-    await expect(page.getByRole('button', { name: '搜索或执行' }).locator('kbd')).toHaveText('Ctrl+K');
+    await expect(page.getByRole('button', { name: '搜索或执行' }).locator('kbd')).toHaveText(['Ctrl+K', 'P']);
+    await expect(page.locator('header').getByRole('button', { name: '搜索或执行' })).toHaveCount(0);
     await openPalette(page);
     const dialog = palette(page);
     await expect(page.locator('[data-palette]')).toHaveCSS('border-radius', '14px');
@@ -285,6 +286,15 @@ test.describe('命令面板', () => {
     await page.getByRole('button', { name: '搜索或执行' }).click();
     await expect(dialog).toBeVisible();
     await page.keyboard.press('Escape');
+
+    await page.keyboard.press('p');
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Shift+p');
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await page.keyboard.press('Shift+p');
+    await expect(dialog).toHaveCount(0);
   });
 
   test('命令：记一条、切换清单和统计、回收站、只看收藏、清除筛选', async ({ page }) => {
@@ -348,12 +358,17 @@ test.describe('命令面板', () => {
     await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
   });
 
-  test('嵌入模式不显示切换深浅色，本地偏好也不生效', async ({ page }) => {
+  test('嵌入模式不显示切换深浅色，本地偏好也不生效；页头按钮打开命令面板', async ({ page }) => {
     await page.goto(`${app.url}/ideas?embed=main#token=${app.token}`);
     await page.evaluate(() => window.localStorage.setItem('bluemanta.colorScheme', 'dark'));
     await page.reload();
     await expect(page.getByTestId('idea-count')).toHaveText(`${SEEDED.total} 条`);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    const headerPalette = page.locator('header').getByRole('button', { name: '搜索或执行' });
+    await expect(headerPalette.locator('kbd')).toHaveText('P');
+    await headerPalette.click();
+    await expect(palette(page)).toBeVisible();
+    await page.keyboard.press('Escape');
     await openPalette(page);
     await expect(palette(page).getByRole('option', { name: '切换深浅色' })).toHaveCount(0);
     await expect(palette(page).getByRole('option', { name: '切换到统计' })).toBeVisible();
@@ -549,9 +564,10 @@ test.describe('键盘', () => {
   test('焦点在输入框里时单字母快捷键不生效', async ({ page }) => {
     const search = page.getByRole('searchbox', { name: '搜索灵感' });
     await search.focus();
-    await page.keyboard.type('njkes/');
-    await expect(search).toHaveValue('njkes/');
+    await page.keyboard.type('njkes/p');
+    await expect(search).toHaveValue('njkes/p');
     await expect(page.getByRole('form', { name: '快速记录' })).toHaveCount(0);
+    await expect(palette(page)).toHaveCount(0);
     await expect(page).toHaveURL(`${app.url}/ideas`);
     await page.keyboard.press('Escape');
     await page.keyboard.press('Escape');

@@ -61,7 +61,7 @@
   cursor: pointer;
 }
 
-.command kbd {
+.command kbd:first-of-type {
   margin-left: auto;
 }
 
