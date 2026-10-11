@@ -1,25 +1,33 @@
 import type { IdeaCategory, IdeaListItem, IdeaSearchField } from '@bluemanta/server/api-types';
-import { DAY_GROUP_LABEL, dayGroup, type DayGroup } from './time';
+import { DAY_GROUP_LABEL, dayGroup, shanghaiDayNumber, type DayGroup } from './time';
 
 export type IdeaFilters = {
   starredOnly: boolean;
   /** 多个分类之间是「或」；空集合表示不按分类筛。 */
   categories: ReadonlySet<IdeaCategory>;
+  /** 上海自然日序号。从统计页点某天进来；`null` 表示不按日期筛。 */
+  day: number | null;
 };
 
-export const NO_FILTERS: IdeaFilters = { starredOnly: false, categories: new Set() };
+export const NO_FILTERS: IdeaFilters = { starredOnly: false, categories: new Set(), day: null };
 
 export function hasFilters(filters: IdeaFilters): boolean {
-  return filters.starredOnly || filters.categories.size > 0;
+  return filters.starredOnly || filters.categories.size > 0 || filters.day !== null;
 }
 
-/** 收藏与分类叠加（与）；分类之间（或）。 */
+type Filterable = { starred: boolean; category: IdeaCategory; createdAt: string };
+
+/** 收藏、分类、日期叠加（与）；分类之间（或）。日期按上海自然日。 */
+export function passesFilters(item: Filterable, filters: IdeaFilters): boolean {
+  if (filters.starredOnly && !item.starred) return false;
+  if (filters.categories.size > 0 && !filters.categories.has(item.category)) return false;
+  if (filters.day !== null && shanghaiDayNumber(Date.parse(item.createdAt)) !== filters.day) return false;
+  return true;
+}
+
+/** 收藏与分类叠加（与）；分类之间（或）；日期胶囊再叠一层。 */
 export function applyFilters<T extends IdeaListItem>(items: readonly T[], filters: IdeaFilters): T[] {
-  return items.filter(
-    (item) =>
-      (!filters.starredOnly || item.starred) &&
-      (filters.categories.size === 0 || filters.categories.has(item.category)),
-  );
+  return items.filter((item) => passesFilters(item, filters));
 }
 
 export type ListSection = {

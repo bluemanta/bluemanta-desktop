@@ -3,12 +3,13 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Route, Switch } from 'wouter';
 import { auth } from '../api/client';
 import { createQueryClient, listenWindowFocus } from '../api/queries';
+import { CommandPaletteProvider } from '../ideas/CommandPalette';
 import { IdeasPage } from '../ideas/IdeasPage';
 import { IdeasStateProvider } from '../ideas/IdeasState';
 import { IdeaHotkeys } from '../ideas/hotkeys';
 import { NavigationGuard } from '../ideas/NavigationGuard';
+import { StatsPage } from '../ideas/StatsPage';
 import { TrashPage } from '../ideas/TrashPage';
-import { ComingSoon } from '../shell/ComingSoon';
 import { NeedsReopen } from '../shell/NeedsReopen';
 import { Shell } from '../shell/Shell';
 import { ConfirmProvider } from '../ui/ConfirmDialog';
@@ -32,7 +33,7 @@ function Routes() {
       </Route>
       <Route path="/ideas/stats">
         <Shell section="stats">
-          <ComingSoon title="统计即将上线" text="指标、记录频率和分类分布会在后续版本上线。" />
+          <StatsPage />
         </Shell>
       </Route>
       <Route path="/ideas/trash">
@@ -55,7 +56,7 @@ export function App({ launch }: { launch: Launch }) {
     (listener) => auth.subscribe(listener),
     () => auth.isRejected(),
   );
-  useTheme(launch.parentOrigin);
+  useTheme(launch.parentOrigin, launch.embed !== null);
 
   useEffect(() => {
     if (rejected) client.clear();
@@ -68,9 +69,11 @@ export function App({ launch }: { launch: Launch }) {
     content = (
       <ConfirmProvider>
         <IdeasStateProvider>
-          <NavigationGuard />
-          <IdeaHotkeys />
-          <Routes />
+          <CommandPaletteProvider>
+            <NavigationGuard />
+            <IdeaHotkeys />
+            <Routes />
+          </CommandPaletteProvider>
         </IdeasStateProvider>
       </ConfirmProvider>
     );

@@ -69,6 +69,17 @@ export function formatListTime(iso: string, nowMs: number): string {
   return year === shanghaiParts(nowMs).year ? text : `${year}年${text}`;
 }
 
+/** 上海自然日序号还原成「10月9日」；不是今年的加年份。 */
+export function formatDayNumber(day: number, nowMs: number): string {
+  const ms = day * 86_400_000;
+  const date = new Date(ms);
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const dayOfMonth = date.getUTCDate();
+  const text = `${month}月${dayOfMonth}日`;
+  return year === shanghaiParts(nowMs).year ? text : `${year}年${text}`;
+}
+
 /** 详情里的完整时间「2026-10-11 09:42」。 */
 export function formatFullTime(iso: string): string {
   const ms = Date.parse(iso);

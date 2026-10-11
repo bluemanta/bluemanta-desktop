@@ -1,0 +1,109 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--bm-scrim);
+}
+
+.palette {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  z-index: 31;
+  width: min(var(--bmw-palette), calc(100% - var(--bm-sp-32)));
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--bm-r-xl);
+  background: var(--bm-surface);
+  box-shadow: var(--bm-shadow-pop);
+  color: var(--bm-text);
+}
+
+.palette [cmdk-root] {
+  display: flex;
+  flex-direction: column;
+}
+
+.palette [cmdk-input] {
+  width: 100%;
+  height: var(--bm-head);
+  padding: 0 var(--bm-sp-16);
+  border: 0;
+  border-bottom: var(--bmw-line-w) solid var(--bm-line);
+  outline: 0;
+  background: transparent;
+  color: var(--bm-text);
+  font: inherit;
+  font-size: var(--bm-fs-md);
+}
+
+.palette [cmdk-input]::placeholder {
+  color: var(--bm-text-3);
+}
+
+.palette [cmdk-list] {
+  max-height: 340px;
+  overflow: auto;
+  padding: var(--bm-sp-6);
+}
+
+.palette [cmdk-group-heading] {
+  padding: var(--bm-sp-6) var(--bm-sp-10) var(--bm-sp-4);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+  font-weight: 400;
+}
+
+.palette [cmdk-item] {
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-10);
+  height: var(--bm-sp-32);
+  padding: 0 var(--bm-sp-10);
+  border-radius: var(--bm-r);
+  color: var(--bm-text);
+  font-size: var(--bm-fs);
+  cursor: pointer;
+  user-select: none;
+}
+
+.palette [cmdk-item][data-selected='true'] {
+  background: var(--bm-sel);
+}
+
+.palette [cmdk-item] kbd {
+  margin-left: auto;
+}
+
+.hint {
+  margin-left: auto;
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-sm);
+}
+
+.hitTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  padding: var(--bm-sp-6) var(--bm-sp-10);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-sm);
+}
+
+.foot {
+  display: flex;
+  gap: var(--bm-sp-12);
+  padding: var(--bm-sp-6) var(--bm-sp-12);
+  border-top: var(--bmw-line-w) solid var(--bm-line);
+  color: var(--bm-text-3);
+  font-size: var(--bm-fs-xs);
+}
+
+.foot kbd + kbd {
+  margin-left: var(--bm-sp-2);
+}

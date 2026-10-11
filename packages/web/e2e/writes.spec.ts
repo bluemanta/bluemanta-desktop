@@ -363,3 +363,53 @@ test('同一个 requestId 重试不会产生第二条', async ({ page }) => {
   expect(second.requestId).toBe(first.requestId);
   await expect(rows(page).filter({ hasText: '重试不应重复' })).toHaveCount(1);
 });
+
+async function caretAtEnd(body: ReturnType<Page['getByRole']>): Promise<boolean> {
+  return body.evaluate((node) => {
+    const field = node as HTMLTextAreaElement;
+    return field.selectionStart === field.value.length && field.selectionEnd === field.value.length && field.value.length > 0;
+  });
+}
+
+async function saveHidden(page: Page, title: string): Promise<void> {
+  await page.getByRole('button', { name: '＋ 记一条' }).click();
+  await expect(capture(page).getByRole('textbox', { name: '正文' })).toBeFocused();
+  await capture(page).getByRole('textbox', { name: '标题' }).fill(title);
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await expect(page.getByRole('status')).toContainText('已记下（当前筛选下不显示）');
+  await expect(page.getByRole('status').getByRole('button', { name: '清除筛选' })).toBeVisible();
+  await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(title);
+  await expect(row(page, title)).toHaveCount(0);
+}
+
+test('编辑时光标在正文末尾；收藏、分类、日期筛选下新灵感提示清除筛选', async ({ page }) => {
+  await row(page, '学一点基础的色彩理论').click();
+  await page.keyboard.press('e');
+  const body = detail(page).getByRole('textbox', { name: '正文' });
+  await expect(body).toBeFocused();
+  expect(await caretAtEnd(body)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(detail(page).getByRole('textbox', { name: '正文' })).toHaveCount(0);
+  await detail(page).getByRole('button', { name: '编辑' }).click();
+  await expect(body).toBeFocused();
+  expect(await caretAtEnd(body)).toBe(true);
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('toolbar', { name: '筛选' }).getByRole('button', { name: '★ 收藏' }).click();
+  await saveHidden(page, '收藏筛选下的新灵感');
+  await page.getByRole('status').getByRole('button', { name: '清除筛选' }).click();
+  await expect(row(page, '收藏筛选下的新灵感')).toBeVisible();
+
+  await page.getByRole('toolbar', { name: '筛选' }).getByRole('button', { name: '生活随想' }).click();
+  await saveHidden(page, '分类筛选下的新灵感');
+  await page.getByRole('status').getByRole('button', { name: '清除筛选' }).click();
+  await expect(row(page, '分类筛选下的新灵感')).toBeVisible();
+
+  await page.getByRole('button', { name: '统计', exact: true }).click();
+  await page.locator('[data-heat] button[data-count="0"]').first().click();
+  await expect(page.locator('[data-date-chip]')).toBeVisible();
+  await saveHidden(page, '日期筛选下的新灵感');
+  await page.getByRole('status').getByRole('button', { name: '清除筛选' }).click();
+  await expect(page.locator('[data-date-chip]')).toHaveCount(0);
+  await expect(row(page, '日期筛选下的新灵感')).toBeVisible();
+});

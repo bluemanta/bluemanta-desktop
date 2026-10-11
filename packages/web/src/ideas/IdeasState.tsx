@@ -13,7 +13,10 @@ type IdeasState = {
   searchQuery: string;
   filters: IdeaFilters;
   toggleStarred: () => void;
+  /** 命令「只看收藏」：打开收藏，不来回切换。 */
+  setStarredOnly: (starredOnly: boolean) => void;
   toggleCategory: (category: IdeaCategory) => void;
+  setDay: (day: number | null) => void;
   clearFilters: () => void;
   tabs: string[];
   /** 打不开（6 个都有未保存修改）时返回 false。 */
@@ -38,6 +41,8 @@ type IdeasState = {
   captureActions: RefObject<EditorActions | null>;
   /** 窄屏「返回」已经确认过放弃修改，下一次浏览器后退不再问。 */
   ignoreNextPop: RefObject<boolean>;
+  /** J / K 移动后要聚焦的行。 */
+  rowFocus: RefObject<string | null>;
 };
 
 const Context = createContext<IdeasState | null>(null);
@@ -60,6 +65,7 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
   const editorActions = useRef(new Map<string, EditorActions>());
   const captureActions = useRef<EditorActions | null>(null);
   const ignoreNextPop = useRef(false);
+  const rowFocus = useRef<string | null>(null);
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
   const dirtyIds = useMemo(() => new Set(Object.entries(sessions).filter(([, session]) => session.dirty).map(([id]) => id)), [sessions]);
@@ -77,6 +83,7 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
   }, [query]);
 
   const toggleStarred = useCallback(() => setFilters((current) => ({ ...current, starredOnly: !current.starredOnly })), []);
+  const setStarredOnly = useCallback((starredOnly: boolean) => setFilters((current) => ({ ...current, starredOnly })), []);
   const toggleCategory = useCallback(
     (category: IdeaCategory) =>
       setFilters((current) => {
@@ -87,6 +94,7 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
       }),
     [],
   );
+  const setDay = useCallback((day: number | null) => setFilters((current) => ({ ...current, day })), []);
   const clearFilters = useCallback(() => setFilters(NO_FILTERS), []);
 
   const openTab = useCallback((id: string) => {
@@ -170,7 +178,9 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
       searchQuery,
       filters,
       toggleStarred,
+      setStarredOnly,
       toggleCategory,
+      setDay,
       clearFilters,
       tabs,
       openTab,
@@ -191,13 +201,16 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
       editorActions,
       captureActions,
       ignoreNextPop,
+      rowFocus,
     }),
     [
       query,
       searchQuery,
       filters,
       toggleStarred,
+      setStarredOnly,
       toggleCategory,
+      setDay,
       clearFilters,
       tabs,
       openTab,

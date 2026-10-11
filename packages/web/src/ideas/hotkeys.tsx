@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { ideaKeys } from '../api/queries';
+import { useAppNavigate } from '../app/context';
 import { useOpenCapture } from './capture/openCapture';
 import { useIdeaCommands } from './commands';
 import { useIdeasState } from './IdeasState';
@@ -20,6 +21,14 @@ function blocked(target: EventTarget | null): boolean {
   return Boolean(target.closest('[data-capture], [data-editor], [data-composer], [role="alertdialog"], [data-lightbox], button, a'));
 }
 
+function overlayOpen(): boolean {
+  return Boolean(document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'));
+}
+
+function listRows(): HTMLElement[] {
+  return [...document.querySelectorAll<HTMLElement>('[role="listbox"][aria-label="灵感清单"] [role="option"][data-id]')];
+}
+
 function recordOf(client: ReturnType<typeof useQueryClient>, id: string): IdeaRecord | undefined {
   const detail = client.getQueryData<IdeaRecord>(ideaKeys.detail(id));
   if (detail && detail.deletedAt === null) return detail;
@@ -31,15 +40,33 @@ function recordOf(client: ReturnType<typeof useQueryClient>, id: string): IdeaRe
 export function IdeaHotkeys() {
   const client = useQueryClient();
   const [location] = useLocation();
-  const { capture, sessions, editorActions, captureActions, setSession } = useIdeasState();
+  const { capture, sessions, editorActions, captureActions, setSession, rowFocus } = useIdeasState();
   const { star, trash } = useIdeaCommands();
   const openCapture = useOpenCapture();
+  const navigate = useAppNavigate();
   const id = ideaIdFromPath(location);
 
   useEffect(() => {
+    const move = (delta: number) => {
+      const options = listRows();
+      if (options.length === 0) return;
+      const current = options.findIndex((row) => row.dataset.id === id);
+      const start = current === -1 ? (delta > 0 ? -1 : options.length) : current;
+      const next = options[Math.min(options.length - 1, Math.max(0, start + delta))];
+      const nextId = next?.dataset.id;
+      if (!nextId) return;
+      if (nextId === id) {
+        next.focus();
+        next.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      rowFocus.current = nextId;
+      navigate(`/ideas/${encodeURIComponent(nextId)}`);
+    };
+
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
-      if (document.querySelector('[role="alertdialog"], [data-lightbox]')) return;
+      if (overlayOpen()) return;
       const meta = event.metaKey || event.ctrlKey;
       if (meta && event.key === 'Enter') {
         event.preventDefault();
@@ -62,8 +89,14 @@ export function IdeaHotkeys() {
         }
         return;
       }
-      if (blocked(event.target) || meta || event.altKey) return;
       const key = event.key.toLowerCase();
+      const moveKey = key === 'j' || key === 'k' || event.key === 'ArrowDown' || event.key === 'ArrowUp';
+      if (moveKey && !isTyping(event.target) && !meta && !event.altKey && sectionOf(location) === 'list') {
+        event.preventDefault();
+        move(key === 'k' || event.key === 'ArrowUp' ? -1 : 1);
+        return;
+      }
+      if (blocked(event.target) || meta || event.altKey) return;
       if (key === 'n') {
         event.preventDefault();
         openCapture();
@@ -89,7 +122,7 @@ export function IdeaHotkeys() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [capture, client, editorActions, captureActions, id, location, openCapture, sessions, setSession, star, trash]);
+  }, [capture, client, editorActions, captureActions, id, location, navigate, openCapture, rowFocus, sessions, setSession, star, trash]);
 
   return null;
 }
