@@ -1,0 +1,22 @@
+{
+  "name": "@bluemanta/spike-s5-frame-shortcuts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "S5 技术验证：焦点在嵌入 iframe 里时 Desktop 快捷键由谁执行",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  }
+}
