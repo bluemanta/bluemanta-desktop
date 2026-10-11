@@ -27,8 +27,8 @@ npm run dev:dsh
 
 1. 在仓库内的 `.dsh-dev/`（已 gitignore）准备隔离的 `DSH_HOME` 和临时数据目录。不会读写 `~/.dsh`，也不会碰 `~/Library/Application Support/BluemantaDesktop/`。
 2. 把 `@deepseek-ai/dsh@0.2.0-rc.2` 装到 `.dsh-dev/cli`（需要网络，只要第一次）。
-3. 用 `dsh --profile bluemanta-dev --from-default-profile web --dump-config` 从 web 模板建立 profile。这里加了 `--dump-config`，只建配置、不把服务跑起来；否则插件还没装上服务就启动了。
-4. `dsh plugin --profile bluemanta-dev add ./packages/dsh-plugin`。这一步需要 PATH 上有 pnpm。
+3. 用 `dsh --profile bluemanta-dev --from-default-profile web --dump-config` 从 web 模板建立 profile。这里加了 `--dump-config`，只建配置、不把服务跑起来；否则插件还没装上服务就启动了。`.dsh-dev/home/profiles/bluemanta-dev` 已经存在时跳过这一步，避免第二次运行因 profile 已存在而退出。
+4. `dsh plugin --profile bluemanta-dev add ./packages/dsh-plugin`。这一步需要 PATH 上有 pnpm。profile 的依赖里已经有 `@bluemanta/dsh-plugin` 时跳过，避免重复安装失败。
 5. 把 `BLUEMANTA_DATA_DIR` 指到 `.dsh-dev/data`，启动 `dsh --profile bluemanta-dev --port 3092 --no-open`。
 
 终端会打印带 `token` 的地址。用那个地址打开页面，左侧栏会出现「灵感台」。不带登录 cookie 访问 `/api/bluemanta/health` 会得到 401。
@@ -67,7 +67,7 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 
 ## Agent 工具
 
-宿主启动时用 `ctx.tools.register(defineTool(...))` 注册三个工具。执行函数在 `src/idea-tools.ts`，只调用 core，不另写标题、分类或回收站规则。
+宿主启动时用 `ctx.tools.register(defineTool(...))` 注册三个工具。执行函数在 `packages/cli/src/idea-tools.ts`（本包的 `src/idea-tools.ts` 只转发），只调用 core，不另写标题、分类或回收站规则。
 
 | 工具 | 作用 |
 |---|---|
@@ -81,5 +81,5 @@ Desktop 默认数据目录是 core 的默认目录。要用临时库试列表，
 
 浏览器端在 `dsh.client.inject` 里声明 `@deepseek-ai/dsh-client-ui-sidebar-right` 和 `@deepseek-ai/dsh-client-ui-tool`，只用来排激活顺序，`client.js` 不 import 这两个包。
 
-- 页类型 `bluemanta.idea`（`multiple: true`）注册到 `ctx.sidebarRightTabs`。开始页入口「灵感台」打开精简列表；点一条，或在工具卡片上点「打开」，会在当前对话的右侧栏新开这条灵感。正文复用灵感详情，写入仍走人的命令通道。
+- 页类型 `bluemanta.idea`（`multiple: true`）注册到 `ctx.sidebarRightTabs`。开始页入口「灵感台」打开精简列表，已经有列表 tab 时聚焦它，不再新开。点一条，或在工具卡片上点「打开」，会在当前对话的右侧栏打开这条灵感；同一个灵感 id 已经打开时聚焦那个 tab。正文复用灵感详情，写入仍走人的命令通道。标签上的 × 在有未保存修改时会确认；dsh 的 `registerCloseHandler` 抛错会留下标签。
 - `bluemanta_idea_capture`、`bluemanta_idea_search`、`bluemanta_idea_get` 各有一张 `tool.call.toolview` 卡片。主区域不是对话时右侧栏不存在，「打开」不显示，也不会调用 `openTab`。

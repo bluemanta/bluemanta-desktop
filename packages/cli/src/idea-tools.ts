@@ -38,12 +38,13 @@ export const SEARCH_DESCRIPTION =
   'query 是必填关键词，按空白分开，每个词都要命中。limit 是返回条数，省略时为 10，最大 50。' +
   'category 可选，取值与记录工具相同。starredOnly 为 true 时只返回已收藏的灵感。' +
   '默认不含回收站。没有匹配时 message 为「没有找到」。' +
-  '每条结果的 createdAt 是创建日期（YYYY-MM-DD），field 是命中字段（title 标题、body 正文、rawInput 原文、category 分类），excerpt 是摘录。' +
+  '每条结果的 createdAt 是创建日期（YYYY-MM-DD，按 Asia/Shanghai 计算），field 是命中字段（title 标题、body 正文、rawInput 原文、category 分类），excerpt 是摘录。' +
   AGENT_LIMITATION;
 
 export const GET_DESCRIPTION =
   '当已经知道灵感 id，需要读取完整内容时使用。' +
   '返回标题、正文、分类中文名、是否收藏、创建时间、追记列表和原文。' +
+  'createdAt 和追记的 createdAt 仍是 ISO UTC；createdAtLocal 是上海时区的本地时间，形如 2026-10-11 07:09。' +
   '在回收站中的照常返回，notice 为「在回收站中」。' +
   '没有保留原文的历史记录 rawInput.status 为 legacy，note 为「无原文」。' +
   AGENT_LIMITATION;
@@ -137,6 +138,8 @@ export type IdeaExtensionView = {
   id: string;
   body: string;
   createdAt: string;
+  /** 上海时区本地时间，形如 2026-10-11 07:09。 */
+  createdAtLocal: string;
 };
 
 export type IdeaRawView =
@@ -152,6 +155,8 @@ export type GetIdeaResult =
       category: string;
       starred: boolean;
       createdAt: string;
+      /** 上海时区本地时间，形如 2026-10-11 07:09。createdAt 仍是 ISO UTC。 */
+      createdAtLocal: string;
       inTrash: boolean;
       notice: string;
       extensions: IdeaExtensionView[];
@@ -221,12 +226,14 @@ export function getIdea(core: IdeaToolCore, input: { id: string }): GetIdeaResul
     category: CATEGORY_LABELS[card.fields.category],
     starred: card.starred,
     createdAt: card.createdAt,
+    createdAtLocal: shanghaiClock(card.createdAt).text,
     inTrash,
     notice: inTrash ? '在回收站中' : '',
     extensions: card.extensions.map((extension) => ({
       id: extension.id,
       body: extension.body,
       createdAt: extension.createdAt,
+      createdAtLocal: shanghaiClock(extension.createdAt).text,
     })),
     rawInput: rawView(card.rawInput),
   };
@@ -254,7 +261,7 @@ export function renderGet(value: GetIdeaResult): string {
     `标题：${value.title}`,
     `分类：${value.category}`,
     `收藏：${value.starred ? '是' : '否'}`,
-    `创建时间：${value.createdAt}`,
+    `创建时间：${localClock(value)}`,
     `正文：${value.body}`,
   ];
   if (value.rawInput.status === 'legacy') lines.push('原文：无原文');
@@ -263,7 +270,7 @@ export function renderGet(value: GetIdeaResult): string {
   else {
     lines.push('追记：');
     for (const extension of value.extensions) {
-      lines.push(`- ${extension.createdAt} ${extension.body}`);
+      lines.push(`- ${extension.createdAtLocal || shanghaiClock(extension.createdAt).text} ${extension.body}`);
     }
   }
   return lines.join('\n');
@@ -288,10 +295,36 @@ function toSearchItem(hit: CardSearchHit): IdeaSearchItem {
     id: card.id,
     title: card.title,
     category,
-    createdAt: card.createdAt.slice(0, 10),
+    createdAt: shanghaiClock(card.createdAt).date,
     field: hit.field,
     excerpt: hit.excerpt,
   };
+}
+
+const SHANGHAI = 'Asia/Shanghai';
+
+/** 把 ISO 时间换成上海时区的日期和「YYYY-MM-DD HH:mm」。解析失败时原样返回。 */
+export function shanghaiClock(iso: string): { date: string; text: string } {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return { date: iso.slice(0, 10), text: iso };
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: SHANGHAI,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+  const bag: Record<string, string> = {};
+  for (const part of fmt.formatToParts(new Date(ms))) bag[part.type] = part.value;
+  const hour = bag.hour === '24' ? '00' : bag.hour;
+  const date = `${bag.year}-${bag.month}-${bag.day}`;
+  return { date, text: `${date} ${hour}:${bag.minute}` };
+}
+
+function localClock(value: { createdAt: string; createdAtLocal?: string }): string {
+  return value.createdAtLocal || shanghaiClock(value.createdAt).text;
 }
 
 function rawView(rawInput: RawInput): IdeaRawView {

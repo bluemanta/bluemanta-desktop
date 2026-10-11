@@ -5,6 +5,7 @@
  * 请求用相对路径、开头不带 /，以兼容 Desktop 的 dsh-app:// 挂载。
  * 上海时区的日期函数与 src/shanghai.js 保持同一份文本（测试会核对）。
  * 右侧栏与工具卡片的纯函数与 src/idea-sidebar.js 保持同一份文本（测试会核对）。
+ * 原文是否显示与 src/raw-text.js 保持同一份文本（测试会核对）。
  */
 window.__ModuleLoader__.load({
   id: '@bluemanta/dsh-plugin',
@@ -12,6 +13,31 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const shell = { sidebarRight: null }
+    const ideaDrafts = new Map()
+    const railIndex = { lists: new Map(), ideas: new Map() }
+    const railClose = {
+      entries: new Map(),
+      listeners: new Set(),
+      pending: new Set(),
+      mark(tabId, dirty) {
+        if (!tabId) return
+        const entry = this.entries.get(tabId) || { dirty: false, allow: false }
+        entry.dirty = dirty
+        if (!dirty) entry.allow = false
+        this.entries.set(tabId, entry)
+      },
+      permit(tabId) {
+        const entry = this.entries.get(tabId)
+        if (!entry) return
+        entry.dirty = false
+        entry.allow = true
+      },
+      request(tabId) {
+        if (!tabId) return
+        this.pending.add(tabId)
+        for (const listener of this.listeners) listener(tabId)
+      },
+    }
     const titleBus = {
       titles: new Map(),
       listeners: new Set(),
@@ -677,6 +703,68 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }
     }
 
+    function snapshotTabs(sidebarRight) {
+      try {
+        const source = sidebarRight && sidebarRight.openTabs
+        if (!source || typeof source.getSnapshot !== 'function') return []
+        const value = source.getSnapshot()
+        return Array.isArray(value) ? value : []
+      } catch {
+        return []
+      }
+    }
+
+    function sessionIdOf(sidebarRight) {
+      try {
+        const mounted = sidebarRight && sidebarRight.mounted
+        if (!mounted || typeof mounted.getSnapshot !== 'function') return ''
+        const value = mounted.getSnapshot()
+        return typeof value === 'string' ? value : ''
+      } catch {
+        return ''
+      }
+    }
+
+    function focusRailTab(sidebarRight, tabId) {
+      if (!tabId || !sidebarRight || typeof sidebarRight.focus !== 'function') return false
+      try {
+        sidebarRight.focus(tabId)
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    function railIdeaKey(sessionId, ideaId) {
+      return sessionId + '\n' + ideaId
+    }
+
+    function openTrackedIdea(sidebarRight, params) {
+      const id = params && typeof params.id === 'string' ? params.id.trim() : ''
+      if (!id) return false
+      const sessionId = sessionIdOf(sidebarRight)
+      if (sessionId) {
+        const known = railIndex.ideas.get(railIdeaKey(sessionId, id)) || ''
+        const plan = planRailOpen(known, snapshotTabs(sidebarRight), sessionId)
+        if (plan.action === 'focus') return focusRailTab(sidebarRight, plan.tabId)
+      }
+      return openIdeaTab(sidebarRight, params)
+    }
+
+    function pruneRailIndex(openTabs) {
+      for (const [sessionId, tabId] of railIndex.lists) {
+        if (tabIsOpen(openTabs, sessionId, tabId)) continue
+        railClose.entries.delete(tabId)
+        railIndex.lists.delete(sessionId)
+      }
+      for (const [key, tabId] of railIndex.ideas) {
+        const sessionId = key.slice(0, key.indexOf('\n'))
+        if (tabIsOpen(openTabs, sessionId, tabId)) continue
+        railClose.entries.delete(tabId)
+        railIndex.ideas.delete(key)
+      }
+    }
+
     function parseToolArgs(raw) {
       if (typeof raw !== 'string' || raw.trim() === '') return null;
       try {
@@ -811,6 +899,35 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       return { kind: 'error', message: text || '调用失败' };
     }
 
+    function tabIsOpen(openTabs, sessionId, tabId) {
+      if (!tabId || !Array.isArray(openTabs)) return false;
+      for (const tab of openTabs) {
+        if (!tab || tab.tabId !== tabId) continue;
+        if (sessionId && tab.sessionId !== sessionId) continue;
+        return true;
+      }
+      return false;
+    }
+
+    /** 同一个灵感已经打开时聚焦那个 tab，否则新开。 */
+    function planRailOpen(knownTabId, openTabs, sessionId) {
+      if (tabIsOpen(openTabs, sessionId, knownTabId)) return { action: 'focus', tabId: knownTabId };
+      return { action: 'open' };
+    }
+
+    /** 后打开的重复标签让位给已经记下的那个。 */
+    function planRailClaim(knownTabId, openTabs, sessionId, tabId) {
+      if (knownTabId && knownTabId !== tabId && tabIsOpen(openTabs, sessionId, knownTabId)) {
+        return { action: 'focus-existing', tabId: knownTabId };
+      }
+      return { action: 'keep', tabId };
+    }
+
+    /** 未保存时拦截关闭；调用方已经确认过则放行。 */
+    function planRailClose(entry) {
+      if (!entry || entry.dirty !== true || entry.allow === true) return 'allow';
+      return 'confirm';
+    }
     function editDraft(card) {
       return {
         title: card.title || '',
@@ -1019,13 +1136,39 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           }, '保存'))))
     }
 
+
+    /**
+     * 详情里是否显示原文。client.js 内嵌同一份文本（测试会核对）。
+     * 比较时忽略首尾空白和连续空白的差异。
+     */
+
+    function foldSpace(value) {
+      return String(value || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function shouldShowRaw(body, rawInput) {
+      if (!rawInput || rawInput.status === 'legacy') return false;
+      const raw = foldSpace(rawInput.text);
+      if (raw === '') return false;
+      const folded = foldSpace(body);
+      if (folded === raw) return false;
+      if (folded.includes(raw)) return false;
+      return true;
+    }
     // 详情内容自包含：不读取灵感台的分栏、tab 或页面滚动。T8 可以把 IdeaDetail 放进 dsh 右侧栏。
-    function IdeaDetail({ card, now, onClose, onCard, onTrashed, onDirty, onPreview, onConfirm, onLibrary, onMissing }) {
-      const [rawOpen, setRawOpen] = React.useState(false)
+    function rememberedDraft(card, rememberDraft) {
+      if (!rememberDraft || !card) return null
+      const stored = ideaDrafts.get(card.id)
+      if (!stored || !editIsDirty(card, stored)) return null
+      return stored
+    }
+
+    function IdeaDetail({ card, now, onClose, onCard, onTrashed, onDirty, onPreview, onConfirm, onLibrary, onMissing, rememberDraft }) {
+      const remembered = rememberedDraft(card, rememberDraft)
       const [extensionText, setExtensionText] = React.useState('')
       const [extensionError, setExtensionError] = React.useState('')
-      const [editing, setEditing] = React.useState(false)
-      const [draft, setDraft] = React.useState(null)
+      const [editing, setEditing] = React.useState(!!remembered)
+      const [draft, setDraft] = React.useState(remembered)
       const [error, setError] = React.useState('')
       const [conflict, setConflict] = React.useState(false)
       const [saving, setSaving] = React.useState(false)
@@ -1045,7 +1188,16 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const onDirtyRef = React.useRef(onDirty)
       onDirtyRef.current = onDirty
       React.useEffect(() => { onDirtyRef.current(dirty) }, [dirty])
-      React.useEffect(() => () => { revokeImages(imagesRef.current) }, [])
+      React.useEffect(() => {
+        if (!rememberDraft || !cardRef.current) return
+        if (dirty && draftRef.current) ideaDrafts.set(cardRef.current.id, draftRef.current)
+        else ideaDrafts.delete(cardRef.current.id)
+      }, [dirty, draft, rememberDraft])
+      React.useEffect(() => () => {
+        const current = cardRef.current
+        if (rememberDraft && current && ideaDrafts.has(current.id)) return
+        revokeImages(imagesRef.current)
+      }, [rememberDraft])
 
       function setDraftImages(recipe) {
         setDraft((prev) => {
@@ -1056,6 +1208,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       }
 
       function cancelEdit() {
+        if (cardRef.current) ideaDrafts.delete(cardRef.current.id)
         revokeImages(draftRef.current && draftRef.current.images)
         setEditing(false)
         setDraft(null)
@@ -1078,6 +1231,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         setSaving(true)
         setError('')
         postCommand('card.update', input).then((record) => {
+          ideaDrafts.delete(current.id)
           revokeImages(pending.images)
           savingRef.current = false
           setSaving(false)
@@ -1183,8 +1337,8 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
 
       if (!card) return h('div', { className: 'bm-detail' })
       const extensions = (card.extensions || []).slice().sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
-      const legacy = !card.rawInput || card.rawInput.status === 'legacy'
       const pending = draft || { title: '', body: '', category: 'other', images: [] }
+      const showRaw = shouldShowRaw(card.body, card.rawInput)
       return h('div', {
         className: 'bm-detail',
         'aria-label': '灵感详情',
@@ -1260,12 +1414,9 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
             type: 'button', key: id, className: 'bm-shot', 'aria-label': '查看大图',
             onClick: () => onPreview(card.attachmentIds, index),
           }, h('img', { src: attachmentUrl(id), alt: '' })))) : null,
-          h('div', null,
-            h('button', {
-              type: 'button', className: 'bm-raw', 'aria-expanded': rawOpen ? 'true' : 'false',
-              onClick: () => setRawOpen((open) => !open),
-            }, '查看原文'),
-            rawOpen ? h('p', { className: 'bm-raw-body' }, legacy ? '历史数据，无原文' : String(card.rawInput.text || '')) : null)),
+          showRaw ? h('div', null,
+            h('h3', { className: 'bm-block-title' }, '原文'),
+            h('p', { className: 'bm-raw-body' }, String(card.rawInput.text || ''))) : null),
         h('h3', { className: 'bm-block-title' }, '延展'),
         extensions.length ? h('ul', { className: 'bm-ext-list' }, extensions.map((extension) => h('li', { key: extension.id, className: 'bm-ext-item' },
           h('div', { className: 'bm-ext-meta' },
@@ -1340,6 +1491,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const [preferredWidth, setPreferredWidth] = React.useState(readInitialWidth)
       const [contentWidth, setContentWidth] = React.useState(640)
       const [section, setSection] = React.useState('list')
+      const [libraryTick, setLibraryTick] = React.useState(0)
       const [library, setLibrary] = React.useState({ status: 'loading', cards: [], message: '' })
       const [trash, setTrash] = React.useState({ status: 'idle', cards: [], message: '' })
       const [trashTick, setTrashTick] = React.useState(0)
@@ -1379,6 +1531,18 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           setLibrary({ status: 'error', cards: [], message: String(error.message || error) })
         })
         return () => { alive = false }
+      }, [libraryTick])
+
+      React.useEffect(() => {
+        function onPanelClick(event) {
+          const target = event.target
+          if (!target || typeof target.closest !== 'function') return
+          const button = target.closest('button[aria-label="灵感台"]')
+          if (!button || button.getAttribute('aria-current') !== 'page') return
+          setLibraryTick((value) => value + 1)
+        }
+        document.addEventListener('click', onPanelClick)
+        return () => document.removeEventListener('click', onPanelClick)
       }, [])
 
       React.useEffect(() => {
@@ -1410,7 +1574,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
           })
         }, 200)
         return () => { alive = false; clearTimeout(timer) }
-      }, [query])
+      }, [query, libraryTick])
 
       React.useEffect(() => {
         const timer = setInterval(() => setNow(Date.now()), 60000)
@@ -1596,7 +1760,10 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
 
       function go(next) {
         if (next === sectionRef.current) return
-        confirmLeave(() => setSection(next))
+        confirmLeave(() => {
+          setSection(next)
+          if (next === 'list' || next === 'stats') setLibraryTick((value) => value + 1)
+        })
       }
 
       function showDetailPage() {
@@ -2003,7 +2170,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       return h('button', {
         type: 'button',
         className: 'bm-btn',
-        onClick: () => { openIdeaTab(shell.sidebarRight, { id, title }) },
+        onClick: () => { openTrackedIdea(shell.sidebarRight, { id, title }) },
       }, '打开')
     }
 
@@ -2061,7 +2228,16 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
     }
 
     function openRailIdea(actions, card) {
-      if (!actions || typeof actions.openTab !== 'function' || !card || !card.id) return
+      if (!card || !card.id) return
+      const sidebarRight = shell.sidebarRight
+      const sessionId = sessionIdOf(sidebarRight)
+      const known = sessionId ? (railIndex.ideas.get(railIdeaKey(sessionId, card.id)) || '') : ''
+      const plan = sessionId ? planRailOpen(known, snapshotTabs(sidebarRight), sessionId) : { action: 'open' }
+      if (plan.action === 'focus') {
+        focusRailTab(sidebarRight, plan.tabId)
+        return
+      }
+      if (!actions || typeof actions.openTab !== 'function') return
       const title = card.title || '未命名灵感'
       try {
         actions.openTab(IDEA_TAB_KIND, { params: { id: card.id, title } })
@@ -2138,7 +2314,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
             h('div', { className: 'bm-meta' }, relativeTime(card.createdAt, now)))))) : null)
     }
 
-    function IdeaRailDetail({ id, actions, revision }) {
+    function IdeaRailDetail({ id, actions, revision, tabId }) {
       const [state, setState] = React.useState({ status: 'loading', card: null, message: '' })
       const [now, setNow] = React.useState(() => Date.now())
       const [confirm, setConfirm] = React.useState(null)
@@ -2146,6 +2322,8 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const [dirty, setDirty] = React.useState(false)
       const dirtyRef = React.useRef(false)
       dirtyRef.current = dirty
+      const cardIdRef = React.useRef(id)
+      cardIdRef.current = state.card ? state.card.id : id
 
       React.useEffect(() => {
         let alive = true
@@ -2184,22 +2362,46 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         }
       }
 
-      function requestClose() {
-        if (!dirtyRef.current) {
-          closeTab()
-          return
-        }
+      function discardAndClose() {
+        const cardId = cardIdRef.current
+        if (cardId) ideaDrafts.delete(cardId)
+        dirtyRef.current = false
+        setDirty(false)
+        railClose.permit(tabId)
+        closeTab()
+      }
+
+      function askLeave(after) {
         setConfirm({
           message: '有未保存的修改。确定离开？',
           confirmLabel: '离开',
           action: () => {
             setConfirm(null)
-            dirtyRef.current = false
-            setDirty(false)
-            closeTab()
+            if (after) after()
+            else discardAndClose()
           },
         })
       }
+
+      function requestClose() {
+        if (!dirtyRef.current) {
+          railClose.permit(tabId)
+          closeTab()
+          return
+        }
+        askLeave()
+      }
+
+      React.useEffect(() => {
+        function onAsk(asked) {
+          if (asked !== tabId) return
+          railClose.pending.delete(tabId)
+          askLeave()
+        }
+        railClose.listeners.add(onAsk)
+        if (railClose.pending.has(tabId)) onAsk(tabId)
+        return () => { railClose.listeners.delete(onAsk) }
+      }, [tabId])
 
       const lightIds = lightbox ? lightbox.ids || [] : []
       const lightIndex = lightbox ? Math.min(lightbox.index, Math.max(lightIds.length - 1, 0)) : 0
@@ -2210,17 +2412,17 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       else content = h(IdeaDetail, {
         card: state.card,
         now,
+        rememberDraft: true,
         onClose: requestClose,
         onCard: (record) => {
           titleBus.set(record.id, record.title || '未命名灵感')
           setState({ status: 'ready', card: record, message: '' })
         },
-        onTrashed: () => {
-          dirtyRef.current = false
-          setDirty(false)
-          closeTab()
+        onTrashed: () => { discardAndClose() },
+        onDirty: (value) => {
+          setDirty(value)
+          railClose.mark(tabId, value)
         },
-        onDirty: setDirty,
         onPreview: (ids, index) => setLightbox({ ids, index }),
         onConfirm: (message, confirmLabel, action) => setConfirm({
           message,
@@ -2235,6 +2437,7 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         },
         onMissing: () => {
           dirtyRef.current = false
+          railClose.permit(tabId)
           closeTab()
         },
       })
@@ -2268,11 +2471,33 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
       const navigation = info && info.tab ? info.tab.navigation : null
       const params = ideaParams(navigation)
       const actions = info && info.tab ? info.tab.actions : null
+      const tabId = info && info.tab ? info.tab.id : ''
       const revision = navigation && navigation.revision
+      React.useLayoutEffect(() => {
+        if (!tabId) return undefined
+        const sessionId = sessionIdOf(shell.sidebarRight)
+        if (!sessionId) return undefined
+        const known = params.id
+          ? (railIndex.ideas.get(railIdeaKey(sessionId, params.id)) || '')
+          : (railIndex.lists.get(sessionId) || '')
+        const plan = planRailClaim(known, snapshotTabs(shell.sidebarRight), sessionId, tabId)
+        if (plan.action === 'focus-existing') {
+          try {
+            if (actions && typeof actions.close === 'function') actions.close()
+          } catch {
+            // 重复标签关不掉时留在原地，避免把已有的那个也关掉。
+          }
+          focusRailTab(shell.sidebarRight, plan.tabId)
+          return undefined
+        }
+        if (params.id) railIndex.ideas.set(railIdeaKey(sessionId, params.id), tabId)
+        else railIndex.lists.set(sessionId, tabId)
+        return undefined
+      }, [tabId, params.id])
       return h('div', { className: 'bm-app bm-side', 'data-bluemanta-sidebar': 'idea' },
         h('style', null, CSS),
         params.id
-          ? h(IdeaRailDetail, { key: params.id, id: params.id, actions, revision })
+          ? h(IdeaRailDetail, { key: params.id, id: params.id, actions, revision, tabId })
           : h(IdeaRailList, { actions }))
     }
 
@@ -2300,6 +2525,29 @@ button.bm-shot { display: block; padding: 0; border: 0; color: inherit; font: in
         name: 'sidebar.right.pane.tab.title',
         key: IDEA_TAB_ID,
       }, IdeaTabTitle)), 'bluemanta: idea tab title')
+      ctx.effect(() => {
+        const source = ctx.sidebarRight && ctx.sidebarRight.openTabs
+        if (!source || typeof source.subscribe !== 'function') return undefined
+        const sync = () => {
+          try { pruneRailIndex(snapshotTabs(ctx.sidebarRight)) } catch { /* 清单暂时读不到时保留已记下的 tab */ }
+        }
+        const unsubscribe = source.subscribe(sync)
+        sync()
+        return typeof unsubscribe === 'function' ? unsubscribe : undefined
+      }, 'bluemanta: idea tab index')
+      ctx.effect(() => {
+        if (!ctx.sidebarRight || typeof ctx.sidebarRight.registerCloseHandler !== 'function') return undefined
+        return ctx.sidebarRight.registerCloseHandler(IDEA_TAB_KIND, (sessionId, tab) => {
+          const tabId = tab && tab.id
+          const entry = railClose.entries.get(tabId)
+          if (planRailClose(entry) === 'confirm') {
+            railClose.request(tabId)
+            try { ctx.sidebarRight.focus(tabId) } catch { /* 聚焦失败时标签仍留着 */ }
+            throw new Error('有未保存的修改')
+          }
+          if (entry) entry.allow = false
+        })
+      }, 'bluemanta: idea close guard')
       for (const name of [IDEA_CAPTURE_NAME, IDEA_SEARCH_NAME, IDEA_GET_NAME]) {
         ctx.effect(() => ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
           name: 'tool.call.toolview',

@@ -18,6 +18,7 @@ import {
   searchIdeas,
   type CaptureIdeaResult,
   type GetIdeaResult,
+  type IdeaToolCore,
   type SearchIdeaResult,
 } from '../src/idea-tools.js';
 
@@ -312,6 +313,53 @@ describe('读取灵感', () => {
     } finally {
       core.close();
     }
+  });
+});
+
+describe('上海时区', () => {
+  it('UTC 23:09 算成上海次日 07:09，ISO 字段保持不变', () => {
+    const createdAt = '2026-10-10T23:09:00.000Z';
+    const card = {
+      id: 'card_tz',
+      cardType: 'idea' as const,
+      title: '跨天',
+      body: '虚构正文',
+      starred: false,
+      createdAt,
+      deletedAt: null,
+      extensions: [{ id: 'ext_tz', body: '虚构追记', createdAt }],
+      rawInput: { status: 'present' as const, channel: 'agent' as const, text: '虚构原文' },
+      fields: { category: 'other' as const, categorySource: 'auto' as const, captureGroupId: null },
+      titleOrigin: 'user' as const,
+      rev: 1,
+      module: 'core',
+      updatedAt: createdAt,
+      createdBy: AGENT_SOURCE,
+      updatedBy: AGENT_SOURCE,
+      tags: [],
+      attachmentIds: [],
+      projectId: null,
+    };
+    const core = {
+      card: { create: () => { throw new Error('不用写入'); } },
+      getCard: () => card,
+      searchCards: () => [{ card, field: 'body' as const, excerpt: '虚构摘录' }],
+    } as unknown as IdeaToolCore;
+
+    const searched = searchIdeas(core, { query: '虚构' });
+    if (!searched.ok) throw new Error(searched.error);
+    expect(searched.items[0]?.createdAt).toBe('2026-10-11');
+    expect(renderSearch(searched)).toContain('2026-10-11');
+
+    const got = getIdea(core, { id: card.id });
+    if (!got.ok) throw new Error(got.error);
+    expect(got.createdAt).toBe(createdAt);
+    expect(got.createdAtLocal).toBe('2026-10-11 07:09');
+    expect(got.extensions[0]).toMatchObject({ createdAt, createdAtLocal: '2026-10-11 07:09' });
+    const text = renderGet(got);
+    expect(text).toContain('创建时间：2026-10-11 07:09');
+    expect(text).toContain('- 2026-10-11 07:09 虚构追记');
+    expect(text).not.toContain(createdAt);
   });
 });
 

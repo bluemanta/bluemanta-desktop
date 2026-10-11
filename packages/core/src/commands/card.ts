@@ -1,12 +1,12 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { classifyIdea } from '../classify.js';
-import { advance, bumpRev } from '../envelope.js';
+import { advance, bumpRev, setDeleted } from '../envelope.js';
 import { commandFailure, type CommandResult } from '../errors.js';
 import { applied, execute } from '../execute.js';
 import { guardActiveCard, guardInTrash, guardRev, requireLiveProject } from '../guards.js';
 import { createId } from '../ids.js';
-import { deleteCardRow, deleteLinksOf, getCard, insertCard, saveCard } from '../rows.js';
+import { deleteCardRow, deleteLinksOf, getAttachment, getCard, insertCard, saveCard } from '../rows.js';
 import { hasIdeaContent, resolveIdeaTitle } from '../titles.js';
 import type {
   Card,
@@ -143,6 +143,19 @@ function resolveIdeaFields(input: IdeaFieldInput, title: string, body: string, p
   return { category: classifyIdea(title, body), categorySource: 'auto', captureGroupId };
 }
 
+function requireLiveAttachments(database: DatabaseSync, ids: readonly string[]) {
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const attachment = getAttachment(database, id);
+    if (!attachment || attachment.deletedAt !== null) missing.push(id);
+  }
+  if (missing.length === 0) return null;
+  return commandFailure('invalid_input', `附件不存在：${missing.join('、')}`);
+}
+
 function resolveStoredTitle(
   cardType: Card['cardType'],
   current: { title: string; titleOrigin: TitleOrigin } | null,
@@ -176,6 +189,8 @@ export function createCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
         }
         const body = input.body ?? '';
         const attachmentIds = input.attachmentIds ?? [];
+        const missingAttachment = requireLiveAttachments(database, attachmentIds);
+        if (missingAttachment) return missingAttachment;
         if (input.cardType === 'idea' && !hasIdeaContent(input.title ?? '', body, attachmentIds)) {
           return commandFailure('invalid_input', CONTENT_MESSAGE);
         }
@@ -232,6 +247,10 @@ export function updateCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
           if (missing) return missing;
         }
         const attachmentIds = input.attachmentIds ?? current.attachmentIds;
+        if (input.attachmentIds !== undefined) {
+          const missingAttachment = requireLiveAttachments(database, attachmentIds);
+          if (missingAttachment) return missingAttachment;
+        }
         if (current.cardType === 'idea' && attachmentIds.length > IDEA_ATTACHMENT_LIMIT) {
           return commandFailure('invalid_input', '灵感最多 4 个附件');
         }
@@ -301,7 +320,7 @@ export function deleteCard(db: DatabaseSync, raw: unknown): CommandResult<Card> 
         if (current === null) return commandFailure('not_found', '记录不存在');
         const problem = guardRev(current, input.rev, 'active');
         if (problem) return problem;
-        const record = advance(current, input.source, now, now);
+        const record = setDeleted(current, now);
         saveCard(database, record);
         return applied(record, current.rev);
       },
@@ -316,12 +335,12 @@ export function restoreCard(db: DatabaseSync, raw: unknown): CommandResult<Card>
     {
       name: 'card.restore',
       schema: cardRevSchema,
-      apply(database, input, now) {
+      apply(database, input) {
         const current = getCard(database, input.id);
         if (current === null) return commandFailure('not_found', '记录不存在');
         const problem = guardRev(current, input.rev, 'deleted');
         if (problem) return problem;
-        const record = advance(current, input.source, now, null);
+        const record = setDeleted(current, null);
         saveCard(database, record);
         return applied(record, current.rev);
       },
