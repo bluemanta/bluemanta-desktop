@@ -5,17 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FetchRoute, HostContext, ToolRegistration } from '../src/context.js';
 import { resolveDataDir } from '../src/data-dir.js';
-import { ATTACHMENT_PATH, ATTACHMENTS_PATH } from '../src/uploads.js';
-import { COMMANDS_PATH } from '../src/commands.js';
 import {
   apply,
-  CARDS_PATH,
-  HEALTH_PATH,
   IDEA_CAPTURE_TOOL,
   IDEA_GET_TOOL,
   IDEA_SEARCH_TOOL,
   inject,
   name,
+  WEB_CONFIG_PATH,
+  type LocalServer,
 } from '../src/index.js';
 
 describe('数据目录', () => {
@@ -36,14 +34,22 @@ describe('宿主插件', () => {
     }
   });
 
-  it('注册读取、命令和附件路由，卸载时关闭数据库', async () => {
+  it('只注册 web-config，保留三个工具，卸载时停掉自己拉起的服务', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bluemanta-host-'));
     dirs.push(dir);
-    const previous = process.env.BLUEMANTA_DATA_DIR;
-    process.env.BLUEMANTA_DATA_DIR = dir;
     const routes: FetchRoute[] = [];
     const tools: ToolRegistration[] = [];
     const cleanups: Array<() => void> = [];
+    const trace: string[] = [];
+    const server: LocalServer = {
+      async ensure() {
+        trace.push('ensure');
+        return { ok: false, reason: '本地服务没有启动：端口 4310 被其他程序占用' };
+      },
+      stop() {
+        trace.push('stop');
+      },
+    };
     const ctx: HostContext = {
       connection: {
         fetch: {
@@ -72,44 +78,36 @@ describe('宿主插件', () => {
     };
 
     try {
-      apply(ctx);
+      apply(ctx, { dataDir: dir, server });
       expect(name).toBe('bluemanta');
       expect(inject).toEqual(['connection', 'tools']);
       expect(tools.map((tool) => tool.name)).toEqual([IDEA_CAPTURE_TOOL, IDEA_SEARCH_TOOL, IDEA_GET_TOOL]);
       expect(tools.every((tool) => tool.description.includes('不能收藏、追记、删除'))).toBe(true);
       expect(routes.map((route) => ({ path: route.path, method: route.methods[0], body: route.requestBody }))).toEqual([
-        { path: HEALTH_PATH, method: 'GET', body: 'buffered' },
-        { path: CARDS_PATH, method: 'GET', body: 'buffered' },
-        { path: COMMANDS_PATH, method: 'POST', body: 'buffered' },
-        { path: ATTACHMENTS_PATH, method: 'POST', body: 'streaming' },
-        { path: ATTACHMENT_PATH, method: 'GET', body: 'buffered' },
+        { path: WEB_CONFIG_PATH, method: 'GET', body: 'buffered' },
       ]);
 
-      const healthFetch = routes[0]?.fetch;
-      expect(healthFetch).toBeTypeOf('function');
-      const health = await healthFetch?.(new Request('http://127.0.0.1/api/bluemanta/health'));
-      expect(health?.status).toBe(200);
-      await expect(health?.json()).resolves.toMatchObject({
-        dataDir: dir,
-        counts: { projects: 0, tasks: 0, cards: 0 },
+      const configFetch = routes[0]?.fetch;
+      const config = await configFetch?.(new Request('http://127.0.0.1/api/bluemanta/web-config'));
+      expect(config?.status).toBe(200);
+      await expect(config?.json()).resolves.toEqual({
+        ok: false,
+        reason: '本地服务没有启动：端口 4310 被其他程序占用',
       });
 
       for (const cleanup of cleanups) cleanup();
       cleanups.length = 0;
       expect(routes).toEqual([]);
       expect(tools).toEqual([]);
-      const closed = await healthFetch?.(new Request('http://127.0.0.1/api/bluemanta/health'));
-      expect(closed?.status).toBe(500);
+      expect(trace).toContain('stop');
     } finally {
       for (const cleanup of cleanups) cleanup();
-      if (previous === undefined) delete process.env.BLUEMANTA_DATA_DIR;
-      else process.env.BLUEMANTA_DATA_DIR = previous;
     }
   });
 });
 
 describe('包清单与浏览器端', () => {
-  it('声明组合包、client 入口和灵感清单页面', () => {
+  it('声明组合包、client 入口和嵌入页', () => {
     const root = fileURLToPath(new URL('..', import.meta.url));
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
       dsh: { bundle: { patch: string }; client: { platform: string; immediately: boolean; inject: string[] } };
@@ -144,17 +142,17 @@ describe('包清单与浏览器端', () => {
     expect(client).toContain("window.__ModuleLoader__.load");
     expect(client).toContain("id: '@bluemanta/dsh-plugin'");
     expect(client).toContain("require('react')");
+    expect(pkg.dependencies?.['@bluemanta/server']).toBe('file:../server');
     expect(client).toContain("id: PANEL_ID");
     expect(client).toContain("const PANEL_ID = 'bluemanta.ideas'");
-    expect(client).toContain("fetch(CARDS_ROUTE)");
-    expect(client).toContain("const CARDS_ROUTE = 'api/bluemanta/cards?cardType=idea'");
     expect(client).toContain("label: '灵感台'");
-    expect(client).toContain('还没有记下灵感');
-    expect(client).toContain('灵感清单');
-    expect(client).toContain('数据统计');
-    expect(client).toContain('回收站');
-    expect(client).toContain('api/bluemanta/commands');
-    expect(client).toContain('api/bluemanta/attachment?id=');
+    expect(client).toContain('api/bluemanta/web-config');
+    expect(client).toContain('正在打开灵感台…');
+    expect(client).not.toContain('灵感清单');
+    expect(client).not.toContain('数据统计');
+    expect(client).not.toContain('还没有记下灵感');
+    expect(client).not.toContain('function IdeaDetail');
+    expect(client).not.toContain('function IdeaCreate');
     expect(client).not.toContain('@deepseek-ai/');
     // 灵感界面继续用 CSS 变量。品牌占位图标必须用固定色，只放行这两个。
     const withoutBrandColors = client.replaceAll('#2A715A', '').replaceAll('#FFFFFF', '');

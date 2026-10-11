@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeOrigin, parseEmbed, parseLaunchHash, PARENT_KEY, readLaunch, TOKEN_KEY } from './launch';
+import { DSH_APP_ORIGIN, normalizeOrigin, parseEmbed, parseLaunchHash, PARENT_KEY, readLaunch, TOKEN_KEY } from './launch';
 
 function memoryStorage(): Pick<Storage, 'getItem' | 'setItem'> & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -40,6 +40,9 @@ describe('启动参数', () => {
     expect(normalizeOrigin('http://a.test/path')).toBeNull();
     expect(normalizeOrigin('http://a.test/')).toBe('http://a.test');
     expect(parseLaunchHash('#parent=*').parentOrigin).toBeNull();
+    expect(normalizeOrigin(DSH_APP_ORIGIN)).toBe(DSH_APP_ORIGIN);
+    expect(normalizeOrigin('dsh-app://app/')).toBe(DSH_APP_ORIGIN);
+    expect(normalizeOrigin('dsh-app://other')).toBeNull();
     expect(parseEmbed('?embed=other')).toBeNull();
     expect(parseEmbed('?embed=sidebar')).toBe('sidebar');
   });

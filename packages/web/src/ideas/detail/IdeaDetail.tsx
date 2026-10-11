@@ -1,9 +1,12 @@
 import type { IdeaRecord } from '@bluemanta/server/api-types';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { requestParent } from '../../app/bridge';
+import { useLaunch } from '../../app/context';
 import { describeError } from '../../api/client';
 import { addExtension, deleteExtension, idempotencyId, isVersionConflict, reloadIdea, updateIdea } from '../../api/writes';
 import { Button } from '../../ui/Button';
+import { useToast } from '../../ui/Toast';
 import { DISCARD_CONFIRM, useConfirm } from '../../ui/ConfirmDialog';
 import { AuthImage } from '../../ui/AuthImage';
 import { CategoryTag } from '../CategoryTag';
@@ -29,6 +32,8 @@ export function IdeaDetail({ record, leading }: IdeaDetailProps) {
   const { sessions, setSession, editSession, editorActions, bumpBaseRev } = useIdeasState();
   const session = sessions[record.id] ?? null;
   const confirm = useConfirm();
+  const toast = useToast();
+  const { parentOrigin } = useLaunch();
   const client = useQueryClient();
   const { star, trash } = useIdeaCommands();
   const [viewing, setViewing] = useState<number | null>(null);
@@ -177,6 +182,11 @@ export function IdeaDetail({ record, leading }: IdeaDetailProps) {
   };
 
   const copyText = session ? (session.keptDraft ?? draftCopy(session, readyAttachmentIds(session.slots).length)) : '';
+  const askParent = (type: 'bm:quote' | 'bm:openSidebar', okText: string) => {
+    void requestParent(window, parentOrigin, { type, id: record.id, title: displayTitle(record.title) }).then((result) => {
+      toast.show(result.ok ? okText : result.reason || '没有完成');
+    });
+  };
 
   return (
     <article className={styles.detail} aria-label={displayTitle(record.title)}>
@@ -202,6 +212,12 @@ export function IdeaDetail({ record, leading }: IdeaDetailProps) {
             </Button>
             <Button size="sm" onClick={startEdit}>
               编辑 <kbd>E</kbd>
+            </Button>
+            <Button size="sm" onClick={() => askParent('bm:quote', '已写入输入框')}>
+              在对话中引用
+            </Button>
+            <Button size="sm" onClick={() => askParent('bm:openSidebar', '已在右侧栏打开')}>
+              在右侧栏打开
             </Button>
             <span className={styles.spacer} />
             <Button size="sm" variant="ghost" onClick={() => void trash(record).then(setTrashError)}>

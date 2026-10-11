@@ -23,10 +23,11 @@ import styles from './IdeasPage.module.css';
 
 const FROM_LIST = { bmFromList: true };
 
-/** `/ideas` 与 `/ideas/:id`：清单 + 详情；窄屏时 `/ideas/:id` 是整页详情。 */
+/** `/ideas` 与 `/ideas/:id`：清单 + 详情；窄屏或右侧栏单条时是整页详情。 */
 export function IdeasPage({ id }: { id: string | null }) {
   const viewport = useViewport();
-  if (viewport === 'narrow' && id !== null) {
+  const { embed } = useLaunch();
+  if (id !== null && (viewport === 'narrow' || embed === 'sidebar')) {
     return (
       <Shell section="list" header={false}>
         <NarrowDetail id={id} />

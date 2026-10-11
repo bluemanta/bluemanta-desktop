@@ -15,9 +15,14 @@ export type LaunchHash = {
 export const TOKEN_KEY = 'bluemanta.token';
 export const PARENT_KEY = 'bluemanta.parentOrigin';
 
-/** 只接受形如 `https://host[:port]` 的 origin，其他写法一律不认。 */
+/** Desktop 主窗口的 origin。这个协议在普通页面里是不透明的，不能靠 `URL.origin` 判断。 */
+export const DSH_APP_ORIGIN = 'dsh-app://app';
+
+/** 只接受 `http(s)://host[:port]`，以及 Desktop 的 `dsh-app://app`。 */
 export function normalizeOrigin(value: string | null): string | null {
   if (!value) return null;
+  const trimmed = value.trim().replace(/\/$/, '');
+  if (trimmed === DSH_APP_ORIGIN) return DSH_APP_ORIGIN;
   try {
     const url = new URL(value);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;

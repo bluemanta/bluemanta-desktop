@@ -2,7 +2,7 @@
   "name": "@bluemanta/dsh-plugin",
   "version": "0.0.0",
   "private": true,
-  "description": "bluemanta Desktop 的 dsh 插件：左侧栏灵感台，以及经过 dsh 鉴权的读写数据通道",
+  "description": "bluemanta Desktop 的 dsh 插件：嵌入网页版灵感台，并保留 agent 工具与工具卡片",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -45,7 +45,8 @@
   },
   "dependencies": {
     "@bluemanta/cli": "file:../cli",
-    "@bluemanta/core": "file:../core"
+    "@bluemanta/core": "file:../core",
+    "@bluemanta/server": "file:../server"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2"

@@ -5,3 +5,7 @@ export const PLUGIN_PACKAGE: '@bluemanta/dsh-plugin';
 export function profileNeedsCreate(profileDirExists: boolean): boolean;
 
 export function pluginNeedsAdd(dependencyNames: readonly string[] | null | undefined): boolean;
+
+export const DEV_SERVER_PORT: '4311';
+
+export function dataDirNeedsSeed(fileNames: readonly string[] | null | undefined): boolean;
