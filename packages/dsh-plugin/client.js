@@ -5,7 +5,7 @@
  * 消息桥纯函数与 src/frame-bridge.js 保持同一份文本（测试会核对）。
  * 右侧栏与工具卡片的纯函数与 src/idea-sidebar.js 保持同一份文本（测试会核对）。
  * 请求用相对路径、开头不带 /，以兼容 Desktop 的 dsh-app:// 挂载。
- * 不引用任何 @deepseek-ai/* 包。
+ * 不 import dsh 的客户端包。
  */
 window.__ModuleLoader__.load({
   id: '@bluemanta/dsh-plugin',
