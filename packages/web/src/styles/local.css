@@ -26,6 +26,7 @@
   --bmw-thumb: 72px;            /* 详情缩略图边长 */
   --bmw-tooltip-max: 240px;
   --bmw-toast-max: 480px;
+  --bmw-confirm: 380px;         /* 确认框宽度（原型） */
   --bmw-lh-title: 1.35;         /* 详情标题行高（DESIGN 第 4 节） */
   --bmw-lh-body: 1.6;           /* 原文、延展行高（原型） */
   --bmw-ring: 2px;              /* 焦点描边宽度（DESIGN 第 7 节） */

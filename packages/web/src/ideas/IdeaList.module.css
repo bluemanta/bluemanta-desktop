@@ -57,10 +57,20 @@
 
 .star {
   width: var(--bmw-star);
+  height: var(--bmw-star);
   flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
   text-align: center;
   color: var(--bm-line-strong);
   font-size: var(--bm-fs);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.star:hover {
+  color: var(--bm-star);
 }
 
 .star[data-on='true'] {

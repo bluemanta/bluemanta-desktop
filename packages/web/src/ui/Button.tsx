@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import styles from './Button.module.css';
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'default' | 'primary' | 'ghost';
+  variant?: 'default' | 'primary' | 'ghost' | 'danger' | 'dangerFill';
   size?: 'md' | 'sm';
 };
 

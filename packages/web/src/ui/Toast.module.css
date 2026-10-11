@@ -9,11 +9,28 @@
 
 .toast {
   max-width: min(var(--bmw-toast-max), calc(100vw - var(--bm-sp-32)));
-  padding: var(--bm-sp-8) var(--bm-sp-12);
+  display: flex;
+  align-items: center;
+  gap: var(--bm-sp-10);
+  padding: var(--bm-sp-8) var(--bm-sp-8) var(--bm-sp-8) var(--bm-sp-12);
   border-radius: var(--bm-r-lg);
   background: var(--bm-text);
   color: var(--bm-canvas);
   font-size: var(--bm-fs);
   box-shadow: var(--bm-shadow-pop);
   pointer-events: auto;
+}
+
+.action {
+  border: 0;
+  border-radius: var(--bm-r-sm);
+  padding: var(--bm-sp-4) var(--bm-sp-8);
+  background: var(--bmw-on-text-soft);
+  color: inherit;
+  font-size: var(--bm-fs-sm);
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--bmw-on-accent-soft);
 }

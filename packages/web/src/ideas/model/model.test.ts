@@ -30,6 +30,7 @@ function item(overrides: Partial<IdeaListItem>): IdeaListItem {
     extensions: [],
     attachmentIds: [],
     attachments: [],
+    edited: false,
     ...overrides,
   };
 }
@@ -74,8 +75,8 @@ describe('筛选与分组', () => {
     ]);
     expect(buildSections(items, true, NOW).map((s) => [s.label, s.items.length])).toEqual([['搜索结果', 3]]);
     expect(buildSections([], false, NOW)).toEqual([]);
-    const ascending = [item({ id: 'old', createdAt: '2026-10-11T00:00:00Z' }), item({ id: 'new', createdAt: '2026-10-11T02:00:00Z' })];
-    expect(buildSections(ascending, false, NOW)[0]?.items.map((x) => x.id)).toEqual(['new', 'old']);
+    const serverOrder = [item({ id: 'old', createdAt: '2026-10-11T00:00:00Z' }), item({ id: 'new', createdAt: '2026-10-11T02:00:00Z' })];
+    expect(buildSections(serverOrder, false, NOW)[0]?.items.map((x) => x.id)).toEqual(['old', 'new']);
   });
 
   it('命中字段与摘要', () => {

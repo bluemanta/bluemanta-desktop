@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useAppNavigate } from '../app/context';
+import { useOpenCapture } from '../ideas/capture/openCapture';
 import { useIdeasState } from '../ideas/IdeasState';
 import { Button } from '../ui/Button';
+import { DISCARD_CONFIRM, useConfirm } from '../ui/ConfirmDialog';
 import { Icon } from '../ui/Icon';
-import { Tooltip } from '../ui/Tooltip';
 import styles from './Header.module.css';
 
 export type Section = 'list' | 'stats' | 'trash';
@@ -21,7 +22,9 @@ function isTyping(target: EventTarget | null): boolean {
 
 export function Header({ section }: { section: Section }) {
   const navigate = useAppNavigate();
-  const { query, setQuery, tabs, lastActive } = useIdeasState();
+  const { query, setQuery, tabs, lastActive, dirtyIds, discardSessions, capture, sessions } = useIdeasState();
+  const confirm = useConfirm();
+  const openCapture = useOpenCapture();
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,12 +38,23 @@ export function Header({ section }: { section: Section }) {
   }, []);
 
   const goTo = (target: Section) => {
-    if (target === 'list') {
-      const last = lastActive.current;
-      navigate(last && tabs.includes(last) ? `/ideas/${encodeURIComponent(last)}` : '/ideas');
+    const run = () => {
+      if (target === 'list') {
+        const last = lastActive.current;
+        navigate(last && tabs.includes(last) ? `/ideas/${encodeURIComponent(last)}` : '/ideas');
+        return;
+      }
+      navigate(SECTIONS.find((item) => item.id === target)?.path ?? '/ideas');
+    };
+    if (target !== 'list' && target !== section && dirtyIds.size > 0) {
+      void confirm(DISCARD_CONFIRM).then((ok) => {
+        if (!ok) return;
+        discardSessions();
+        run();
+      });
       return;
     }
-    navigate(SECTIONS.find((item) => item.id === target)?.path ?? '/ideas');
+    run();
   };
 
   const onSearch = (value: string) => {
@@ -74,6 +88,8 @@ export function Header({ section }: { section: Section }) {
           onChange={(event) => onSearch(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return;
+            // 快速记录和编辑先退出，搜索框排在它们后面。
+            if (capture || Object.keys(sessions).length > 0) return;
             event.preventDefault();
             if (query !== '') setQuery('');
             else event.currentTarget.blur();
@@ -93,12 +109,10 @@ export function Header({ section }: { section: Section }) {
           </button>
         ) : null}
       </label>
-      <Tooltip label="快速记录在 T13 上线">
-        <Button variant="primary" aria-disabled="true" aria-label="记一条（T13 上线）" className={styles.new}>
-          <span>＋ 记一条</span>
-          <kbd>N</kbd>
-        </Button>
-      </Tooltip>
+      <Button variant="primary" className={styles.new} onClick={openCapture}>
+        <span>＋ 记一条</span>
+        <kbd>N</kbd>
+      </Button>
     </header>
   );
 }

@@ -81,7 +81,7 @@ test.describe('清单', () => {
 
     await expect(row(page, SEEDED.fourImages).getByLabel('4 张图片')).toBeVisible();
     await expect(row(page, '方案评审前先写').getByLabel('2 条延展')).toBeVisible();
-    await expect(row(page, SEEDED.rich).getByRole('img', { name: '已收藏' })).toBeVisible();
+    await expect(row(page, SEEDED.rich).getByRole('button', { name: '取消收藏' })).toBeVisible();
     await expect(row(page, '用便利贴墙规划季度').getByText('导入')).toBeVisible();
     await expect(row(page, '读书笔记').getByText('对话 agent')).toBeVisible();
     await expect(row(page, '未命名灵感').getByText('MCP')).toBeVisible();
@@ -177,8 +177,8 @@ test.describe('清单', () => {
   });
 });
 
-test.describe('详情（只读）', () => {
-  test('↵ 打开焦点行，内容顺序正确且没有写操作按钮', async ({ page }) => {
+test.describe('详情', () => {
+  test('↵ 打开焦点行，内容顺序正确，引用入口仍不在', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const target = row(page, SEEDED.rich);
@@ -194,16 +194,21 @@ test.describe('详情（只读）', () => {
     await expect(panel.getByRole('heading', { name: /延展\s*1/ })).toBeVisible();
     await waitImages(page, 2);
 
-    // 标题 → 元信息 → 正文 → 图片 → 原文 → 延展
+    // 工具条 → 标题 → 元信息 → 正文 → 图片 → 原文 → 延展
     const order = await panel.locator('article').evaluate((article) => [...article.children].map((child) => child.tagName));
-    expect(order).toEqual(['H2', 'DIV', 'P', 'UL', 'SECTION', 'SECTION']);
+    expect(order).toEqual(['DIV', 'H2', 'DIV', 'P', 'UL', 'SECTION', 'SECTION']);
     await expect(panel.locator('article > section').first()).toContainText('原文');
     await expect(panel.locator('article > section').last()).toContainText('延展');
 
-    for (const name of ['收藏', '已收藏', '编辑', '在对话中引用', '移入回收站', '追加延展']) {
+    await expect(panel.getByRole('button', { name: '★ 已收藏' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '编辑' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '移入回收站' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: '追加延展' })).toBeDisabled();
+    for (const name of ['在对话中引用', '在右侧栏打开']) {
       await expect(panel.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
-    await expect(panel.locator('textarea, input')).toHaveCount(0);
+    await expect(panel.getByRole('textbox', { name: '追加延展' })).toBeVisible();
+    await expect(panel.getByRole('textbox', { name: '标题' })).toHaveCount(0);
   });
 
   test('原文显示规则按接口：相同、被包含、legacy、为空时不显示', async ({ page }) => {
@@ -323,7 +328,7 @@ test.describe('窄屏', () => {
     await expect(page.getByRole('navigation', { name: '模块' })).toHaveCount(0);
     // 只留星标、标题、分类、时间：摘要、图片与延展计数、来源徽标都不显示
     const rich = row(page, SEEDED.rich);
-    await expect(rich.getByRole('img', { name: '已收藏' })).toBeVisible();
+    await expect(rich.getByRole('button', { name: '取消收藏' })).toBeVisible();
     await expect(rich.getByText('产品想法')).toBeVisible();
     await expect(rich.locator('time')).toBeVisible();
     await expect(rich.getByText('会后十分钟内', { exact: false })).toBeHidden();
@@ -407,19 +412,20 @@ test.describe('读取失败', () => {
 });
 
 test.describe('空库', () => {
-  test('还没有灵感，「记第一条」禁用并说明', async ({ page }) => {
+  test('还没有灵感时「记第一条」可以打开快速记录', async ({ page }) => {
     await openApp(page, { empty: true });
     await expect(page.getByTestId('idea-count')).toHaveText('0 条');
     await expect(page.getByRole('heading', { name: '还没有灵感' })).toBeVisible();
-    const first = page.getByRole('button', { name: '记第一条（T13 上线）' });
-    await expect(first).toHaveAttribute('aria-disabled', 'true');
-    await first.hover();
-    await expect(page.getByRole('tooltip')).toHaveText('快速记录在 T13 上线');
+    const first = page.getByRole('button', { name: '记第一条' });
+    await expect(first).toBeEnabled();
+    await first.click();
+    await expect(page.getByRole('form', { name: '快速记录' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: '正文' })).toBeFocused();
   });
 });
 
 test.describe('外壳', () => {
-  test('侧栏三档宽度；⌘K 入口只提示；记一条禁用', async ({ page }) => {
+  test('侧栏三档宽度；⌘K 入口只提示；记一条可用', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openApp(page);
     const side = page.getByRole('navigation', { name: '模块' });
@@ -427,10 +433,12 @@ test.describe('外壳', () => {
     await page.getByRole('button', { name: '命令面板（即将上线）' }).click();
     await expect(page.getByRole('status')).toHaveText('命令面板即将上线');
 
-    const add = page.getByRole('button', { name: '记一条（T13 上线）' });
-    await expect(add).toHaveAttribute('aria-disabled', 'true');
-    await add.hover();
-    await expect(page.getByRole('tooltip')).toHaveText('快速记录在 T13 上线');
+    const add = page.getByRole('button', { name: '＋ 记一条' });
+    await expect(add).toBeEnabled();
+    await add.click();
+    await expect(page.getByRole('form', { name: '快速记录' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('form', { name: '快速记录' })).toHaveCount(0);
 
     await page.setViewportSize({ width: 1100, height: 800 });
     await expect.poll(async () => (await side.boundingBox())?.width).toBe(52);
@@ -455,14 +463,15 @@ test.describe('外壳', () => {
     await expect(page).toHaveURL(/\/ideas\/card_[^?]+\?embed=main$/);
   });
 
-  test('路由：/ 跳到 /ideas，统计和回收站是占位页，前进后退可用', async ({ page }) => {
+  test('路由：/ 跳到 /ideas，统计仍是占位，回收站列出已删除的，前进后退可用', async ({ page }) => {
     await openApp(page);
     await expect(page).toHaveURL(`${app.url}/ideas`);
     await page.getByRole('button', { name: '统计', exact: true }).click();
     await expect(page).toHaveURL(`${app.url}/ideas/stats`);
     await expect(page.getByRole('heading', { name: '统计即将上线' })).toBeVisible();
     await page.getByRole('button', { name: '回收站', exact: true }).click();
-    await expect(page.getByRole('heading', { name: '回收站即将上线' })).toBeVisible();
+    await expect(page.getByText('已经移入回收站的一条')).toBeVisible();
+    await expect(page.getByText('彻底删除前会一直保留')).toBeVisible();
     await page.goBack();
     await expect(page).toHaveURL(`${app.url}/ideas/stats`);
     await page.goBack();

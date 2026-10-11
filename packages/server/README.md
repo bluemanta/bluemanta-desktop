@@ -59,8 +59,8 @@ ELECTRON_RUN_AS_NODE=1 "<DeepSeek Harness.app 里的可执行文件>" packages/s
 | 方法与路径 | 请求体 | 作用 |
 |---|---|---|
 | `GET /api/v1/health` | — | 不要口令。`{ service: 'bluemanta', apiVersion: 1, version }` |
-| `GET /api/v1/ideas?scope=active\|trash&q=` | — | 列表，默认 `active`。带 `q` 走 core 搜索，每条附 `match: { field, excerpt }`。返回 `{ ok, count, items }` |
-| `GET /api/v1/ideas/:id` | — | 单条：延展、附件元数据（带 `url`）、`showRaw`（原文是否显示） |
+| `GET /api/v1/ideas?scope=active\|trash&q=` | — | 列表，默认 `active`。带 `q` 走 core 搜索，每条附 `match: { field, excerpt }`。清单和搜索按创建时间倒序；`scope=trash`（含搜索）按移入时间倒序。返回 `{ ok, count, items }` |
+| `GET /api/v1/ideas/:id` | — | 单条：延展、附件元数据（带 `url`）、`showRaw`（原文是否显示）、`edited`（只有操作历史里的 `card.update` 才为 true） |
 | `POST /api/v1/ideas` | `{ requestId, title?, body?, category?, attachmentIds? }` | 新建 |
 | `PATCH /api/v1/ideas/:id` | `{ requestId, rev, title?, body?, category?, attachmentIds? }` | 修改 |
 | `PUT /api/v1/ideas/:id/star` | `{ requestId, rev, starred }` | 收藏 / 取消收藏 |

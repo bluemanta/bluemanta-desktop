@@ -1,5 +1,6 @@
 import type { IdeaListItem } from '@bluemanta/server/api-types';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useIdeaCommands } from './commands';
 import { Icon } from '../ui/Icon';
 import { CategoryTag } from './CategoryTag';
 import { Highlight } from './Highlight';
@@ -17,9 +18,10 @@ type IdeaListProps = {
   /** 进入时恢复的滚动位置（窄屏从整页详情返回）。 */
   restoreScroll: number | null;
   onRestored: () => void;
+  header?: ReactNode;
 };
 
-export function IdeaList({ sections, query, selectedId, nowMs, onOpen, restoreScroll, onRestored }: IdeaListProps) {
+export function IdeaList({ sections, query, selectedId, nowMs, onOpen, restoreScroll, onRestored, header }: IdeaListProps) {
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function IdeaList({ sections, query, selectedId, nowMs, onOpen, restoreSc
 
   return (
     <div ref={scroller} className={styles.list} role="listbox" aria-label="灵感清单">
+      {header}
       {sections.map((section) => (
         <Section key={section.key} section={section} query={query} selectedId={selectedId} nowMs={nowMs} onOpen={open} />
       ))}
@@ -83,6 +86,8 @@ function IdeaRow({
   const hit = query ? matchLabel(item) : null;
   const images = item.attachments.length;
   const extensions = item.extensions.length;
+  const { star } = useIdeaCommands();
+  const [starError, setStarError] = useState<string | null>(null);
   return (
     <div
       className={styles.row}
@@ -98,14 +103,25 @@ function IdeaRow({
         }
       }}
     >
-      <span
+      <button
+        type="button"
         className={styles.star}
         data-on={item.starred}
-        role="img"
-        aria-label={item.starred ? '已收藏' : '未收藏'}
+        aria-pressed={item.starred}
+        aria-label={item.starred ? '取消收藏' : '收藏'}
+        onClick={(event) => {
+          event.stopPropagation();
+          void star(item).then(setStarError);
+        }}
+        onKeyDown={(event) => event.stopPropagation()}
       >
         {item.starred ? '★' : '☆'}
-      </span>
+      </button>
+      {starError ? (
+        <span className={styles.hit} role="alert">
+          {starError}
+        </span>
+      ) : null}
       <span className={styles.title} title={title}>
         <Highlight text={title} query={query} />
       </span>

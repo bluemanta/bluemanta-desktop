@@ -62,6 +62,11 @@ export type IdeaRecord = {
   attachmentIds: string[];
   /** 按 attachmentIds 的顺序；已不存在的附件不列出。 */
   attachments: AttachmentMeta[];
+  /**
+   * 人或 agent 改过标题、正文、分类或图片（操作历史里有 `card.update`）。
+   * 收藏、延展、移入回收站和恢复不算。
+   */
+  edited: boolean;
 };
 
 export type IdeaMatch = {

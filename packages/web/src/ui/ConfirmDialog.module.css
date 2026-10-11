@@ -1,0 +1,38 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--bm-scrim);
+  z-index: 50;
+}
+
+.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 51;
+  width: min(var(--bmw-confirm), calc(100% - var(--bm-sp-32)));
+  padding: var(--bm-sp-16);
+  border: 0;
+  border-radius: var(--bm-r-xl);
+  background: var(--bm-surface);
+  box-shadow: var(--bm-shadow-pop);
+}
+
+.title {
+  margin: 0 0 var(--bm-sp-6);
+  font-size: var(--bm-fs-md);
+  font-weight: 600;
+}
+
+.text {
+  margin: 0 0 var(--bm-sp-16);
+  color: var(--bm-text-2);
+  line-height: var(--bmw-lh-body);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--bm-sp-6);
+}

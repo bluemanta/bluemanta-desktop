@@ -189,6 +189,86 @@ describe('灵感接口', () => {
     expect(trash.count).toBe(0);
   });
 
+  it('列表按创建时间倒序，回收站按移入时间倒序，搜索同样', async () => {
+    const h = harness();
+    const older = await createIdea(h, { title: '较早的虚构', body: '排序用的共同词甲' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const newer = await createIdea(h, { title: '较新的虚构', body: '排序用的共同词乙' });
+    const active = await json<IdeaListResponse>(await h.call('GET', '/api/v1/ideas'));
+    expect(active.items.map((item) => item.id)).toEqual([newer.id, older.id]);
+
+    const found = await json<IdeaListResponse>(await h.call('GET', `/api/v1/ideas?q=${encodeURIComponent('排序用的共同词')}`));
+    expect(found.items.map((item) => item.id)).toEqual([newer.id, older.id]);
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const trashedOlder = await json<IdeaWriteResponse>(
+      await h.call('POST', `/api/v1/ideas/${newer.id}/trash`, { json: { requestId: rid('ord-trash'), rev: newer.rev } }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const trashedNewer = await json<IdeaWriteResponse>(
+      await h.call('POST', `/api/v1/ideas/${older.id}/trash`, { json: { requestId: rid('ord-trash-2'), rev: older.rev } }),
+    );
+    const trash = await json<IdeaListResponse>(await h.call('GET', '/api/v1/ideas?scope=trash'));
+    expect(trash.items.map((item) => item.id)).toEqual([trashedNewer.record.id, trashedOlder.record.id]);
+    const trashSearch = await json<IdeaListResponse>(
+      await h.call('GET', `/api/v1/ideas?scope=trash&q=${encodeURIComponent('排序用的共同词')}`),
+    );
+    expect(trashSearch.items.map((item) => item.id)).toEqual([older.id, newer.id]);
+  });
+
+  it('只有 card.update 算已改写，收藏、延展、回收站和恢复不算', async () => {
+    const h = harness();
+    const created = await createIdea(h, { title: '还没改过' });
+    expect(created.edited).toBe(false);
+    expect((await json<IdeaResponse>(await h.call('GET', `/api/v1/ideas/${created.id}`))).record.edited).toBe(false);
+
+    const starred = (
+      await json<IdeaWriteResponse>(
+        await h.call('PUT', `/api/v1/ideas/${created.id}/star`, {
+          json: { requestId: rid('edited-star'), rev: created.rev, starred: true },
+        }),
+      )
+    ).record;
+    expect(starred.edited).toBe(false);
+
+    const extended = (
+      await json<IdeaWriteResponse>(
+        await h.call('POST', `/api/v1/ideas/${created.id}/extensions`, {
+          json: { requestId: rid('edited-ext'), rev: starred.rev, text: '不算改写的延展' },
+        }),
+      )
+    ).record;
+    expect(extended.edited).toBe(false);
+
+    const trashed = (
+      await json<IdeaWriteResponse>(
+        await h.call('POST', `/api/v1/ideas/${created.id}/trash`, {
+          json: { requestId: rid('edited-trash'), rev: extended.rev },
+        }),
+      )
+    ).record;
+    expect(trashed.edited).toBe(false);
+    const restored = (
+      await json<IdeaWriteResponse>(
+        await h.call('POST', `/api/v1/ideas/${created.id}/restore`, {
+          json: { requestId: rid('edited-restore'), rev: trashed.rev },
+        }),
+      )
+    ).record;
+    expect(restored.edited).toBe(false);
+
+    const patched = (
+      await json<IdeaWriteResponse>(
+        await h.call('PATCH', `/api/v1/ideas/${created.id}`, {
+          json: { requestId: rid('edited-patch'), rev: restored.rev, title: '改过标题' },
+        }),
+      )
+    ).record;
+    expect(patched.edited).toBe(true);
+    const listed = await json<IdeaListResponse>(await h.call('GET', '/api/v1/ideas'));
+    expect(listed.items.find((item) => item.id === created.id)?.edited).toBe(true);
+  });
+
   it('列表参数不对时 400', async () => {
     const h = harness();
     expect((await h.call('GET', '/api/v1/ideas?scope=all')).status).toBe(400);
