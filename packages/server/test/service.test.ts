@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseArgs, type ServiceAction } from '../src/args.js';
 import { runServerCommand } from '../src/run.js';
+import { removeTempDirs, tempDir } from './helpers.js';
 import {
   disabledPlistFilename,
   escapeXml,
@@ -496,28 +496,33 @@ describe('参数与入口', () => {
   });
 
   it('runServerCommand 的 print 只走标准输出，不创建 plist', async () => {
-    const plist = join(homedir(), 'Library', 'LaunchAgents', PLIST_FILENAME);
-    expect(existsSync(plist)).toBe(false);
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-    const code = await runServerCommand({
-      argv: ['service', 'print', '--data-dir', '/tmp/a&b'],
-      env: { BLUEMANTA_DATA_DIR: '/tmp/should-not-appear', BLUEMANTA_SERVER_PORT: '5001' },
-      stdout: (line) => stdout.push(line),
-      stderr: (line) => stderr.push(line),
-      platform: 'linux',
-    });
-    expect(code).toBe(0);
-    expect(stderr).toEqual([]);
-    const xml = `${stdout.join('\n')}\n`;
-    expect(xml).toContain('<key>Label</key>');
-    expect(xml).toContain('<string>start</string>');
-    expect(xml).toContain('/tmp/a&amp;b');
-    expect(xml).not.toContain('should-not-appear');
-    expect(xml).not.toContain('5001');
-    expect(xml).not.toContain('<string>4310</string>');
-    expect(existsSync(plist)).toBe(false);
-    expect(existsSync(join(homedir(), 'Library', 'Logs', 'BluemantaDesktop'))).toBe(false);
+    const home = tempDir('bluemanta-service-print-');
+    try {
+      const stdout: string[] = [];
+      const stderr: string[] = [];
+      const code = await runServerCommand({
+        argv: ['service', 'print', '--data-dir', '/tmp/a&b'],
+        env: { BLUEMANTA_DATA_DIR: '/tmp/should-not-appear', BLUEMANTA_SERVER_PORT: '5001' },
+        stdout: (line) => stdout.push(line),
+        stderr: (line) => stderr.push(line),
+        platform: 'linux',
+        homeDir: home,
+      });
+      expect(code).toBe(0);
+      expect(stderr).toEqual([]);
+      const xml = `${stdout.join('\n')}\n`;
+      expect(xml).toContain('<key>Label</key>');
+      expect(xml).toContain('<string>start</string>');
+      expect(xml).toContain(`<string>${join(home, 'Library', 'Logs', 'BluemantaDesktop', 'server.log')}</string>`);
+      expect(xml).toContain('/tmp/a&amp;b');
+      expect(xml).not.toContain('should-not-appear');
+      expect(xml).not.toContain('5001');
+      expect(xml).not.toContain('<string>4310</string>');
+      expect(existsSync(join(home, 'Library', 'LaunchAgents', PLIST_FILENAME))).toBe(false);
+      expect(existsSync(join(home, 'Library', 'Logs', 'BluemantaDesktop'))).toBe(false);
+    } finally {
+      removeTempDirs();
+    }
   });
 
   it('缺少 service 动作时 runServerCommand 返回 2', async () => {

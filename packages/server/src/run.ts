@@ -14,6 +14,8 @@ export type ServerIo = {
   stdout: (line: string) => void;
   stderr: (line: string) => void;
   platform?: NodeJS.Platform;
+  /** 缺省时开机自启路径用当前用户主目录。测试可指到临时目录。 */
+  homeDir?: string;
 };
 
 export type RunningServer = {
@@ -148,6 +150,7 @@ export async function runServerCommand(io: ServerIo): Promise<number | RunningSe
       stdout: io.stdout,
       stderr: io.stderr,
       platform: io.platform,
+      homeDir: io.homeDir,
     });
   }
   const { command, dataDir, port } = args.value;
