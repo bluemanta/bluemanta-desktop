@@ -11,6 +11,7 @@ import { useIdeasState, SEARCH_DEBOUNCE_MS } from './IdeasState';
 import { useOpenCapture } from './capture/openCapture';
 import { useGoToSection } from './goToSection';
 import { displayTitle } from './model/listing';
+import { shouldTogglePalette } from './paletteAccess';
 import styles from './CommandPalette.module.css';
 
 type PaletteApi = { open: () => void };
@@ -23,7 +24,7 @@ export function useCommandPalette(): PaletteApi {
 
 const RESULT_LIMIT = 6;
 
-/** ⌘K / Ctrl+K 与侧栏入口。嵌入模式不提供「切换深浅色」。 */
+/** ⌘K / Ctrl+K、单键 P，以及侧栏或页头入口。嵌入模式不提供「切换深浅色」。 */
 export function CommandPaletteProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const api = useMemo<PaletteApi>(() => ({ open: () => setOpen(true) }), []);
@@ -33,6 +34,17 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
       if (event.key.toLowerCase() !== 'k' || (!event.metaKey && !event.ctrlKey) || event.altKey || event.shiftKey) return;
       event.preventDefault();
       if (document.querySelector('[role="alertdialog"][data-state="open"]')) return;
+      setOpen((current) => !current);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    // 单键 P。不要在网页里设置 window.name，否则嵌入框的 frame 名对不上，dsh 收不到快捷键。
+    const onKey = (event: KeyboardEvent) => {
+      if (!shouldTogglePalette(event, event.target, document)) return;
+      event.preventDefault();
       setOpen((current) => !current);
     };
     document.addEventListener('keydown', onKey);

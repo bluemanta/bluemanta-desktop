@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
+import { useLaunch, useViewport } from '../app/context';
 import { useOpenCapture } from '../ideas/capture/openCapture';
+import { useCommandPalette } from '../ideas/CommandPalette';
 import { useGoToSection } from '../ideas/goToSection';
 import { useIdeasState } from '../ideas/IdeasState';
+import { headerPaletteButton, showHeaderPaletteButton } from '../ideas/paletteAccess';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
+import { Tooltip } from '../ui/Tooltip';
 import styles from './Header.module.css';
 
 export type Section = 'list' | 'stats' | 'trash';
@@ -22,6 +26,10 @@ function isTyping(target: EventTarget | null): boolean {
 export function Header({ section }: { section: Section }) {
   const { query, setQuery, capture, sessions } = useIdeasState();
   const openCapture = useOpenCapture();
+  const palette = useCommandPalette();
+  const { embed } = useLaunch();
+  const viewport = useViewport();
+  const paletteButton = headerPaletteButton(() => palette.open());
   const goTo = useGoToSection();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -87,6 +95,19 @@ export function Header({ section }: { section: Section }) {
           </button>
         ) : null}
       </label>
+      {showHeaderPaletteButton(embed, viewport) ? (
+        <Tooltip label={paletteButton.tooltip}>
+          <Button
+            variant="ghost"
+            className={styles.palette}
+            aria-label={paletteButton.label}
+            onClick={paletteButton.onClick}
+          >
+            <Icon name="search" />
+            <kbd>{paletteButton.kbd}</kbd>
+          </Button>
+        </Tooltip>
+      ) : null}
       <Button variant="primary" className={styles.new} onClick={openCapture}>
         <span>＋ 记一条</span>
         <kbd>N</kbd>
