@@ -4,7 +4,7 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 
 ## 当前阶段
 
-阶段 1.5（灵感台迁网页，ADR 0005）进行中，计划见 [docs/phase-1-5.md](docs/phase-1-5.md)；阶段 2（内容线）暂缓。路线和阶段划分见 [docs/vision.md](docs/vision.md)，阶段 1 记录见 [docs/phase-1.md](docs/phase-1.md)。
+阶段 1.5（灵感台迁网页，ADR 0005）开发已完成，收尾中（用户试用一周，见 [docs/phase-1-5.md](docs/phase-1-5.md) 第 10 节）；阶段 2（内容线）暂缓。路线和阶段划分见 [docs/vision.md](docs/vision.md)，阶段 1 记录见 [docs/phase-1.md](docs/phase-1.md)。
 
 ## 分工
 
@@ -64,6 +64,6 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 | `packages/cli` | 本机灵感命令（Grok Bot 等经标准输入调用）与共用的灵感工具函数 |
 | `packages/mcp` | 供 Claude Code、Codex 使用的 MCP 服务（stdio） |
 | `packages/importer` | workbench 数据增量导入 |
-| `packages/dsh-plugin` | dsh 插件：宿主端数据通道与 agent 工具，浏览器端灵感台（按 ADR 0005 将改为嵌入网页，T15）、右侧栏、工具卡片与侧栏品牌 |
-| `packages/server` | 本地服务：`/api/v1` 接口、本机口令与 Host 校验，托管网页构建产物（默认 `127.0.0.1:4310`） |
+| `packages/dsh-plugin` | dsh 插件：agent 工具与工具卡片；左侧栏和右侧栏只放嵌入灵感台网页的框（带 `data-html-preview` 与 `name`，让 Desktop 快捷键归 dsh）；消息桥；本地服务没在跑时临时拉起；侧栏品牌 |
+| `packages/server` | 本地服务：`/api/v1` 接口、本机口令与 Host 校验，托管网页构建产物（默认 `127.0.0.1:4310`）；`npm run service` 管理 launchd 开机自启 |
 | `packages/web` | 网页版工作台（灵感台）：React + Vite，样式只用 `docs/design/tokens.css`；Playwright 走查 |

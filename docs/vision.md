@@ -38,6 +38,8 @@
 | 2026-10-11 | workbench 数据目录 `~/Library/Application Support/BluemantaOPC` 去掉写权限（`chmod u-w`），任何写入都会失败，读取不受影响；恢复用 `chmod u+w` |
 | 2026-10-11 | `opc-workbench` skill 停用：manifest 中 Codex、Claude 安装改为 `pending`，链接移到 `~/Documents/AgentSkills/disabled/`，源目录保留。Desktop 支持项目笔记后再决定是否改写 |
 | 2026-10-11 | 灵感详情页直接展开原文，不再折叠在「查看原文」后面；原文与正文重复时不重复显示。历史数据中「摘要 + 原文」拼在正文里的 24 条不清理（IFM-282） |
+| 2026-10-12 | 灵感台日常入口切到网页版：本地服务以 launchd 开机自启常驻（`com.bluemanta.server`，`127.0.0.1:4310`），dsh 打开时复用它，没在跑时由插件临时拉起、Desktop 退出时只停自己拉起的那个。浏览器收藏 `http://127.0.0.1:4310/` 即可独立使用 |
+| 2026-10-12 | 快捷键归属：在 Desktop 里焦点在灵感台时，⌘K、⌘N、⌘B、⌘W 等组合键归 dsh；灵感台命令面板改用单键 `P` 和页头按钮打开，独立浏览器里 ⌘K 照旧（[S5](../spikes/s5-frame-shortcuts/README.md)，T17） |
 
 ## 架构
 
