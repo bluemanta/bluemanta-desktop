@@ -1,6 +1,6 @@
 # bluemanta Desktop：定位、决定与路线
 
-最后更新：2026-10-11
+最后更新：2026-10-13
 
 ## 定位
 
@@ -62,8 +62,8 @@
 | 内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 冻结，只读 | 阶段 2 导入 Desktop |
 | 场景卡、选题卡（内容台账） | Notion ContentHub | 活跃，暂留 | 阶段 2 功能对齐后导入 Desktop，Notion 归档为只读 |
 | 成长 / 项目档案（英语学习、AI 基础、个人北极星等） | Desktop core（T4 已导入） | 界面展示与新增笔记功能待定 | workbench 副本只读 |
-| 本地 ContentHub Markdown | `~/Documents/ContentHub` | 待确认是否仍在使用 | 知识库阶段导入 |
-| 灵感台 L1 云端数据 | `inspiration-desk-l1-web` 的云端库 | 冻结 | 待确认是否有真实数据 |
+| 本地 ContentHub Markdown | `~/Documents/ContentHub` | 已停用：2026-09-30 建的「内容工厂」模板，只写过 1 篇母稿和对应的小红书稿，10-01 后没有改动；这篇稿子已在 Notion 内容台账里继续写 | 不导入；阶段 2 设计时可参考其中的工作流、规则和 skills |
+| 灵感台 L1 云端数据 | 无 | 从未部署：Vercel、GitHub 都没有部署记录，本机没有 `.env` 和数据库文件，只有代码 | 无需迁移；仓库仅作参考 |
 | Obsidian 笔记 | `~/Documents/Obsidian`、`~/Documents/Obsidian Vault` | 未定 | 知识库阶段决定 |
 | SalesOS 项目材料 | `~/Documents/Shuyun/SalesOS` | 活跃，不迁移 | 阶段 4 接入方式待定（索引或导入），默认 agent 可读 |
 
@@ -81,8 +81,8 @@
 
 ## 待决问题
 
-1. 本地 `~/Documents/ContentHub` 还在用吗？它和 Notion ContentHub 是什么关系？
-2. 灵感台 L1 云端版里有没有真实数据？
+1. ~~本地 `~/Documents/ContentHub` 还在用吗？~~ 已停用（2026-10-13 核对）：9 月 30 日按 Claude Code 工作流搭的文件夹，试写一篇后改用 Notion ContentHub，那篇稿子已在 Notion 内容台账里继续。不导入。
+2. ~~灵感台 L1 云端版里有没有真实数据？~~ 没有（2026-10-13 核对）：只写了代码，从未部署，没有云端库，也没有本地数据库文件。
 3. ~~小红书账号名不一致~~ 不是不一致：Notion 内容台账中共有 4 个账号（深蓝夜航、bluemanta、被迫进化的打工人三个小红书号，加 bluemanta@X），见 [object-model.md](object-model.md)。
 4. ~~产品 core 的语言~~ 已决定用 TypeScript 重写（ADR 0003）。
 5. ~~敏感分级~~ 已决定：读取不设限，对外时检查（见对象模型第 5 节）。
@@ -103,7 +103,7 @@
 | 资产 | 路径 | 在 Desktop 中的角色 |
 |---|---|---|
 | bluemanta-workbench（含灵感台模块） | `~/Documents/CodeProjects/bluemanta-workbench` | 冻结；灵感台的 `core/` 和 `ui/` 是移植来源 |
-| 灵感台 L1 云端版 | `~/Documents/CodeProjects/inspiration-desk-l1-web` | 冻结 |
+| 灵感台 L1 云端版 | `~/Documents/CodeProjects/inspiration-desk-l1-web` | 冻结；从未部署，无数据，仅作参考 |
 | DeepSeek Harness 参考源码 | `~/Developer/bluemanta-harness` | API 与文档的参考 |
 | manta-recall | `~/Documents/CodeProjects/manta-recall` | 知识库检索的参考实现 |
 | AgentSkillRepos 与 manifest | `~/Documents/AgentSkillRepos`、`~/Documents/AgentSkills/manifest.yaml` | skills 的源头，需要增加 dsh 安装目标 |
