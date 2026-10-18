@@ -33,11 +33,11 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 2. **正式数据只读。** `bluemanta-workbench` 已冻结，数据目录 `~/Library/Application Support/BluemantaOPC/` 只能读。Notion ContentHub 在迁移完成前仍是内容线正本，不写入。
 3. **私人数据不进仓库。** 灵感、内容、账号信息、客户资料都不能进入代码、fixtures、测试快照或构建产物。测试用虚构样例，运行数据放在仓库外或已被 gitignore 的目录。
 4. **读取不设限，对外时检查。** 工作资料（含 SalesOS、FDE）可以进入 Desktop，agent 默认都能读。凡是把内容变成对外材料的功能（发布、导出 PPT、分享），必须经过对外检查，见 [对象模型](docs/object-model.md) 第 5 节。不要为读取增加分级或权限拦截，除非说明书明确要求。
-5. **dsh 版本锁定为 0.2.0-rc.2。** dsh 的 API 以该版本的文档和源码为准，不凭记忆写：
-   - 云端 agent：读上游提交 `c1b47e41fc` 的公开源码 <https://github.com/deepseek-ai/deepseek-harness/tree/c1b47e41fc>，例如 `packages/client/ui-sidebar/README.zh.md`；
-   - 本机：`~/Developer/bluemanta-harness` 的 `ref/dsh-0.2.0-rc.2` 分支（同一提交）。
+5. **dsh 版本锁定为 0.2.1-rc.2。** dsh 的 API 以该版本的文档和源码为准，不凭记忆写：
+   - 云端 agent：读上游提交 `d1b9c04067` 的公开源码 <https://github.com/deepseek-ai/deepseek-harness/tree/d1b9c04067>，例如 `packages/client/ui-sidebar/README.zh.md`；
+   - 本机：`~/Developer/bluemanta-harness` 的 `ref/dsh-0.2.1-rc.2` 分支（同一提交）。
    - 写插件前先读 dsh 自带的插件开发指南 `packages/preset/agent-preset/skills/cordis-plugin-development/`（SKILL.md 和 references/），以及 [spikes/s1-panel](spikes/s1-panel/README.md) 的已验证写法。
-   - 不修改 fork 的源码。见 [ADR 0002](docs/decisions/0002-dsh-version-and-reference-source.md)。
+   - 不修改 fork 的源码。见 [ADR 0002](docs/decisions/0002-dsh-version-and-reference-source.md)、[ADR 0007](docs/decisions/0007-dsh-0-2-1-rc-2.md)。
 6. **业务规则和业务界面都不写进 dsh 插件。** 正本读写和业务规则放在 core 里；核心功能的界面做成独立网页，由本地服务提供。dsh 插件只保留入口与嵌入框、agent 工具、工具卡片、消息桥和本地服务的启停。网页只经 HTTP 接口访问数据。见 [ADR 0001](docs/decisions/0001-dsh-shell-data-outside.md)、[ADR 0005](docs/decisions/0005-web-app-dsh-entry.md)。
 7. **改动用户环境前先问。** 包括：往用户的 dsh Desktop profile 装插件、修改 `~/.dsh`、全局安装或升级软件。验证一律使用隔离的 `DSH_HOME`。
 
