@@ -1,6 +1,6 @@
 # @bluemanta/dsh-plugin
 
-dsh 0.2.0-rc.2 的组合包。按 [ADR 0005](../../docs/decisions/0005-web-app-dsh-entry.md)，这个插件不再做灵感台的业务界面，只保留：
+dsh 0.2.1-rc.2 的组合包。按 [ADR 0005](../../docs/decisions/0005-web-app-dsh-entry.md)，这个插件不再做灵感台的业务界面，只保留：
 
 - 左侧栏入口和装网页的框（主区、右侧栏标签）
 - 三个 agent 工具（宿主端直接调用 core）
@@ -10,7 +10,7 @@ dsh 0.2.0-rc.2 的组合包。按 [ADR 0005](../../docs/decisions/0005-web-app-d
 
 灵感的读写、规则和界面都在网页（`packages/web`）和本地服务（`packages/server`）里。网页只经 HTTP 接口访问数据。浏览器端 `client.js` 不引用任何 `@deepseek-ai/*` 包；`dsh.client.inject` 里的客户端包只用来排激活顺序。
 
-宿主端用 peer 依赖 `@deepseek-ai/dsh-tools@0.2.0-rc.2` 注册 agent 工具，实例由 dsh 宿主提供，同时写在 `devDependencies` 里供本地类型检查。
+宿主端用 peer 依赖 `@deepseek-ai/dsh-tools@0.2.1-rc.2` 注册 agent 工具，实例由 dsh 宿主提供，同时写在 `devDependencies` 里供本地类型检查。
 
 ## 本地服务
 
@@ -80,7 +80,7 @@ npm run dev:dsh
 
 1. 在仓库内的 `.dsh-dev/`（已 gitignore）准备隔离的 `DSH_HOME` 和数据目录 `.dsh-dev/data`。不会读写 `~/.dsh`，也不会碰 `~/Library/Application Support/BluemantaDesktop/`。
 2. 构建仓库。数据目录还没有 `store.sqlite` 时，用 `packages/web` 的种子脚本写入虚构数据。
-3. 把 `@deepseek-ai/dsh@0.2.0-rc.2` 装到 `.dsh-dev/cli`（需要网络，只要第一次）。
+3. 把 `@deepseek-ai/dsh@0.2.1-rc.2` 装到 `.dsh-dev/cli`（需要网络，只要第一次）。
 4. 用 `dsh --profile bluemanta-dev --from-default-profile web --dump-config` 从 web 模板建立 profile。`--dump-config` 只建配置、不把服务跑起来。profile 目录已经存在时跳过。
 5. `dsh plugin --profile bluemanta-dev add ./packages/dsh-plugin`。这一步需要 PATH 上有 pnpm。依赖里已经有 `@bluemanta/dsh-plugin` 时跳过。
 6. 设置 `BLUEMANTA_DATA_DIR=.dsh-dev/data` 和 `BLUEMANTA_SERVER_PORT=4311`，启动 `dsh --profile bluemanta-dev --port 3092 --no-open`。4311 用来避开本机可能已经开着的 4310。
@@ -90,7 +90,7 @@ npm run dev:dsh
 ## 装进 Desktop
 
 1. 在仓库根目录执行 `npm run build`。
-2. 打开 DeepSeek Harness Desktop 0.2.0-rc.2。
+2. 打开 DeepSeek Harness Desktop 0.2.1-rc.2。
 3. 进入「插件 → 添加插件」，目录填本仓库的 `packages/dsh-plugin`（绝对路径）。
 4. 启用后，左侧栏「灵感台」嵌入 `127.0.0.1:4310` 上的网页（除非设置了 `BLUEMANTA_SERVER_PORT`）。服务没在跑时由插件拉起，只在插件停用时停掉自己拉起的那个。
 

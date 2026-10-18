@@ -116,8 +116,8 @@ describe('包清单与浏览器端', () => {
       peerDependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    expect(pkg.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.0-rc.2');
-    expect(pkg.devDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.0-rc.2');
+    expect(pkg.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.1-rc.2');
+    expect(pkg.devDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.1-rc.2');
     expect(pkg.dependencies?.['@deepseek-ai/dsh-tools']).toBeUndefined();
     expect(pkg.dsh.bundle.patch).toBe('./cordis.patch.yml');
     expect(pkg.dsh.client).toEqual({

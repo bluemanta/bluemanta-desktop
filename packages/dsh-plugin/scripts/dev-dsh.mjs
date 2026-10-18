@@ -2,7 +2,7 @@
 /**
  * 在仓库内的 .dsh-dev/ 启动隔离的 dsh，不碰用户的 ~/.dsh 和真实数据目录。
  *
- * dsh 锁定为 @deepseek-ai/dsh@0.2.0-rc.2，装在 .dsh-dev/cli，不写进仓库依赖。
+ * dsh 锁定为 @deepseek-ai/dsh@0.2.1-rc.2，装在 .dsh-dev/cli，不写进仓库依赖。
  * profile 用 web 模板初始化（--dump-config 只建配置、不启动服务），装上本插件后再监听 3092。
  * 数据目录是 .dsh-dev/data。插件拉起的本地服务用 4311，避开用户本机的 4310。
  * 数据目录还没有 store.sqlite 时，写入网页包的虚构种子。
@@ -13,7 +13,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dataDirNeedsSeed, DEV_SERVER_PORT, pluginNeedsAdd, profileNeedsCreate } from '../src/dev-dsh-plan.js';
 
-const DSH_PACKAGE = '@deepseek-ai/dsh@0.2.0-rc.2';
+const DSH_VERSION = '0.2.1-rc.2';
+const DSH_PACKAGE = `@deepseek-ai/dsh@${DSH_VERSION}`;
 // 脚本在 packages/dsh-plugin/scripts/，向上四级才是仓库根。
 const root = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
 const devRoot = join(root, '.dsh-dev');
@@ -45,7 +46,7 @@ function ensureDsh(env) {
     const pkgPath = join(cliDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json');
     if (existsSync(pkgPath)) {
       const installed = JSON.parse(readFileSync(pkgPath, 'utf8')).version;
-      if (installed === '0.2.0-rc.2') return;
+      if (installed === DSH_VERSION) return;
     }
   }
   mkdirSync(cliDir, { recursive: true });
