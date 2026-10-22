@@ -41,6 +41,7 @@
 | 2026-10-12 | 灵感台日常入口切到网页版：本地服务以 launchd 开机自启常驻（`com.bluemanta.server`，`127.0.0.1:4310`），dsh 打开时复用它，没在跑时由插件临时拉起、Desktop 退出时只停自己拉起的那个。浏览器收藏 `http://127.0.0.1:4310/` 即可独立使用 |
 | 2026-10-12 | 快捷键归属：在 Desktop 里焦点在灵感台时，⌘K、⌘N、⌘B、⌘W 等组合键归 dsh；灵感台命令面板改用单键 `P` 和页头按钮打开，独立浏览器里 ⌘K 照旧（[S5](../spikes/s5-frame-shortcuts/README.md)，T17） |
 | 2026-10-18 | dsh 锁定版本升到 0.2.1-rc.2，参考源码改为上游提交 `d1b9c04067`（[ADR 0007](decisions/0007-dsh-0-2-1-rc-2.md)） |
+| 2026-10-22 | 新增工作台第二个模块「Skill 台」：在网页里看清本机 skill 装在哪些工具里、是否正常、dsh 能否用到。早先的 skill-board 原型不原样嵌入，重写进本仓库，与灵感台同一套外壳和设计规范；skill 正本仍是 AgentSkillRepos 与 manifest.yaml；先只读。相关任务由 Codex 实现（[ADR 0008](decisions/0008-skill-desk.md)） |
 
 ## 架构
 
