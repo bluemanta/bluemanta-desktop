@@ -41,6 +41,7 @@ function RedirectToIdeas() {
 function Routes() {
   return (
     <Switch>
+      {/* Register each module's top-level routes here; shell metadata lives in shell/modules.ts. */}
       <Route path="/ideas">
         <IdeasPage id={null} />
       </Route>

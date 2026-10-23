@@ -1,6 +1,7 @@
 import { Command } from 'cmdk';
 import * as Dialog from '@radix-ui/react-dialog';
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useLocation } from 'wouter';
 import { useAppNavigate, useLaunch } from '../app/context';
 import { cycleThemePreference, getThemePreference, subscribeThemePreference, THEME_PREFERENCE_LABEL } from '../app/theme';
 import { useIdeaSearch } from '../api/queries';
@@ -13,6 +14,7 @@ import { useGoToSection } from './goToSection';
 import { displayTitle } from './model/listing';
 import { shouldTogglePalette } from './paletteAccess';
 import styles from './CommandPalette.module.css';
+import { MODULES, moduleForPath, moduleSwitchCommands } from '../shell/modules';
 
 type PaletteApi = { open: () => void };
 
@@ -62,13 +64,16 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
 function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { embed } = useLaunch();
   const navigate = useAppNavigate();
+  const [location] = useLocation();
+  const activeModule = moduleForPath(location);
   const goTo = useGoToSection();
   const openCapture = useOpenCapture();
   const { setQuery: setPageQuery, clearFilters, setStarredOnly } = useIdeasState();
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
   const preference = usePreference();
-  const search = useIdeaSearch(query);
+  const showIdeaSearch = activeModule?.id === 'ideas';
+  const search = useIdeaSearch(showIdeaSearch ? query : '');
 
   useEffect(() => {
     if (!open) return;
@@ -91,11 +96,8 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     run();
   };
 
-  const commands: PaletteCommand[] = [
+  const ideaCommands: PaletteCommand[] = activeModule?.id === 'ideas' ? [
     { id: 'capture', label: '＋ 记一条灵感', kbd: 'N', run: () => closeThen(openCapture) },
-    { id: 'list', label: '切换到清单', run: () => closeThen(() => goTo('list')) },
-    { id: 'stats', label: '切换到统计', run: () => closeThen(() => goTo('stats')) },
-    { id: 'trash', label: '打开回收站', run: () => closeThen(() => goTo('trash')) },
     {
       id: 'starred',
       label: '只看收藏',
@@ -115,6 +117,15 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           goTo('list');
         }),
     },
+  ] : [];
+  const commands: PaletteCommand[] = [
+    ...moduleSwitchCommands(MODULES).map<PaletteCommand>((command) => ({ id: command.id, label: command.label, run: () => closeThen(() => navigate(command.path)) })),
+    ...(activeModule?.commands ?? []).map<PaletteCommand>((command) => ({
+      id: `${activeModule?.id}-${command.id}`,
+      label: command.label,
+      run: () => closeThen(() => activeModule?.id === 'ideas' ? goTo(command.id as 'list' | 'stats' | 'trash') : navigate(command.path)),
+    })),
+    ...ideaCommands,
     ...(embed
       ? []
       : [
@@ -127,8 +138,8 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
         ]),
   ].filter((command) => input.trim() === '' || command.label.includes(input.trim()) || command.hint?.includes(input.trim()));
 
-  const hits = query !== '' && search.data && !search.isPlaceholderData ? search.data.items.slice(0, RESULT_LIMIT) : [];
-  const searching = query !== '' && search.isFetching && search.isPlaceholderData;
+  const hits = showIdeaSearch && query !== '' && search.data && !search.isPlaceholderData ? search.data.items.slice(0, RESULT_LIMIT) : [];
+  const searching = showIdeaSearch && query !== '' && search.isFetching && search.isPlaceholderData;
   const empty = commands.length === 0 && hits.length === 0 && !searching;
 
   return (
@@ -167,7 +178,7 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
                   ))}
                 </Command.Group>
               ) : null}
-              {query !== '' ? (
+              {showIdeaSearch && query !== '' ? (
                 <Command.Group heading="灵感">
                   {searching ? <div className={styles.status}>搜索中…</div> : null}
                   {hits.map((item) => (

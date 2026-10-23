@@ -1,19 +1,27 @@
 import type { Viewport } from '../app/context';
 import { useAppNavigate } from '../app/context';
-import { useIdeaList } from '../api/queries';
+import { useLocation } from 'wouter';
 import { useCommandPalette } from '../ideas/CommandPalette';
 import { PALETTE_KEY_LABEL } from '../ideas/paletteAccess';
 import { Icon } from '../ui/Icon';
 import { commandShortcut } from '../ui/keys';
 import { Tooltip } from '../ui/Tooltip';
 import styles from './Sidebar.module.css';
+import { MODULES, moduleForPath, type WorkbenchModule } from './modules';
+
+function ModuleCount({ module }: { module: WorkbenchModule }) {
+  const count = module.useCount?.();
+  if (count === undefined) return null;
+  return <span className={`${styles.count} ${styles.label}`}>{count}</span>;
+}
 
 /** 侧栏只列已上线的模块（idea-ui 第 1 节）；阶段 1.5 只有灵感台，不放占位项和设置。 */
-export function Sidebar({ viewport }: { viewport: Exclude<Viewport, 'narrow'> }) {
+export function Sidebar({ viewport, modules = MODULES }: { viewport: Exclude<Viewport, 'narrow'>; modules?: readonly WorkbenchModule[] }) {
   const mini = viewport === 'mid';
   const navigate = useAppNavigate();
   const palette = useCommandPalette();
-  const list = useIdeaList();
+  const [location] = useLocation();
+  const active = moduleForPath(location, modules);
   const shortcut = commandShortcut();
 
   return (
@@ -32,13 +40,15 @@ export function Sidebar({ viewport }: { viewport: Exclude<Viewport, 'narrow'> })
           <kbd className={styles.label}>{PALETTE_KEY_LABEL}</kbd>
         </button>
       </Tooltip>
-      <Tooltip label="灵感台" side="right" enabled={mini}>
-        <button type="button" className={styles.nav} aria-current="page" aria-label="灵感台" onClick={() => navigate('/ideas')}>
-          <Icon name="idea" />
-          <span className={styles.label}>灵感台</span>
-          {list.data ? <span className={`${styles.count} ${styles.label}`}>{list.data.count}</span> : null}
-        </button>
-      </Tooltip>
+      {modules.map((module) => (
+        <Tooltip key={module.id} label={module.name} side="right" enabled={mini}>
+          <button type="button" className={styles.nav} aria-current={active?.id === module.id ? 'page' : undefined} aria-label={module.name} onClick={() => navigate(module.rootPath)}>
+            <Icon name={module.icon} />
+            <span className={styles.label}>{module.name}</span>
+            <ModuleCount module={module} />
+          </button>
+        </Tooltip>
+      ))}
     </nav>
   );
 }
