@@ -14,11 +14,11 @@ import { useGoToSection } from './goToSection';
 import { displayTitle } from './model/listing';
 import { shouldTogglePalette } from './paletteAccess';
 import styles from './CommandPalette.module.css';
-import { MODULES, moduleForPath, moduleSwitchCommands } from '../shell/modules';
+import { MODULES, moduleForPath, moduleSwitchCommands, type WorkbenchModule } from '../shell/modules';
 
-type PaletteApi = { open: () => void };
+type PaletteApi = { open: () => void; modules: readonly WorkbenchModule[] };
 
-const PaletteContext = createContext<PaletteApi>({ open: () => {} });
+const PaletteContext = createContext<PaletteApi>({ open: () => {}, modules: MODULES });
 
 export function useCommandPalette(): PaletteApi {
   return useContext(PaletteContext);
@@ -27,9 +27,9 @@ export function useCommandPalette(): PaletteApi {
 const RESULT_LIMIT = 6;
 
 /** ⌘K / Ctrl+K、单键 P，以及侧栏或页头入口。嵌入模式不提供「切换深浅色」。 */
-export function CommandPaletteProvider({ children }: { children: ReactNode }) {
+export function CommandPaletteProvider({ children, modules = MODULES }: { children: ReactNode; modules?: readonly WorkbenchModule[] }) {
   const [open, setOpen] = useState(false);
-  const api = useMemo<PaletteApi>(() => ({ open: () => setOpen(true) }), []);
+  const api = useMemo<PaletteApi>(() => ({ open: () => setOpen(true), modules }), [modules]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -65,7 +65,8 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
   const { embed } = useLaunch();
   const navigate = useAppNavigate();
   const [location] = useLocation();
-  const activeModule = moduleForPath(location);
+  const { modules } = useCommandPalette();
+  const activeModule = moduleForPath(location, modules);
   const goTo = useGoToSection();
   const openCapture = useOpenCapture();
   const { setQuery: setPageQuery, clearFilters, setStarredOnly } = useIdeasState();
@@ -96,8 +97,14 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     run();
   };
 
-  const ideaCommands: PaletteCommand[] = activeModule?.id === 'ideas' ? [
+  const moduleCommands = (activeModule?.commands ?? []).map<PaletteCommand>((command) => ({
+    id: `${activeModule?.id}-${command.id}`,
+    label: command.label,
+    run: () => closeThen(() => activeModule?.id === 'ideas' ? goTo(command.id as 'list' | 'stats' | 'trash') : navigate(command.path)),
+  }));
+  const currentCommands: PaletteCommand[] = activeModule?.id === 'ideas' ? [
     { id: 'capture', label: '＋ 记一条灵感', kbd: 'N', run: () => closeThen(openCapture) },
+    ...moduleCommands,
     {
       id: 'starred',
       label: '只看收藏',
@@ -117,15 +124,9 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           goTo('list');
         }),
     },
-  ] : [];
+  ] : moduleCommands;
   const commands: PaletteCommand[] = [
-    ...moduleSwitchCommands(MODULES).map<PaletteCommand>((command) => ({ id: command.id, label: command.label, run: () => closeThen(() => navigate(command.path)) })),
-    ...(activeModule?.commands ?? []).map<PaletteCommand>((command) => ({
-      id: `${activeModule?.id}-${command.id}`,
-      label: command.label,
-      run: () => closeThen(() => activeModule?.id === 'ideas' ? goTo(command.id as 'list' | 'stats' | 'trash') : navigate(command.path)),
-    })),
-    ...ideaCommands,
+    ...currentCommands,
     ...(embed
       ? []
       : [
@@ -136,6 +137,7 @@ function PaletteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
             run: () => closeThen(() => cycleThemePreference()),
           },
         ]),
+    ...moduleSwitchCommands(modules).map<PaletteCommand>((command) => ({ id: command.id, label: command.label, run: () => closeThen(() => navigate(command.path)) })),
   ].filter((command) => input.trim() === '' || command.label.includes(input.trim()) || command.hint?.includes(input.trim()));
 
   const hits = showIdeaSearch && query !== '' && search.data && !search.isPlaceholderData ? search.data.items.slice(0, RESULT_LIMIT) : [];

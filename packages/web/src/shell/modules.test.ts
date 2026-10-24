@@ -12,15 +12,14 @@ const fake: WorkbenchModule = {
 };
 
 describe('workbench module registry', () => {
-  it('selects the sidebar aria-current module from the current path', () => {
+  it('matches a module by its path prefix', () => {
     expect(moduleForPath('/ideas/stats', [IDEAS_MODULE, fake])?.id).toBe('ideas');
     expect(moduleForPath('/fake/item/one', [IDEAS_MODULE, fake])?.id).toBe('fake');
     expect(moduleForPath('/unknown', [IDEAS_MODULE, fake])).toBeUndefined();
   });
 
-  it('makes an added module available to sidebar data and palette switching', () => {
+  it('builds switching commands for registered modules', () => {
     const modules = [IDEAS_MODULE, fake];
-    expect(modules.map((module) => module.name)).toContain('假模块');
     expect(moduleSwitchCommands(modules)).toContainEqual({ id: 'module-fake', label: '切换到 假模块', path: '/fake' });
   });
 

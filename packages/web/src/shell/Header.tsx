@@ -18,7 +18,11 @@ function isTyping(target: EventTarget | null): boolean {
   return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
 }
 
-export function Header({ module, section, onSection, children }: { module: WorkbenchModule; section: string; onSection: (id: string) => void; children?: ReactNode }) {
+export function Header({ module, section, onSection, children, actions }: { module: WorkbenchModule; section: string; onSection: (id: string) => void; children?: ReactNode; actions?: ReactNode }) {
+  const palette = useCommandPalette();
+  const { embed } = useLaunch();
+  const viewport = useViewport();
+  const paletteButton = headerPaletteButton(() => palette.open());
   return (
     <header className={styles.head}>
       <h1 className={styles.title}>{module.name}</h1>
@@ -30,18 +34,27 @@ export function Header({ module, section, onSection, children }: { module: Workb
         ))}
       </div>
       {children}
+      {showHeaderPaletteButton(embed, viewport) ? (
+        <Tooltip label={paletteButton.tooltip}>
+          <Button
+            variant="ghost"
+            className={styles.palette}
+            aria-label={paletteButton.label}
+            onClick={paletteButton.onClick}
+          >
+            <Icon name="search" />
+            <kbd>{paletteButton.kbd}</kbd>
+          </Button>
+        </Tooltip>
+      ) : null}
+      {actions}
     </header>
   );
 }
 
-/** Ideas owns its search and actions; the shared header only supplies module chrome. */
 export function IdeasHeader({ section }: { section: Section }) {
   const { query, setQuery, capture, sessions } = useIdeasState();
   const openCapture = useOpenCapture();
-  const palette = useCommandPalette();
-  const { embed } = useLaunch();
-  const viewport = useViewport();
-  const paletteButton = headerPaletteButton(() => palette.open());
   const goTo = useGoToSection();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -61,7 +74,17 @@ export function IdeasHeader({ section }: { section: Section }) {
   };
 
   return (
-    <Header module={IDEAS_MODULE} section={section} onSection={(id) => goTo(id as Section)}>
+    <Header
+      module={IDEAS_MODULE}
+      section={section}
+      onSection={(id) => goTo(id as Section)}
+      actions={
+        <Button variant="primary" className={styles.new} onClick={openCapture}>
+          <span>＋ 记一条</span>
+          <kbd>N</kbd>
+        </Button>
+      }
+    >
       <label className={styles.search}>
         <Icon name="search" />
         <input
@@ -94,23 +117,6 @@ export function IdeasHeader({ section }: { section: Section }) {
           </button>
         ) : null}
       </label>
-      {showHeaderPaletteButton(embed, viewport) ? (
-        <Tooltip label={paletteButton.tooltip}>
-          <Button
-            variant="ghost"
-            className={styles.palette}
-            aria-label={paletteButton.label}
-            onClick={paletteButton.onClick}
-          >
-            <Icon name="search" />
-            <kbd>{paletteButton.kbd}</kbd>
-          </Button>
-        </Tooltip>
-      ) : null}
-      <Button variant="primary" className={styles.new} onClick={openCapture}>
-        <span>＋ 记一条</span>
-        <kbd>N</kbd>
-      </Button>
     </Header>
   );
 }

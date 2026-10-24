@@ -7,7 +7,7 @@ import { Icon } from '../ui/Icon';
 import { commandShortcut } from '../ui/keys';
 import { Tooltip } from '../ui/Tooltip';
 import styles from './Sidebar.module.css';
-import { MODULES, moduleForPath, type WorkbenchModule } from './modules';
+import { moduleForPath, type WorkbenchModule } from './modules';
 
 function ModuleCount({ module }: { module: WorkbenchModule }) {
   const count = module.useCount?.();
@@ -16,12 +16,13 @@ function ModuleCount({ module }: { module: WorkbenchModule }) {
 }
 
 /** 侧栏只列已上线的模块（idea-ui 第 1 节）；阶段 1.5 只有灵感台，不放占位项和设置。 */
-export function Sidebar({ viewport, modules = MODULES }: { viewport: Exclude<Viewport, 'narrow'>; modules?: readonly WorkbenchModule[] }) {
+export function Sidebar({ viewport, modules }: { viewport: Exclude<Viewport, 'narrow'>; modules?: readonly WorkbenchModule[] }) {
   const mini = viewport === 'mid';
   const navigate = useAppNavigate();
   const palette = useCommandPalette();
+  const registeredModules = modules ?? palette.modules;
   const [location] = useLocation();
-  const active = moduleForPath(location, modules);
+  const active = moduleForPath(location, registeredModules);
   const shortcut = commandShortcut();
 
   return (
@@ -40,7 +41,7 @@ export function Sidebar({ viewport, modules = MODULES }: { viewport: Exclude<Vie
           <kbd className={styles.label}>{PALETTE_KEY_LABEL}</kbd>
         </button>
       </Tooltip>
-      {modules.map((module) => (
+      {registeredModules.map((module) => (
         <Tooltip key={module.id} label={module.name} side="right" enabled={mini}>
           <button type="button" className={styles.nav} aria-current={active?.id === module.id ? 'page' : undefined} aria-label={module.name} onClick={() => navigate(module.rootPath)}>
             <Icon name={module.icon} />

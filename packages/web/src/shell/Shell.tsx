@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useLaunch, useViewport } from '../app/context';
+import { useAppNavigate, useLaunch, useViewport } from '../app/context';
 import { Header, IdeasHeader, type Section } from './Header';
 import { Sidebar } from './Sidebar';
 import styles from './Shell.module.css';
@@ -15,15 +15,20 @@ type ShellProps = {
 };
 
 /** 侧栏 + 主列（设计规范第 5 节）。嵌在 dsh 里或窄屏时没有侧栏。 */
-export function Shell({ section, module = IDEAS_MODULE, onSection = () => {}, header = true, children }: ShellProps) {
+export function Shell({ section, module = IDEAS_MODULE, onSection, header = true, children }: ShellProps) {
   const viewport = useViewport();
   const { embed } = useLaunch();
+  const navigate = useAppNavigate();
+  const goToSection = onSection ?? ((id: string) => {
+    const target = module.sections.find((item) => item.id === id);
+    if (target) navigate(target.path);
+  });
   const showSidebar = embed === null && viewport !== 'narrow';
   return (
     <div className={styles.app} data-viewport={viewport} data-embed={embed ?? 'none'}>
       {showSidebar ? <Sidebar viewport={viewport} /> : null}
       <main className={styles.main}>
-        {header ? (module.id === IDEAS_MODULE.id ? <IdeasHeader section={section as Section} /> : <Header module={module} section={section} onSection={onSection} />) : null}
+        {header ? (module.id === IDEAS_MODULE.id ? <IdeasHeader section={section as Section} /> : <Header module={module} section={section} onSection={goToSection} />) : null}
         {children}
       </main>
     </div>
