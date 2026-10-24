@@ -81,6 +81,7 @@ export interface SkillSummary {
   visibility?: string;
   lifecycle?: string;
   scope?: string;
+  notes: readonly string[];
   targets: readonly SkillTargetStatus[];
   contentIssues: readonly ContentIssue[];
   frontmatter?: Frontmatter;

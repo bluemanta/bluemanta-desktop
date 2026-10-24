@@ -6,6 +6,11 @@ const BOOLEAN_TEXT: Readonly<Record<string, boolean>> = {
   true: true, yes: true, on: true, '1': true,
   false: false, no: false, off: false, '0': false,
 };
+const LEGACY_INVOCATION_KEYS = {
+  disableModelInvocation: 'disable-model-invocation',
+  modelInvocable: 'disable-model-invocation',
+  userInvocable: 'user-invocable',
+} as const;
 
 export interface ParsedSkillFile {
   frontmatter?: Frontmatter;
@@ -55,6 +60,11 @@ export function parseSkillFile(text: string, path: string, expectedDirectoryName
   }
   const raw = value as Record<string, unknown>;
   const issues: ContentIssue[] = [];
+  for (const [legacy, canonical] of Object.entries(LEGACY_INVOCATION_KEYS)) {
+    if (Object.hasOwn(raw, legacy)) {
+      issues.push({ code: 'frontmatter', message: `frontmatter field "${legacy}" is unsupported; use "${canonical}"`, path });
+    }
+  }
   if (typeof raw.name !== 'string' || !NAME.test(raw.name)) {
     issues.push({ code: 'frontmatter', message: 'name is required and must be kebab-case', path });
   }

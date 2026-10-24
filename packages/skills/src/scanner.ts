@@ -55,11 +55,21 @@ export function inspectContent(source: string): { frontmatter?: SkillSummary['fr
   }
 }
 
-function directNames(root: string): string[] {
+function directEntries(root: string): { name: string; path: string }[] {
   try {
     return readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.name !== '.system' && (entry.isDirectory() || entry.isSymbolicLink() || entry.isFile()))
-      .map((entry) => entry.name.endsWith('.md') ? entry.name.slice(0, -3) : entry.name);
+      .flatMap((entry) => {
+        if (entry.name.startsWith('.')) return [];
+        const path = join(root, entry.name);
+        try {
+          const info = entry.isSymbolicLink() ? statSync(path) : entry;
+          if (info.isDirectory()) return [{ name: entry.name, path }];
+          if (info.isFile() && entry.name.endsWith('.md')) return [{ name: entry.name.slice(0, -3), path }];
+        } catch {
+          return [{ name: entry.name.endsWith('.md') ? entry.name.slice(0, -3) : entry.name, path }];
+        }
+        return [];
+      });
   } catch { return []; }
 }
 
@@ -73,23 +83,20 @@ function unmanaged(manifest: SkillManifest, env: SkillEnv): SkillSummary[] {
   const found = new Map<string, SkillSummary>();
   for (const [tool, root] of Object.entries(env.toolInstallDirs)) {
     const known = knownByTool.get(tool) ?? new Set<string>();
-    for (const name of directNames(root)) {
+    for (const { name, path } of directEntries(root)) {
       if (known.has(name)) continue;
-      const path = join(root, name);
-      const current = found.get(name) ?? { name, managed: false, source: null, targets: [], contentIssues: [] };
+      const current = found.get(name) ?? { name, managed: false, source: null, notes: [], targets: [], contentIssues: [] };
       (current.targets as SkillTargetStatus[]).push({ tool, path, status: 'unmanaged' });
       found.set(name, current);
     }
   }
-  // Disabled entries can outlive a manifest entry and must still be visible.
-  for (const tool of directNames(manifest.disabledRoot)) {
-    const toolRoot = join(manifest.disabledRoot, tool);
-    for (const name of directNames(toolRoot)) {
+  for (const { name: tool, path: toolRoot } of directEntries(manifest.disabledRoot)) {
+    for (const { name, path } of directEntries(toolRoot)) {
       const registered = manifest.skills.some((skill) => skill.name === name);
       if (registered) continue;
-      const current = found.get(name) ?? { name, managed: false, source: null, targets: [], contentIssues: [] };
+      const current = found.get(name) ?? { name, managed: false, source: null, notes: [], targets: [], contentIssues: [] };
       if (!current.targets.some((target) => target.tool === tool && target.status === 'disabled')) {
-        (current.targets as SkillTargetStatus[]).push({ tool, path: join(toolRoot, name), status: 'disabled' });
+        (current.targets as SkillTargetStatus[]).push({ tool, path, status: 'disabled' });
       }
       found.set(name, current);
     }
@@ -99,9 +106,11 @@ function unmanaged(manifest: SkillManifest, env: SkillEnv): SkillSummary[] {
 
 export function scanManifestSkills(manifest: SkillManifest, env: SkillEnv): SkillSummary[] {
   const managed = manifest.skills.map((skill): SkillSummary => {
-    const content = inspectContent(skill.source);
+    const installs = Object.values(skill.install);
+    const external = installs.length > 0 && installs.every((install) => install.mode === 'external-managed');
+    const content = external ? { frontmatter: undefined, issues: [] } : inspectContent(skill.source);
     const targets = Object.keys(skill.install).sort().map((tool) => targetStatus(skill, tool, manifest));
-    for (const tool of directNames(manifest.disabledRoot)) {
+    for (const { name: tool } of directEntries(manifest.disabledRoot)) {
       if (targets.some((target) => target.tool === tool)) continue;
       const path = disabledAt(manifest, tool, skill.name);
       if (path) targets.push({ tool, path, status: 'disabled', expectedSource: skill.source });
@@ -114,6 +123,7 @@ export function scanManifestSkills(manifest: SkillManifest, env: SkillEnv): Skil
       visibility: skill.visibility,
       lifecycle: skill.lifecycle,
       scope: skill.scope,
+      notes: skill.notes,
       targets,
       contentIssues: content.issues,
       frontmatter: content.frontmatter,
@@ -144,7 +154,7 @@ export function scanDsh(env: SkillEnv): DshView {
   const issues: ContentIssue[] = [];
   for (const root of roots) {
     let entries: string[];
-    try { entries = readdirSync(root.path).filter((entry) => !(root.source === 'user-dsh' && entry === '.system')); } catch { continue; }
+    try { entries = readdirSync(root.path).filter((entry) => !entry.startsWith('.')); } catch { continue; }
     for (const entry of entries) {
       const candidate = dshCandidate(root, entry);
       if (!candidate || !exists(candidate.path)) continue;

@@ -36,7 +36,8 @@ export function getSkill(env: SkillEnv, name: string): ReadResult<SkillDetail> {
   } catch (error) {
     return { ok: false, error: { code: 'read_error', path: skillFile, reason: (error as Error).message, message: `${skillFile}: ${(error as Error).message}` } };
   }
-  return { ok: true, value: { ...summary, skillFile, body: parseSkillFile(text, skillFile).body, files } };
+  const parsed = parseSkillFile(text, skillFile);
+  return { ok: true, value: { ...summary, frontmatter: parsed.frontmatter, skillFile, body: parsed.body, files } };
 }
 
 export function listIssues(env: SkillEnv): ReadResult<readonly SkillIssue[]> {
@@ -45,7 +46,7 @@ export function listIssues(env: SkillEnv): ReadResult<readonly SkillIssue[]> {
   const issues: SkillIssue[] = [];
   for (const skill of snapshot.value.skills) {
     for (const target of skill.targets) {
-      if (target.status === 'ok' || target.status === 'pending' || target.status === 'external') continue;
+      if (target.status === 'ok' || target.status === 'pending' || target.status === 'external' || target.status === 'disabled') continue;
       issues.push({ kind: 'installation', code: target.status, skill: skill.name, tool: target.tool, path: target.path, message: `${skill.name} is ${target.status} for ${target.tool}` });
     }
     for (const issue of skill.contentIssues) issues.push({ kind: 'content', code: issue.code, skill: skill.name, path: issue.path, line: issue.line, message: issue.message });
