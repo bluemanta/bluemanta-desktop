@@ -1,0 +1,22 @@
+{
+  "name": "@bluemanta/skills",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Read-only skill registry, installation status, and dsh discovery rules",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": {
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": { "yaml": "^2.8.2" },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

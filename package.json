@@ -13,6 +13,7 @@
     "packages/importer",
     "packages/mcp",
     "packages/server",
+    "packages/skills",
     "packages/web"
   ],
   "scripts": {
