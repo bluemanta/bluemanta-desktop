@@ -14,3 +14,4 @@ export type { RunningServer, ServerIo, StartOptions, StartOutcome } from './run.
 export { loadToken, TOKEN_FILE, tokenFilePath } from './token.js';
 export type * from './api-types.js';
 export { API_VERSION } from './api-types.js';
+export { createSkillsApi } from './skills-api.js';

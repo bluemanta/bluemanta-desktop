@@ -22,13 +22,15 @@
   },
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
-    "pretest": "npm run build --prefix ../.. -w @bluemanta/core -w @bluemanta/cli && tsc -p tsconfig.build.json",
+    "pretest": "npm run build --prefix ../.. -w @bluemanta/core -w @bluemanta/cli -w @bluemanta/skills && tsc -p tsconfig.build.json",
     "test": "vitest run",
+    "prebuild": "npm run build --prefix ../.. -w @bluemanta/skills",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@bluemanta/cli": "file:../cli",
     "@bluemanta/core": "file:../core",
+    "@bluemanta/skills": "file:../skills",
     "@hono/node-server": "^2.1.4",
     "hono": "^4.13.13"
   },

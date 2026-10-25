@@ -1,6 +1,6 @@
 # @bluemanta/server
 
-bluemanta Desktop 的本地服务。只监听 `127.0.0.1`，提供 `/api/v1` 接口和网页静态文件（`packages/web/dist`）。网页和 dsh 插件都只经这里的 HTTP 接口读写灵感，见 [ADR 0005](../../docs/decisions/0005-web-app-dsh-entry.md) 与 [阶段 1.5 计划](../../docs/phase-1-5.md) 第 3 节。
+bluemanta Desktop 的本地服务。只监听 `127.0.0.1`，提供 `/api/v1` 接口和网页静态文件（`packages/web/dist`）。网页和 dsh 插件都只经这里的 HTTP 接口访问灵感和 Skill 台，见 [ADR 0005](../../docs/decisions/0005-web-app-dsh-entry.md) 与 [ADR 0008](../../docs/decisions/0008-skill-desk.md)。
 
 ## 启动
 
@@ -24,6 +24,8 @@ npm run server                       # 等于 node packages/server/dist/cli.js s
 |---|---|---|
 | `--data-dir <目录>` | `BLUEMANTA_DATA_DIR` | `~/Library/Application Support/BluemantaDesktop/` |
 | `--port <端口>` | `BLUEMANTA_SERVER_PORT` | `4310` |
+
+Skill 台另认 `BLUEMANTA_SKILL_HOME`，用它代替 home 来查找 `Documents/AgentSkills/manifest.yaml` 以及各工具安装目录。每次 Skill API 请求都会重新读取文件，不缓存。开发和测试时应把它指向只含虚构数据的临时目录。
 
 参数优先于环境变量。试用和测试请用临时目录：
 
@@ -104,7 +106,7 @@ plist 要点：
 
 ## 接口一览
 
-除 `health` 外都要带 `Authorization: Bearer <口令>`。只暴露灵感（`cardType = idea`）。返回体里没有本机路径、数据目录和口令。字段类型见 [`src/api-types.ts`](src/api-types.ts)，网页直接引用。
+除 `health` 外都要带 `Authorization: Bearer <口令>`。灵感接口只暴露 `cardType = idea`，且不返回本机路径、数据目录和口令。Skill 台是本机模块，返回的路径只用于显示，home 前缀统一缩写为 `~`。字段类型见 [`src/api-types.ts`](src/api-types.ts)，网页直接引用。
 
 | 方法与路径 | 请求体 | 作用 |
 |---|---|---|
@@ -121,6 +123,9 @@ plist 要点：
 | `DELETE /api/v1/ideas/:id/extensions/:extensionId` | `{ requestId, rev }` | 删除延展 |
 | `POST /api/v1/attachments?requestId=&name=` | 图片字节 | 上传：≤ 8 MB，按文件头识别 jpeg / png / gif / webp，边长 ≤ 16384，扩展名或 `Content-Type` 与文件头不符时拒绝 |
 | `GET /api/v1/attachments/:id` | — | 读图片，`cache-control: private, max-age=31536000, immutable` |
+| `GET /api/v1/skills` | — | 全部 skill 摘要、未登记条目、dsh 发现视角与检查时间 |
+| `GET /api/v1/skills/:name` | — | 已登记 skill 的完整详情；`name` 只接受 kebab-case，未登记或不存在时 404 |
+| `GET /api/v1/skill-issues` | — | 按问题码分组的问题清单，以及文字建议和可复制的修复命令（只返回，不执行） |
 
 写入协议：
 
