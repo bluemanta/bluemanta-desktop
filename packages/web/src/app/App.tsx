@@ -16,6 +16,7 @@ import { ConfirmProvider } from '../ui/ConfirmDialog';
 import { ToastProvider } from '../ui/Toast';
 import { TooltipProvider } from '../ui/Tooltip';
 import { postToParent } from './bridge';
+import { LeadingClearanceProvider } from './chrome';
 import { LaunchContext, useAppNavigate, useLaunch } from './context';
 import type { Launch } from './launch';
 import { useTheme } from './theme';
@@ -66,11 +67,12 @@ export function App({ launch }: { launch: Launch }) {
     listenWindowFocus();
     return createQueryClient();
   });
+  const [leadingClearance, setLeadingClearance] = useState(0);
   const rejected = useSyncExternalStore(
     (listener) => auth.subscribe(listener),
     () => auth.isRejected(),
   );
-  useTheme(launch.parentOrigin, launch.embed !== null);
+  useTheme(launch.parentOrigin, launch.embed !== null, launch.embed === 'main' ? setLeadingClearance : undefined);
 
   useEffect(() => {
     if (rejected) client.clear();
@@ -95,11 +97,13 @@ export function App({ launch }: { launch: Launch }) {
 
   return (
     <LaunchContext.Provider value={launch}>
-      <QueryClientProvider client={client}>
-        <TooltipProvider delayDuration={300}>
-          <ToastProvider>{content}</ToastProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <LeadingClearanceProvider value={launch.embed === 'main' ? leadingClearance : 0}>
+        <QueryClientProvider client={client}>
+          <TooltipProvider delayDuration={300}>
+            <ToastProvider>{content}</ToastProvider>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </LeadingClearanceProvider>
     </LaunchContext.Provider>
   );
 }

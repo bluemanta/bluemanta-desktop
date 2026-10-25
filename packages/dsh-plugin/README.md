@@ -44,12 +44,15 @@ dsh 0.2.1-rc.2 的组合包。按 [ADR 0005](../../docs/decisions/0005-web-app-d
 
 iframe 发 `bm:ready` 后，插件回 `bm:theme { dark }`（`document.body` 是否有 `data-ds-dark-theme`）。深浅色切换时给所有框重发。只发 `dark`，不发 `--dsw-alias-*`。
 
+主区框（`embed=main`）在同一次 `bm:ready` 之后还会收到 `bm:chrome { leadingClearance }`。数值从该 iframe 的计算样式读取 `--dsh-frame-leading-clearance`，单位是 px；读不到或空值是 0。dsh 在 macOS（`html[data-platform=darwin]`）左栏收起时，在带 `data-sidebar-collapsed` 的框架上发布这个变量：平时 `160px`，全屏（`html[data-fullscreen]`）时 `84px`；左栏展开或非 macOS 时没有这个变量。插件用 MutationObserver 监听这两个属性，像素数变了才重发，相同则不发。右侧栏的框不发这条消息。iframe 读不到父页面的 CSS 变量，所以要由插件读出来再传进去。网页只在 `embed=main` 时用它加大页头左内边距，避开窗口左上角的红绿灯和「展开侧栏」「新会话」。
+
 只接受自己放进去的 iframe（比对 `event.source`），且 `event.origin` 等于 `baseUrl` 的 origin。回复用 `postMessage(…, 这个 origin)`，不用 `'*'`。
 
 | 方向 | 消息 | 作用 |
 |---|---|---|
-| 网页 → dsh | `bm:ready` | 插件回发主题 |
+| 网页 → dsh | `bm:ready` | 插件回发主题；主区框同时回发当前的 `bm:chrome` |
 | dsh → 网页 | `bm:theme { dark }` | 网页设置 `data-theme` |
+| dsh → 网页 | `bm:chrome { leadingClearance }` | 只发给主区框。`leadingClearance` 是像素数；网页在 `embed=main` 时让页头左内边距不小于它 |
 | 网页 → dsh | `bm:openSidebar { id, title }` | 在当前会话右侧栏打开这条灵感。不在对话里时 `{ ok: false, reason: '当前不在对话里' }` |
 | 网页 → dsh | `bm:quote { id, title }` | 把 `【灵感】<标题>（bluemanta 灵感 id：<id>）` 追加到该会话输入框草稿末尾并聚焦 |
 | 网页 → dsh | `bm:dirty { dirty }` | 记下这个右侧栏标签有未保存修改。关闭时沿用 `registerCloseHandler`：有修改就留下标签并确认 |

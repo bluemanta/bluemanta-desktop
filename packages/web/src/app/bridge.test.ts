@@ -68,6 +68,31 @@ describe('消息桥', () => {
     await expect(pending).resolves.toEqual({ type: 'bm:result', action: '在右侧栏打开', ok: true, requestId: sent.message.requestId });
   });
 
+  it('bm:chrome 只接受父窗口的有限非负数，其他来源、非数字和负数都忽略', () => {
+    const { win, emit } = fakeWindow('http://localhost:3092');
+    const values: number[] = [];
+    startBridge(win, {
+      parentOrigin: 'http://localhost:3092',
+      onTheme: () => {},
+      onChrome: (value) => values.push(value),
+    });
+
+    emit({ type: 'bm:chrome', leadingClearance: 160 }, 'http://evil.test');
+    emit({ type: 'bm:chrome', leadingClearance: 160 }, 'http://localhost:3092', { name: 'other' });
+    emit({ type: 'bm:chrome', leadingClearance: '160' });
+    emit({ type: 'bm:chrome', leadingClearance: -1 });
+    emit({ type: 'bm:chrome', leadingClearance: Number.NaN });
+    emit({ type: 'bm:chrome', leadingClearance: Number.POSITIVE_INFINITY });
+    emit({ type: 'bm:chrome' });
+    emit({ type: 'bm:chrome', leadingClearance: null });
+    expect(values).toEqual([]);
+
+    emit({ type: 'bm:chrome', leadingClearance: 160 });
+    emit({ type: 'bm:chrome', leadingClearance: 0 });
+    emit({ type: 'bm:chrome', leadingClearance: 84 });
+    expect(values).toEqual([160, 0, 84]);
+  });
+
   it('解析结果时丢掉空原因', () => {
     expect(parseResultMessage({ type: 'bm:result', ok: false })).toEqual({ type: 'bm:result', action: '', ok: false });
     expect(parseResultMessage({ type: 'bm:theme', dark: true })).toBeNull();
