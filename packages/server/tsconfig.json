@@ -5,7 +5,6 @@
     "types": ["node"],
     "paths": {
       "@bluemanta/core": ["../core/src/index.ts"],
-      "@bluemanta/skills": ["../skills/src/index.ts"],
       "@bluemanta/cli/data-dir": ["../cli/src/data-dir.ts"]
     }
   },
