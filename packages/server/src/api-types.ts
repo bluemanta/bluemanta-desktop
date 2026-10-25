@@ -1,6 +1,6 @@
 /**
  * `/api/v1` 返回给网页的数据形状。网页（packages/web）直接引用这些类型。
- * 不含本机路径、数据目录和口令。
+ * 灵感接口不含本机路径、数据目录和口令。Skill 台是本机模块，路径仅用于显示且 home 缩写为 `~`。
  */
 
 export const API_VERSION = 1;
@@ -122,6 +122,109 @@ export type AttachmentUploadResponse = {
   duplicate?: true;
 };
 
+export type SkillInstallStatus = 'ok' | 'broken' | 'missing' | 'not-link' | 'pending' | 'external' | 'unmanaged' | 'disabled';
+
+export type SkillTarget = {
+  tool: string;
+  path: string;
+  status: SkillInstallStatus;
+  reason?: string;
+  expectedSource?: string;
+  actualTarget?: string;
+};
+
+export type SkillContentIssue = {
+  code: 'source-missing' | 'skill-file-missing' | 'frontmatter' | 'name-mismatch';
+  message: string;
+  path: string;
+  line?: number;
+};
+
+export type SkillFrontmatter = {
+  name: string;
+  description: string;
+  whenToUse?: string;
+  metadata?: unknown;
+  disableModelInvocation: boolean;
+  userInvocable: boolean;
+  raw: Readonly<Record<string, unknown>>;
+};
+
+export type SkillSummary = {
+  name: string;
+  managed: boolean;
+  source: string | null;
+  displayName?: string;
+  visibility?: string;
+  lifecycle?: string;
+  scope?: string;
+  targets: readonly SkillTarget[];
+  contentIssues: readonly SkillContentIssue[];
+  frontmatter?: SkillFrontmatter;
+  hasContentIssues: boolean;
+};
+
+export type DshSkill = {
+  name: string;
+  path: string;
+  root: string;
+  source: 'custom' | 'user-dsh' | 'user-agents';
+  rank: number;
+  frontmatter: SkillFrontmatter;
+};
+
+export type DshView = {
+  loaded: readonly DshSkill[];
+  overrides: readonly { name: string; winner: DshSkill; overridden: readonly DshSkill[] }[];
+  issues: readonly SkillContentIssue[];
+};
+
+export type SkillListResponse = {
+  ok: true;
+  manifestPath: string;
+  checkedAt: string;
+  count: number;
+  skills: readonly SkillSummary[];
+  unmanaged: readonly SkillSummary[];
+  dsh: DshView;
+};
+
+export type SkillDetailResponse = {
+  ok: true;
+  checkedAt: string;
+  skill: SkillSummary & {
+    notes: readonly string[];
+    body: string;
+    skillFile: string;
+    files: readonly string[];
+  };
+};
+
+export type SkillIssueItem = {
+  kind: 'installation' | 'content' | 'dsh-override' | 'dsh-content';
+  code: SkillInstallStatus | SkillContentIssue['code'] | 'overridden';
+  message: string;
+  skill: string;
+  path?: string;
+  tool?: string;
+  line?: number;
+  suggestion: string;
+  command?: string;
+};
+
+export type SkillIssueGroup = {
+  code: SkillIssueItem['code'];
+  count: number;
+  issues: readonly SkillIssueItem[];
+};
+
+export type SkillIssuesResponse = {
+  ok: true;
+  checkedAt: string;
+  count: number;
+  groups: readonly SkillIssueGroup[];
+};
+
 export type ApiErrorCode =
   | 'invalid_input'
   | 'not_found'
@@ -131,12 +234,20 @@ export type ApiErrorCode =
   | 'unauthorized'
   | 'forbidden_host'
   | 'method_not_allowed'
+  | 'skill_manifest_missing'
+  | 'skill_manifest_parse_error'
+  | 'skill_manifest_invalid'
+  | 'skill_read_error'
   | 'internal';
 
 export type ApiFailure = {
   ok: false;
   code: ApiErrorCode;
   message: string;
+  /** Skill 读取错误才有；路径中的 home 已缩写为 `~`。 */
+  path?: string;
+  reason?: string;
+  line?: number;
 };
 
 export type IdeaCreateRequest = {

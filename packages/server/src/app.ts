@@ -25,6 +25,7 @@ import {
   type ImageMime,
 } from '@bluemanta/core';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
+import { defaultSkillEnv, type SkillEnv } from '@bluemanta/skills';
 import {
   API_VERSION,
   type ApiErrorCode,
@@ -39,6 +40,7 @@ import {
 } from './api-types.js';
 import { isEditedHistory, sortIdeas, toAttachmentMeta, toIdeaRecord } from './records.js';
 import { SERVER_VERSION } from './version.js';
+import { createSkillsApi } from './skills-api.js';
 
 /** 服务只用到 core 的这些方法，测试可以换成同形状的对象。 */
 export type ServerCore = Pick<
@@ -62,6 +64,8 @@ export type CreateAppOptions = {
   webDir: string | null;
   /** 内部错误的去向。只收到错误类型，不含请求体、灵感内容和口令。 */
   logError?: (line: string) => void;
+  /** Skill 目录环境；省略时由 defaultSkillEnv()（含 BLUEMANTA_SKILL_HOME）构造。 */
+  skillEnv?: SkillEnv;
 };
 
 const JSON_LIMIT_BYTES = 1024 * 1024;
@@ -227,6 +231,8 @@ export function createApp(options: CreateAppOptions): Hono {
     return c.json(body, 200, NO_STORE);
   });
   app.all('/api/v1/health', methodNotAllowed);
+
+  app.route('/api/v1', createSkillsApi(options.skillEnv ?? defaultSkillEnv()));
 
   app.get('/api/v1/ideas', (c) => {
     const params = new URL(c.req.url).searchParams;
