@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useLaunch, useViewport } from '../app/context';
 import { useOpenCapture } from '../ideas/capture/openCapture';
 import { useCommandPalette } from '../ideas/CommandPalette';
@@ -9,27 +9,52 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { Tooltip } from '../ui/Tooltip';
 import styles from './Header.module.css';
+import { IDEAS_MODULE, type WorkbenchModule } from './modules';
 
 export type Section = 'list' | 'stats' | 'trash';
-
-const SECTIONS: readonly { id: Section; label: string; path: string }[] = [
-  { id: 'list', label: '清单', path: '/ideas' },
-  { id: 'stats', label: '统计', path: '/ideas/stats' },
-  { id: 'trash', label: '回收站', path: '/ideas/trash' },
-];
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
 }
 
-export function Header({ section }: { section: Section }) {
-  const { query, setQuery, capture, sessions } = useIdeasState();
-  const openCapture = useOpenCapture();
+export function Header({ module, section, onSection, children, actions }: { module: WorkbenchModule; section: string; onSection: (id: string) => void; children?: ReactNode; actions?: ReactNode }) {
   const palette = useCommandPalette();
   const { embed } = useLaunch();
   const viewport = useViewport();
   const paletteButton = headerPaletteButton(() => palette.open());
+  return (
+    <header className={styles.head}>
+      <h1 className={styles.title}>{module.name}</h1>
+      <div className={styles.seg} role="group" aria-label={`${module.name}页面`}>
+        {module.sections.map((item) => (
+          <button key={item.id} type="button" aria-pressed={section === item.id} onClick={() => onSection(item.id)}>
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {children}
+      {showHeaderPaletteButton(embed, viewport) ? (
+        <Tooltip label={paletteButton.tooltip}>
+          <Button
+            variant="ghost"
+            className={styles.palette}
+            aria-label={paletteButton.label}
+            onClick={paletteButton.onClick}
+          >
+            <Icon name="search" />
+            <kbd>{paletteButton.kbd}</kbd>
+          </Button>
+        </Tooltip>
+      ) : null}
+      {actions}
+    </header>
+  );
+}
+
+export function IdeasHeader({ section }: { section: Section }) {
+  const { query, setQuery, capture, sessions } = useIdeasState();
+  const openCapture = useOpenCapture();
   const goTo = useGoToSection();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -49,20 +74,17 @@ export function Header({ section }: { section: Section }) {
   };
 
   return (
-    <header className={styles.head}>
-      <h1 className={styles.title}>灵感台</h1>
-      <div className={styles.seg} role="group" aria-label="灵感台页面">
-        {SECTIONS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            aria-pressed={section === item.id}
-            onClick={() => goTo(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+    <Header
+      module={IDEAS_MODULE}
+      section={section}
+      onSection={(id) => goTo(id as Section)}
+      actions={
+        <Button variant="primary" className={styles.new} onClick={openCapture}>
+          <span>＋ 记一条</span>
+          <kbd>N</kbd>
+        </Button>
+      }
+    >
       <label className={styles.search}>
         <Icon name="search" />
         <input
@@ -95,23 +117,6 @@ export function Header({ section }: { section: Section }) {
           </button>
         ) : null}
       </label>
-      {showHeaderPaletteButton(embed, viewport) ? (
-        <Tooltip label={paletteButton.tooltip}>
-          <Button
-            variant="ghost"
-            className={styles.palette}
-            aria-label={paletteButton.label}
-            onClick={paletteButton.onClick}
-          >
-            <Icon name="search" />
-            <kbd>{paletteButton.kbd}</kbd>
-          </Button>
-        </Tooltip>
-      ) : null}
-      <Button variant="primary" className={styles.new} onClick={openCapture}>
-        <span>＋ 记一条</span>
-        <kbd>N</kbd>
-      </Button>
-    </header>
+    </Header>
   );
 }

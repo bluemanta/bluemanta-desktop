@@ -5,9 +5,10 @@ import { createServer } from 'node:http';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { WEB_ROOT } from '../scripts/sandbox.ts';
 import { app, openApp, row, SEEDED } from './helpers.ts';
 
-const SHOTS = '/opt/cursor/artifacts/screenshots';
+const SHOTS = join(WEB_ROOT, 'screenshots');
 
 async function ideaId(title: string): Promise<string> {
   const response = await fetch(`${app.url}/api/v1/ideas`, {

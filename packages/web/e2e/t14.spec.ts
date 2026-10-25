@@ -263,7 +263,11 @@ test.describe('命令面板', () => {
   });
 
   test('Ctrl+K 与侧栏入口开关，方向键选择，底部有提示', async ({ page }) => {
-    await expect(page.getByRole('button', { name: '搜索或执行' }).locator('kbd')).toHaveText(['Ctrl+K', 'P']);
+    if (process.platform === 'darwin') {
+      await expect(page.getByRole('button', { name: '搜索或执行' }).locator('kbd')).toHaveText(['⌘K', 'P']);
+    } else {
+      await expect(page.getByRole('button', { name: '搜索或执行' }).locator('kbd')).toHaveText(['Ctrl+K', 'P']);
+    }
     await expect(page.locator('header').getByRole('button', { name: '搜索或执行' })).toHaveCount(0);
     await openPalette(page);
     const dialog = palette(page);

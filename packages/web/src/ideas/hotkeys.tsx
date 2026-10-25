@@ -36,6 +36,10 @@ function recordOf(client: ReturnType<typeof useQueryClient>, id: string): IdeaRe
   return list?.items.find((item) => item.id === id);
 }
 
+export function ideasHotkeysEnabled(path: string): boolean {
+  return path === '/ideas' || path.startsWith('/ideas/');
+}
+
 /** N、S、E、⌫ / Delete、⌘↵、esc。焦点在输入框里时单字母快捷键不生效。 */
 export function IdeaHotkeys() {
   const client = useQueryClient();
@@ -65,6 +69,7 @@ export function IdeaHotkeys() {
     };
 
     const onKey = (event: KeyboardEvent) => {
+      if (!ideasHotkeysEnabled(location)) return;
       if (event.defaultPrevented || event.isComposing) return;
       if (overlayOpen()) return;
       const meta = event.metaKey || event.ctrlKey;
