@@ -36,7 +36,9 @@
 
 ## 交付物
 
-- 一个 PR，只包含本任务的文件，描述中链接本 issue
-- issue 中的结果评论：做了什么、偏离说明书之处及原因、已知问题
+- 一个 PR，只包含本任务的文件，描述中链接本 issue；首个可审查提交完成后及时开 PR，返工更新原 PR
+- issue 中的结果评论：做了什么、偏离说明书之处及原因、已知问题、PR URL、目标分支、GitHub 上的完整 head SHA
+- 交付前在任务分支或 worktree 运行 `npm run check:pr`，附实际结果。验收者可用 `npm run check:pr -- <PR号> <预期完整SHA>` 独立复核。此检查只证明提交已发布，不代表产品验收通过
+- 云端只能生成 PR 元数据、拿不到 GitHub URL 或 head SHA 时，标记“待发布”并保留补丁，不声称已更新 PR
 
 验收结论由 Claude Code 写在 issue 和 PR 的评论里。

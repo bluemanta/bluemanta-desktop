@@ -17,8 +17,10 @@
     "packages/web"
   ],
   "scripts": {
+    "check:pr": "node scripts/check-pr-delivery.mjs",
+    "test:pr": "node --test scripts/check-pr-delivery.test.mjs",
     "check": "npm run check --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test:pr && npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs",
     "import:workbench": "node packages/importer/dist/cli.js",
