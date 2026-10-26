@@ -15,16 +15,21 @@
     "./data-dir": {
       "types": "./dist/data-dir.d.ts",
       "import": "./dist/data-dir.js"
+    },
+    "./knowledge-tools": {
+      "types": "./dist/knowledge-tools.d.ts",
+      "import": "./dist/knowledge-tools.js"
     }
   },
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
-    "pretest": "npm run build --prefix ../.. -w @bluemanta/core && tsc -p tsconfig.build.json",
+    "pretest": "npm run build --prefix ../.. -w @bluemanta/core -w @bluemanta/knowledge && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@bluemanta/core": "file:../core"
+    "@bluemanta/core": "file:../core",
+    "@bluemanta/knowledge": "file:../knowledge"
   },
   "devDependencies": {
     "@types/node": "^24.7.0",
