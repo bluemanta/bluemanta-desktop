@@ -48,6 +48,8 @@ test('灵感台命令顺序不变，首项回车打开快速记录', async ({ pa
   await expect(options.first()).toHaveText('＋ 记一条灵感N');
   await expect(options).toHaveText([
     '＋ 记一条灵感N', '切换到清单', '切换到统计', '打开回收站', '只看收藏', '清除筛选', /切换深浅色/,
+    // 注册了两个以上模块时，外壳在末尾追加模块切换命令（K0 的约定）；知识台是第二个模块。
+    '切换到 灵感台', '切换到 知识台',
   ]);
   await expect(options.first()).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('Enter');

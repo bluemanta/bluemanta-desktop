@@ -1,4 +1,5 @@
 import { useIdeaList } from '../api/queries';
+import { KNOWLEDGE_MODULE } from '../knowledge/module';
 import type { IconName } from '../ui/Icon';
 
 export type ModuleSection = {
@@ -48,7 +49,7 @@ export const IDEAS_MODULE: WorkbenchModule = {
   ],
 };
 
-export const MODULES: readonly WorkbenchModule[] = [IDEAS_MODULE];
+export const MODULES: readonly WorkbenchModule[] = [IDEAS_MODULE, KNOWLEDGE_MODULE];
 
 export function moduleForPath(path: string, modules: readonly WorkbenchModule[] = MODULES): WorkbenchModule | undefined {
   return modules.find((module) => path === module.pathPrefix || path.startsWith(`${module.pathPrefix}/`));
