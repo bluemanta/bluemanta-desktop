@@ -117,6 +117,16 @@ node <仓库>/packages/mcp/dist/mcp.js
 
 `requestId` 是 `mcp:<启动随机串>:<请求 id>`。随机串在进程启动时生成一次，不同进程不会撞号；同一进程里同一次调用重试不会再写一条。工具结果的文本和 T6 的说明文字相同，结构化内容和 T6 的返回对象相同。不能收藏、追记、删除。
 
+### 知识工具（只读，ADR 0009）
+
+执行函数和说明在 `packages/cli/src/knowledge-tools.ts`，MCP 共用。全文索引第一次调用时才在数据目录建 `knowledge-index.sqlite`；知识库位置由 `BLUEMANTA_KNOWLEDGE_HOME` 或 home 决定。
+
+| 工具 | 作用 |
+|---|---|
+| `bluemanta_knowledge_route` | Router Lite：按个人库和 Arsenal 总索引的主题名、别名、关键词、典型问题找候选主题，返回读取顺序（README → Asset_Index → Topic_Knowledge → Topic_Log） |
+| `bluemanta_knowledge_search` | 全文搜索两个库和灵感；`library` 可选（指定后不含灵感），`limit` 默认 10、最多 30；结果带库、路径、标题链、摘录 |
+| `bluemanta_knowledge_read` | 读主题（README 正文 + 文件清单）或文件（Markdown 正文，每次最多 2 万字，`offset` 接着读）；路径越出库目录时拒绝 |
+
 ### Claude Code
 
 项目里的 `.mcp.json`，或用户配置里的 `mcpServers`：

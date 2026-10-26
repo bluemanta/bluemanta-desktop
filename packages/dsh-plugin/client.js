@@ -352,6 +352,157 @@ function normalizeFrameToken(tabId) {
   return out
 }
 
+/**
+ * 知识台入口、右侧栏知识 tab 与知识工具卡片的纯函数（ADR 0009，KB5）。client.js 内嵌同一份文本（测试会核对）。
+ * 只拼地址、解析导航参数和工具结果文本，不读写知识库。
+ */
+
+const KNOWLEDGE_PANEL_ID = 'bluemanta.knowledge';
+
+const KNOWLEDGE_TAB_KIND = 'bluemanta.knowledge';
+
+const KNOWLEDGE_TAB_ID = '@bluemanta/dsh-plugin/knowledge';
+
+const KNOWLEDGE_ROUTE_NAME = 'bluemanta_knowledge_route';
+
+const KNOWLEDGE_SEARCH_NAME = 'bluemanta_knowledge_search';
+
+const KNOWLEDGE_READ_NAME = 'bluemanta_knowledge_read';
+
+function knowledgeParams(navigation) {
+  const params = navigation && navigation.params;
+  if (!params || typeof params !== 'object') return { library: '', path: '', kind: '', title: '' };
+  const text = (value) => (typeof value === 'string' ? value.trim() : '');
+  const kind = params.kind === 'topic' || params.kind === 'file' ? params.kind : '';
+  return { library: text(params.library), path: text(params.path), kind, title: text(params.title) };
+}
+
+function knowledgeSegments(path) {
+  return String(path || '')
+    .split('/')
+    .filter((part) => part !== '' && part !== '.' && part !== '..')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+}
+
+/** 网页里的路径：没有 path 时是主题页；主题目录开主题，其余开阅读器。 */
+function knowledgeWebPath(params) {
+  const library = params && typeof params.library === 'string' ? params.library : '';
+  const path = knowledgeSegments(params && params.path);
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(library) || path === '') return '/knowledge';
+  const kind = params.kind === 'topic' ? 'topic' : 'file';
+  return '/knowledge/lib/' + library + '/' + kind + '/' + path;
+}
+
+function knowledgeFrameUrl(baseUrl, token, parentOrigin, embed, webPath) {
+  let origin = '';
+  try {
+    origin = new URL(String(baseUrl || '')).origin;
+  } catch {
+    return '';
+  }
+  if (!origin || origin === 'null') return '';
+  const path = typeof webPath === 'string' && webPath.startsWith('/knowledge') ? webPath : '/knowledge';
+  const mode = embed === 'sidebar' ? 'sidebar' : 'main';
+  const hash = 'token=' + encodeURIComponent(String(token ?? '')) + '&parent=' + encodeURIComponent(String(parentOrigin ?? ''));
+  return origin + path + '?embed=' + mode + '#' + hash;
+}
+
+/** 与灵感台的框名分开，避免两个框同名时 Desktop 把快捷键交错框（S5）。 */
+function knowledgeFrameName(embed, tabId) {
+  if (embed !== 'sidebar') return 'bluemanta-knowledge-main';
+  let token = '';
+  for (const char of typeof tabId === 'string' ? tabId : '') {
+    token += /^[A-Za-z0-9._-]$/.test(char) ? char : '~' + char.codePointAt(0).toString(16) + '~';
+  }
+  return 'bluemanta-knowledge-sidebar-' + (token || '~');
+}
+
+/** 在右侧栏开一个知识 tab。没有右侧栏（不在对话里）时返回 false，不抛错。 */
+function openKnowledgeTab(sidebarRight, params) {
+  try {
+    const mounted = sidebarRight && sidebarRight.mounted;
+    const snapshot = mounted && typeof mounted.getSnapshot === 'function' ? mounted.getSnapshot() : undefined;
+    if (!snapshot || typeof sidebarRight.openTab !== 'function') return false;
+    sidebarRight.openTab(KNOWLEDGE_TAB_KIND, { params });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function knowledgeBlocks(text) {
+  const blocks = [];
+  let current = null;
+  for (const line of String(text || '').split('\n')) {
+    const head = /^(\d+)\. (.+)$/.exec(line);
+    if (head) {
+      current = { title: head[2].trim(), lines: [] };
+      blocks.push(current);
+    } else if (current && line.startsWith('   ')) {
+      current.lines.push(line.trim());
+    }
+  }
+  return blocks;
+}
+
+function knowledgeField(lines, label) {
+  for (const line of lines) {
+    if (line.startsWith(label + '：')) return line.slice(label.length + 1);
+  }
+  return '';
+}
+
+function knowledgeLocation(line) {
+  const match = /^库：([a-z0-9-]+)　路径：([^　]+)/.exec(line || '');
+  return match ? { library: match[1], path: match[2] } : null;
+}
+
+function knowledgeToolCard(toolName, phase, args, resultText, isError) {
+  if (phase !== 'result') {
+    if (toolName === KNOWLEDGE_ROUTE_NAME) return { kind: 'pending', label: '正在定位知识主题…' };
+    if (toolName === KNOWLEDGE_SEARCH_NAME) return { kind: 'pending', label: '正在搜索知识库…' };
+    if (toolName === KNOWLEDGE_READ_NAME) return { kind: 'pending', label: '正在读取知识…' };
+    return { kind: 'pending', label: '正在处理…' };
+  }
+  const text = typeof resultText === 'string' ? resultText.trim() : '';
+  if (isError) return { kind: 'error', message: text || '调用失败' };
+  if (/^没有(路由|搜索|读取)：/.test(text)) return { kind: 'error', message: text.replace(/^没有(路由|搜索|读取)：/, '') || text };
+  if (toolName === KNOWLEDGE_ROUTE_NAME) {
+    if (text.startsWith('没有匹配的主题')) return { kind: 'route', items: [], empty: true };
+    const items = knowledgeBlocks(text)
+      .map((block) => {
+        const location = knowledgeLocation(block.lines.find((line) => line.startsWith('库：')));
+        if (!location) return null;
+        return { name: block.title, library: location.library, path: location.path, matched: knowledgeField(block.lines, '命中') };
+      })
+      .filter(Boolean);
+    return { kind: 'route', items, empty: items.length === 0 };
+  }
+  if (toolName === KNOWLEDGE_SEARCH_NAME) {
+    if (text.startsWith('没有找到')) return { kind: 'search', items: [], empty: true };
+    const items = knowledgeBlocks(text)
+      .map((block) => {
+        const excerpt = knowledgeField(block.lines, '摘录');
+        const ideaId = knowledgeField(block.lines, '灵感 id').trim();
+        if (ideaId) return { source: 'idea', title: block.title, ideaId, library: '', path: '', excerpt };
+        const location = knowledgeLocation(block.lines.find((line) => line.startsWith('库：')));
+        if (!location) return null;
+        return { source: 'library', title: block.title, ideaId: '', library: location.library, path: location.path, excerpt };
+      })
+      .filter(Boolean);
+    return { kind: 'search', items, empty: items.length === 0 };
+  }
+  if (toolName === KNOWLEDGE_READ_NAME) {
+    const location = knowledgeLocation(text.split('\n')[0]);
+    if (!location) return { kind: 'error', message: text || '读取失败' };
+    const topic = /\n主题文件：/.test(text);
+    const parts = location.path.split('/');
+    return { kind: 'read', library: location.library, path: location.path, topic, title: parts[parts.length - 1] || location.path };
+  }
+  return { kind: 'error', message: text || '调用失败' };
+}
+
     function snapshotTabs(sidebarRight) {
       try {
         const source = sidebarRight && sidebarRight.openTabs
@@ -519,13 +670,16 @@ function normalizeFrameToken(tabId) {
       return [config, retry]
     }
 
-    function WebFrame({ embed, id, tabId }) {
+    function WebFrame({ embed, id, tabId, path, label }) {
       const [config, retry] = useWebConfig()
       const [loaded, setLoaded] = React.useState(false)
       const ref = React.useRef(null)
-      const src = config.status === 'ready'
-        ? embedFrameUrl(config.baseUrl, config.token, location.origin, embed, id || '')
-        : ''
+      const name = label || '灵感台'
+      const src = config.status !== 'ready'
+        ? ''
+        : path
+          ? knowledgeFrameUrl(config.baseUrl, config.token, location.origin, embed, path)
+          : embedFrameUrl(config.baseUrl, config.token, location.origin, embed, id || '')
       React.useEffect(() => { setLoaded(false) }, [src])
       React.useEffect(() => {
         const frame = ref.current
@@ -553,14 +707,16 @@ function normalizeFrameToken(tabId) {
       }
       return h('div', { style: boxStyle, 'data-bluemanta-frame': embed },
         config.status !== 'ready' || !loaded
-          ? h('p', { style: { margin: 0, padding: 16, color: 'var(--dsw-alias-label-secondary)' } }, '正在打开灵感台…')
+          ? h('p', { style: { margin: 0, padding: 16, color: 'var(--dsw-alias-label-secondary)' } }, label ? '正在打开' + label + '…' : '正在打开灵感台…')
           : null,
         src ? h('iframe', {
           ref,
           src,
-          title: '灵感台',
+          title: name,
           // data-html-preview 与 name 是为了让 Desktop 把快捷键交给 dsh，依据 S5。升级 dsh 时要回归。
           ...htmlPreviewFrameAttrs(embed, tabId),
+          // 知识台的框另起名字，和灵感台的框不重名。
+          ...(path ? { name: knowledgeFrameName(embed, tabId) } : {}),
           'data-tab-id': tabId || '',
           style: frameStyle,
           onLoad: () => setLoaded(true),
@@ -609,6 +765,128 @@ function normalizeFrameToken(tabId) {
           cursor: 'pointer',
         },
       }, '打开')
+    }
+
+    function KnowledgeIcon({ size }) {
+      const px = size || 16
+      return h('svg', {
+        width: px, height: px, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+      },
+      h('path', { d: 'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z' }),
+      h('path', { d: 'M5 19.5A1.5 1.5 0 0 0 6.5 21H19' }),
+      h('path', { d: 'M9 7h6M9 10.5h4' }))
+    }
+
+    function OpenKnowledgeButton({ library, path, topic, title }) {
+      const open = useSidebarOpen()
+      if (!open || !library || !path) return null
+      return h('button', {
+        type: 'button',
+        onClick: () => { openKnowledgeTab(shell.sidebarRight, { library, path, kind: topic ? 'topic' : 'file', title: title || '' }) },
+        style: {
+          flex: '0 0 auto',
+          border: '1px solid var(--dsw-alias-border-l3)',
+          background: 'transparent',
+          color: 'var(--dsw-alias-label-primary)',
+          borderRadius: 6,
+          padding: '2px 10px',
+          cursor: 'pointer',
+        },
+      }, '打开')
+    }
+
+    function KnowledgeToolView(props) {
+      const phase = props && props.phase
+      const block = props && props.block
+      const toolName = (props && props.toolName) || ''
+      let args = null
+      let text = ''
+      let failed = false
+      if (phase === 'result' && block) {
+        args = parseToolArgs(block.call && block.call.argsRaw)
+        text = toolResultText(block)
+        failed = block.isError === true || block.error != null
+      } else if (block && typeof block.argsRaw === 'string') {
+        args = parseToolArgs(block.argsRaw)
+      }
+      const model = knowledgeToolCard(toolName, phase === 'result' ? 'result' : 'start', args, text, failed)
+      let body = null
+      if (model.kind === 'pending') body = h('p', { style: toolMeta }, model.label)
+      else if (model.kind === 'error') body = h('p', { style: toolMeta }, model.message)
+      else if (model.kind === 'route') {
+        body = model.empty
+          ? h('p', { style: toolMeta }, '没有匹配的主题')
+          : h('ul', { style: { listStyle: 'none', margin: 0, padding: 0 } }, model.items.map((item) => h('li', { key: item.library + ':' + item.path, style: { ...toolLine, padding: '4px 0' } },
+            h('div', null,
+              h('div', { style: toolTitle }, '主题：' + item.name),
+              h('div', { style: toolMeta }, [item.library === 'arsenal' ? 'Arsenal' : '个人库', item.matched ? '命中 ' + item.matched : ''].filter(Boolean).join(' · '))),
+            h(OpenKnowledgeButton, { library: item.library, path: item.path, topic: true, title: item.name }))))
+      } else if (model.kind === 'search') {
+        body = model.empty
+          ? h('p', { style: toolMeta }, '没有找到')
+          : h('ul', { style: { listStyle: 'none', margin: 0, padding: 0 } }, model.items.map((item, index) => h('li', { key: index, style: { ...toolLine, padding: '4px 0' } },
+            h('div', { style: { minWidth: 0 } },
+              h('div', { style: toolTitle }, item.title),
+              h('div', { style: { ...toolMeta, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                (item.source === 'idea' ? '灵感 · ' : (item.library === 'arsenal' ? 'Arsenal · ' : '个人库 · ')) + item.excerpt)),
+            item.source === 'idea'
+              ? h(OpenIdeaButton, { id: item.ideaId, title: item.title })
+              : h(OpenKnowledgeButton, { library: item.library, path: item.path, topic: false, title: item.title }))))
+      } else if (model.kind === 'read') {
+        body = h('div', { style: toolLine },
+          h('div', { style: toolTitle }, (model.topic ? '已读主题：' : '已读：') + model.title),
+          h(OpenKnowledgeButton, { library: model.library, path: model.path, topic: model.topic, title: model.title }))
+      }
+      return h('div', { 'data-bluemanta-tool': toolName, style: { padding: '4px 0' } }, body)
+    }
+
+    function KnowledgeTabTitle(props) {
+      const info = props.useTabInfo()
+      const params = knowledgeParams(info && info.tab && info.tab.navigation)
+      return params.title || '知识台'
+    }
+
+    function KnowledgeSidebarTab(props) {
+      const info = props.useTabInfo()
+      const params = knowledgeParams(info && info.tab && info.tab.navigation)
+      const tabId = info && info.tab ? info.tab.id : ''
+      return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' }, 'data-bluemanta-sidebar': 'knowledge' },
+        h(WebFrame, { embed: 'sidebar', path: knowledgeWebPath(params), tabId, label: '知识台' }))
+    }
+
+    function registerKnowledge(ctx) {
+      ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: KNOWLEDGE_PANEL_ID }, KnowledgeMainPage))
+      ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+        name: 'sidebar.panellist', id: KNOWLEDGE_PANEL_ID, order: 11, label: '知识台',
+      }, KnowledgeIcon))
+      ctx.effect(() => ctx.sidebarRightTabs.register({
+        id: KNOWLEDGE_TAB_ID,
+        kind: KNOWLEDGE_TAB_KIND,
+        multiple: true,
+        title: () => '知识',
+        guide: [{
+          id: 'knowledge',
+          order: 41,
+          title: () => '知识台',
+          description: () => '嵌入的知识台：主题、搜索、收件箱',
+          icon: KnowledgeIcon,
+        }],
+      }), 'bluemanta: knowledge tab type')
+      ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
+        name: 'sidebar.right.pane.tab',
+        key: KNOWLEDGE_TAB_ID,
+      }, KnowledgeSidebarTab)), 'bluemanta: knowledge tab body')
+      ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({
+        name: 'sidebar.right.pane.tab.title',
+        key: KNOWLEDGE_TAB_ID,
+      }, KnowledgeTabTitle)), 'bluemanta: knowledge tab title')
+      for (const name of [KNOWLEDGE_ROUTE_NAME, KNOWLEDGE_SEARCH_NAME, KNOWLEDGE_READ_NAME]) {
+        ctx.effect(() => ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+          name: 'tool.call.toolview',
+          key: name,
+        }, KnowledgeToolView)), 'bluemanta: knowledge tool view ' + name)
+      }
     }
 
     function IdeaToolView(props) {
@@ -810,6 +1088,10 @@ function normalizeFrameToken(tabId) {
       return h(WebFrame, { embed: 'main', id: '' })
     }
 
+    function KnowledgeMainPage() {
+      return h(WebFrame, { embed: 'main', path: '/knowledge', label: '知识台' })
+    }
+
     return {
       inject: ['slots', 'sidebarRightTabs', 'sidebarRight', 'sessions'],
       apply(ctx) {
@@ -826,6 +1108,7 @@ function normalizeFrameToken(tabId) {
           name: 'sidebar.panellist', id: PANEL_ID, order: 10, label: '灵感台',
         }, IdeasIcon))
         registerIdeaSidebar(ctx)
+        registerKnowledge(ctx)
         ctx.effect(() => {
           const onMessage = (event) => handleBridgeMessage(event)
           window.addEventListener('message', onMessage)

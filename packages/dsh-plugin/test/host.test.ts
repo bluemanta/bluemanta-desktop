@@ -1,8 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL } from '@bluemanta/cli/knowledge-tools';
+import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
+
+const KNOWLEDGE_FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 import type { FetchRoute, HostContext, ToolRegistration } from '../src/context.js';
 import { resolveDataDir } from '../src/data-dir.js';
 import {
@@ -34,7 +38,7 @@ describe('宿主插件', () => {
     }
   });
 
-  it('只注册 web-config，保留三个工具，卸载时停掉自己拉起的服务', async () => {
+  it('只注册 web-config，保留灵感与知识工具，卸载时停掉自己拉起的服务', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bluemanta-host-'));
     dirs.push(dir);
     const routes: FetchRoute[] = [];
@@ -78,11 +82,27 @@ describe('宿主插件', () => {
     };
 
     try {
-      apply(ctx, { dataDir: dir, server });
+      apply(ctx, { dataDir: dir, server, knowledgeEnv: defaultKnowledgeEnv({ home: KNOWLEDGE_FIXTURE_HOME }) });
       expect(name).toBe('bluemanta');
       expect(inject).toEqual(['connection', 'tools']);
-      expect(tools.map((tool) => tool.name)).toEqual([IDEA_CAPTURE_TOOL, IDEA_SEARCH_TOOL, IDEA_GET_TOOL]);
-      expect(tools.every((tool) => tool.description.includes('不能收藏、追记、删除'))).toBe(true);
+      expect(tools.map((tool) => tool.name)).toEqual([
+        IDEA_CAPTURE_TOOL,
+        IDEA_SEARCH_TOOL,
+        IDEA_GET_TOOL,
+        KNOWLEDGE_ROUTE_TOOL,
+        KNOWLEDGE_SEARCH_TOOL,
+        KNOWLEDGE_READ_TOOL,
+      ]);
+      expect(tools.slice(0, 3).every((tool) => tool.description.includes('不能收藏、追记、删除'))).toBe(true);
+      expect(tools.slice(3).every((tool) => tool.description.includes('知识库只读'))).toBe(true);
+      // 知识索引第一次调用时才在数据目录建。
+      expect(existsSync(join(dir, 'knowledge-index.sqlite'))).toBe(false);
+      const search = tools[4] as unknown as { execute: (args: object, exec: { signal: AbortSignal; callId: string }) => Promise<unknown> };
+      await expect(search.execute({ query: '评分项', library: 'personal' }, { signal: new AbortController().signal, callId: 'c1' })).resolves.toMatchObject({
+        ok: true,
+        items: [expect.objectContaining({ path: '02_职业与业务/售前方法/Topic_Knowledge.md' })],
+      });
+      expect(existsSync(join(dir, 'knowledge-index.sqlite'))).toBe(true);
       expect(routes.map((route) => ({ path: route.path, method: route.methods[0], body: route.requestBody }))).toEqual([
         { path: WEB_CONFIG_PATH, method: 'GET', body: 'buffered' },
       ]);

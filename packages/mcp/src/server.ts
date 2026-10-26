@@ -21,12 +21,32 @@ import {
   type GetIdeaResult,
   type SearchIdeaResult,
 } from '@bluemanta/cli/idea-tools';
+import {
+  KNOWLEDGE_LIMITATION,
+  KNOWLEDGE_READ_DESCRIPTION,
+  KNOWLEDGE_READ_TOOL,
+  KNOWLEDGE_ROUTE_DESCRIPTION,
+  KNOWLEDGE_ROUTE_TOOL,
+  KNOWLEDGE_SEARCH_DESCRIPTION,
+  KNOWLEDGE_SEARCH_TOOL,
+  openKnowledgeIndex,
+  readKnowledge,
+  renderKnowledgeRead,
+  renderKnowledgeRoute,
+  renderKnowledgeSearch,
+  routeKnowledge,
+  searchKnowledge,
+  type KnowledgeReadResult,
+  type KnowledgeRouteResult,
+  type KnowledgeSearchResult,
+} from '@bluemanta/cli/knowledge-tools';
+import { defaultKnowledgeEnv, type KnowledgeEnv, type KnowledgeIndex } from '@bluemanta/knowledge';
 
 const categorySchema = z
   .enum(IDEA_CATEGORY_VALUES)
   .describe('可选分类：product 产品想法、learning 学习备忘、work 工作事务、life 生活随想、other 其他');
 
-type ToolValue = CaptureIdeaResult | SearchIdeaResult | GetIdeaResult;
+type ToolValue = CaptureIdeaResult | SearchIdeaResult | GetIdeaResult | KnowledgeRouteResult | KnowledgeSearchResult | KnowledgeReadResult;
 
 export function clientSourceName(name: string | undefined): string {
   const trimmed = name?.trim() ?? '';
@@ -67,18 +87,26 @@ export function captureWithClient(
   });
 }
 
-export function createIdeaMcpServer(dataDir: string): { server: McpServer; close: () => void } {
+export function createIdeaMcpServer(dataDir: string, knowledgeEnv: KnowledgeEnv = defaultKnowledgeEnv()): { server: McpServer; close: () => void } {
   const core = openCore({ dataDir });
+  // 知识索引第一次用到时才在数据目录建（ADR 0009 决定 4）。
+  let knowledgeIndex: KnowledgeIndex | null = null;
+  const index = (): KnowledgeIndex => (knowledgeIndex ??= openKnowledgeIndex({ dataDir, core, env: knowledgeEnv }));
   let closed = false;
   const close = (): void => {
     if (closed) return;
     closed = true;
+    knowledgeIndex?.close();
     core.close();
   };
 
   const server = new McpServer(
     { name: 'bluemanta-idea', version: '0.0.0' },
-    { instructions: `记录、查找和读取 bluemanta 灵感。${AGENT_LIMITATION}` },
+    {
+      instructions:
+        `记录、查找和读取 bluemanta 灵感，并查找、读取个人知识库与 Arsenal。${AGENT_LIMITATION}` +
+        `回答知识类问题时先用 ${KNOWLEDGE_ROUTE_TOOL} 定位主题，再用 ${KNOWLEDGE_READ_TOOL} 按读取顺序读；找回以前的想法用 ${KNOWLEDGE_SEARCH_TOOL}，换几种说法多搜几次。${KNOWLEDGE_LIMITATION}`,
+    },
   );
 
   server.registerTool(
@@ -136,6 +164,58 @@ export function createIdeaMcpServer(dataDir: string): { server: McpServer; close
       aborted(extra.signal);
       const result = getIdea(core, { id: args.id });
       return toolResult(result, renderGet(result));
+    },
+  );
+
+  server.registerTool(
+    KNOWLEDGE_ROUTE_TOOL,
+    {
+      description: KNOWLEDGE_ROUTE_DESCRIPTION,
+      inputSchema: {
+        query: z.string().describe('用户的问题或关键词'),
+        library: z.enum(['personal', 'arsenal']).describe('只查一个库：personal 个人库，arsenal 售前主题库').optional(),
+        limit: z.number().int().describe('候选主题数，默认 5，最多 10').optional(),
+      },
+    },
+    async (args, extra) => {
+      aborted(extra.signal);
+      const result = routeKnowledge(index(), knowledgeEnv, args);
+      return toolResult(result, renderKnowledgeRoute(result));
+    },
+  );
+
+  server.registerTool(
+    KNOWLEDGE_SEARCH_TOOL,
+    {
+      description: KNOWLEDGE_SEARCH_DESCRIPTION,
+      inputSchema: {
+        query: z.string().describe('关键词，按空白分开'),
+        library: z.enum(['personal', 'arsenal']).describe('只搜一个库；指定后不含灵感').optional(),
+        includeIdeas: z.boolean().describe('是否包含灵感，默认 true').optional(),
+        limit: z.number().int().describe('返回条数，默认 10，最多 30').optional(),
+      },
+    },
+    async (args, extra) => {
+      aborted(extra.signal);
+      const result = searchKnowledge(index(), knowledgeEnv, args);
+      return toolResult(result, renderKnowledgeSearch(result));
+    },
+  );
+
+  server.registerTool(
+    KNOWLEDGE_READ_TOOL,
+    {
+      description: KNOWLEDGE_READ_DESCRIPTION,
+      inputSchema: {
+        library: z.enum(['personal', 'arsenal']).describe('库 id'),
+        path: z.string().describe('库内相对路径：主题目录或文件'),
+        offset: z.number().int().describe('长文件接着读的起点（上次结果里给出）').optional(),
+      },
+    },
+    async (args, extra) => {
+      aborted(extra.signal);
+      const result = readKnowledge(knowledgeEnv, args);
+      return toolResult(result, renderKnowledgeRead(result));
     },
   );
 
