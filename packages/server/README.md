@@ -159,3 +159,19 @@ npm test -w @bluemanta/server
 ```
 
 测试只用临时数据目录和虚构数据：鉴权与 Host、每个接口、409、幂等重放、上传校验、返回体不泄露路径和口令、静态文件、口令文件权限、端口占用两种情况，以及服务与 `idea.js add` 两个进程各写 50 条的并发写入。
+
+## 知识台接口（只读，ADR 0009）
+
+都要口令。库 id 只能是小写字母、数字和连字符；路径是库内相对路径，按段百分号编码。服务端校验路径不越出库根目录（拒绝 `..`、反斜杠、库外软链），返回的库根目录和显示路径把 home 缩写成 `~`。库环境见 [`packages/knowledge`](../knowledge/README.md)，`BLUEMANTA_KNOWLEDGE_HOME` 覆盖 home。
+
+| 方法与路径 | 作用 |
+|---|---|
+| `GET /api/v1/knowledge/libraries` | 各库：是否存在、总索引文件、主题数、收件箱文件数 |
+| `GET /api/v1/knowledge/libraries/:lib` | 分类与主题（含路由信息、四个默认文件是否存在）和警告；库目录不存在时 `library.exists = false` |
+| `GET /api/v1/knowledge/libraries/:lib/topics/<主题路径>` | 主题四个默认文件的正文、其他文件、`_Archive` 里的文件 |
+| `GET /api/v1/knowledge/libraries/:lib/files/<文件路径>` | Markdown 返回正文（超过 1 MB 截断，`truncated: true`），其他文件只返回元信息；附 `displayPath` |
+| `GET /api/v1/knowledge/libraries/:lib/inbox` | `_Inbox` 里的文件（不含 README） |
+| `GET /api/v1/knowledge/search?q=&library=&ideas=0\|1&limit=` | 全文搜索各库和灵感；`library` 可重复；`limit` 1–50，默认 20 |
+| `GET /api/v1/knowledge/route?q=&library=&limit=` | 按总索引的别名、关键词找候选主题，附读取顺序 |
+
+全文索引 `knowledge-index.sqlite` 在数据目录里，第一次搜索时才建；它是派生数据，删掉会自动重建。错误码：`not_found`、`invalid_input`、`knowledge_library_missing`（库目录不存在）、`knowledge_invalid_path`、`knowledge_read_error`。

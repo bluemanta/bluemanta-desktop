@@ -26,6 +26,8 @@ import {
 } from '@bluemanta/core';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { defaultSkillEnv, type SkillEnv } from '@bluemanta/skills';
+import { openKnowledgeIndex } from '@bluemanta/cli/knowledge-tools';
+import { defaultKnowledgeEnv, type KnowledgeEnv, type KnowledgeIndex } from '@bluemanta/knowledge';
 import {
   API_VERSION,
   type ApiErrorCode,
@@ -41,6 +43,7 @@ import {
 import { isEditedHistory, sortIdeas, toAttachmentMeta, toIdeaRecord } from './records.js';
 import { SERVER_VERSION } from './version.js';
 import { createSkillsApi } from './skills-api.js';
+import { createKnowledgeApi } from './knowledge-api.js';
 
 /** 服务只用到 core 的这些方法，测试可以换成同形状的对象。 */
 export type ServerCore = Pick<
@@ -66,6 +69,10 @@ export type CreateAppOptions = {
   logError?: (line: string) => void;
   /** Skill 目录环境；省略时由 defaultSkillEnv()（含 BLUEMANTA_SKILL_HOME）构造。 */
   skillEnv?: SkillEnv;
+  /** 知识库环境；省略时由 defaultKnowledgeEnv()（含 BLUEMANTA_KNOWLEDGE_HOME）构造。 */
+  knowledgeEnv?: KnowledgeEnv;
+  /** 测试可注入索引；省略时第一次搜索才在数据目录建 knowledge-index.sqlite。 */
+  knowledgeIndex?: KnowledgeIndex;
 };
 
 const JSON_LIMIT_BYTES = 1024 * 1024;
@@ -233,6 +240,16 @@ export function createApp(options: CreateAppOptions): Hono {
   app.all('/api/v1/health', methodNotAllowed);
 
   app.route('/api/v1', createSkillsApi(options.skillEnv ?? defaultSkillEnv()));
+
+  const knowledgeEnv = options.knowledgeEnv ?? defaultKnowledgeEnv();
+  let knowledgeIndex = options.knowledgeIndex;
+  app.route(
+    '/api/v1',
+    createKnowledgeApi({
+      env: knowledgeEnv,
+      index: () => (knowledgeIndex ??= openKnowledgeIndex({ dataDir: core.dataDir, core, env: knowledgeEnv })),
+    }),
+  );
 
   app.get('/api/v1/ideas', (c) => {
     const params = new URL(c.req.url).searchParams;
