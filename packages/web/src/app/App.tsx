@@ -7,6 +7,7 @@ import { CommandPaletteProvider } from '../ideas/CommandPalette';
 import { IdeasPage } from '../ideas/IdeasPage';
 import { IdeasStateProvider, useIdeasState } from '../ideas/IdeasState';
 import { IdeaHotkeys } from '../ideas/hotkeys';
+import { KnowledgePage } from '../knowledge/KnowledgePage';
 import { NavigationGuard } from '../ideas/NavigationGuard';
 import { StatsPage } from '../ideas/StatsPage';
 import { TrashPage } from '../ideas/TrashPage';
@@ -54,6 +55,12 @@ function Routes() {
         <TrashPage />
       </Route>
       <Route path="/ideas/:id">{(params) => <IdeasPage id={decodeURIComponent(params.id)} />}</Route>
+      <Route path="/knowledge">
+        <KnowledgePage />
+      </Route>
+      <Route path="/knowledge/*">
+        <KnowledgePage />
+      </Route>
       <Route>
         <RedirectToIdeas />
       </Route>

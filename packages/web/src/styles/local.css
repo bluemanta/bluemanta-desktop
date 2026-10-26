@@ -45,4 +45,7 @@
   --bmw-seg-shadow: 0 1px 2px color-mix(in srgb, var(--bm-text) 10%, transparent);
   --bmw-on-accent-soft: color-mix(in srgb, var(--bm-on-accent) 20%, transparent);
   --bmw-on-text-soft: color-mix(in srgb, var(--bm-canvas) 16%, transparent);
+  --bmw-cell-max: 280px;        /* 知识台：Markdown 表格单元格最大宽度，超出省略、悬停看全文 */
+  --bmw-hit-row: 52px;          /* 知识台：搜索结果两行高 */
+  --bmw-outline-max: 220px;     /* 知识台：阅读器目录展开后的最大高度 */
 }

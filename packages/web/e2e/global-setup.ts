@@ -21,6 +21,8 @@ async function serve(name: string, mode: SeedMode): Promise<{ server: RunningSer
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
+  // 知识台走查用虚构库（packages/knowledge/fixtures），服务在创建时读这个环境变量。
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = join(WEB_DIST, '..', '..', 'knowledge', 'fixtures', 'home');
   if (!existsSync(join(WEB_DIST, 'index.html'))) {
     throw new Error('网页还没构建：先运行 npm run build（走查用构建产物，由本地服务托管）');
   }
