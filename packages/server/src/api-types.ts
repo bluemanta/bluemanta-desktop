@@ -238,6 +238,9 @@ export type ApiErrorCode =
   | 'skill_manifest_parse_error'
   | 'skill_manifest_invalid'
   | 'skill_read_error'
+  | 'knowledge_library_missing'
+  | 'knowledge_invalid_path'
+  | 'knowledge_read_error'
   | 'internal';
 
 export type ApiFailure = {
@@ -283,3 +286,108 @@ export type ExtensionAddRequest = {
   rev: number;
   text: string;
 };
+
+// ---- 知识台（ADR 0009）：只读。路径都是库内相对路径；库根目录只用于显示，home 缩写为 `~`。 ----
+
+export type KnowledgeLibrary = {
+  id: string;
+  name: string;
+  /** 显示用，home 缩写为 `~`。 */
+  root: string;
+  writable: boolean;
+  exists: boolean;
+  indexFile: string | null;
+  topicCount: number;
+  inboxCount: number;
+};
+
+export type KnowledgeTopicDocument = 'readme' | 'assetIndex' | 'knowledge' | 'log';
+
+export type KnowledgeTopic = {
+  path: string;
+  name: string;
+  category: string;
+  registered: boolean;
+  exists: boolean;
+  documents: Record<KnowledgeTopicDocument, boolean>;
+  aliases: string[];
+  keywords: string[];
+  typicalQuestions: string[];
+  relatedTopics: string[];
+  status: string | null;
+  lastReviewed: string | null;
+  notes: string | null;
+};
+
+export type KnowledgeCategory = {
+  id: string;
+  name: string;
+  order: number;
+  topics: KnowledgeTopic[];
+};
+
+export type KnowledgeFileEntry = {
+  path: string;
+  name: string;
+  kind: 'markdown' | 'file' | 'directory';
+  size: number;
+  modifiedAt: string;
+};
+
+export type KnowledgeLibrariesResponse = { ok: true; libraries: KnowledgeLibrary[] };
+
+export type KnowledgeIndexResponse = {
+  ok: true;
+  library: KnowledgeLibrary;
+  categories: KnowledgeCategory[];
+  warnings: string[];
+};
+
+export type KnowledgeTopicResponse = {
+  ok: true;
+  library: KnowledgeLibrary;
+  topic: KnowledgeTopic;
+  documents: Partial<Record<KnowledgeTopicDocument, string>>;
+  files: KnowledgeFileEntry[];
+  archive: KnowledgeFileEntry[];
+};
+
+export type KnowledgeFileResponse = {
+  ok: true;
+  library: KnowledgeLibrary;
+  file: KnowledgeFileEntry & ({ kind: 'markdown'; content: string; truncated: boolean } | { kind: 'file' });
+  /** 显示用的完整路径，home 缩写为 `~`。 */
+  displayPath: string;
+};
+
+export type KnowledgeInboxResponse = { ok: true; library: KnowledgeLibrary; files: KnowledgeFileEntry[] };
+
+export type KnowledgeSearchHit = {
+  source: 'library' | 'idea';
+  library: string | null;
+  path: string | null;
+  ideaId: string | null;
+  title: string;
+  headings: string[];
+  excerpt: string;
+  area: 'root' | 'topic' | 'category' | 'archive' | 'inbox' | 'templates' | null;
+  topicPath: string | null;
+  topicName: string | null;
+  updatedAt: string;
+  score: number;
+  matchMode: 'all' | 'any' | 'fuzzy';
+};
+
+export type KnowledgeSearchResponse = { ok: true; query: string; keywords: string[]; hits: KnowledgeSearchHit[] };
+
+export type KnowledgeRouteCandidate = {
+  library: string;
+  topicPath: string;
+  name: string;
+  category: string;
+  matched: string[];
+  score: number;
+  readOrder: string[];
+};
+
+export type KnowledgeRouteResponse = { ok: true; query: string; candidates: KnowledgeRouteCandidate[] };

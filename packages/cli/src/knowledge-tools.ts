@@ -6,7 +6,7 @@ import { KnowledgeIndex, defaultKnowledgeEnv, type IdeaDoc, type KnowledgeEnv } 
 export const KNOWLEDGE_INDEX_FILE = 'knowledge-index.sqlite';
 
 /** Active idea cards as index documents: body plus raw input (when different) and extensions. */
-export function ideaDocsFrom(core: Core): IdeaDoc[] {
+export function ideaDocsFrom(core: Pick<Core, 'listCards'>): IdeaDoc[] {
   return core.listCards({ cardType: 'idea', deleted: 'active' }).map((card) => {
     const extra: string[] = [];
     if (card.rawInput.status === 'present' && card.rawInput.text.trim() !== card.body.trim()) extra.push(card.rawInput.text);
@@ -25,7 +25,7 @@ export function ideaDocsFrom(core: Core): IdeaDoc[] {
 export type OpenKnowledgeIndexOptions = {
   dataDir: string;
   /** When given, active ideas are indexed alongside the libraries. */
-  core?: Core;
+  core?: Pick<Core, 'listCards'>;
   env?: KnowledgeEnv;
   refreshIntervalMs?: number;
 };
