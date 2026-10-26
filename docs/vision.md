@@ -1,6 +1,6 @@
 # bluemanta Desktop：定位、决定与路线
 
-最后更新：2026-10-13
+最后更新：2026-10-26
 
 ## 定位
 
@@ -42,6 +42,7 @@
 | 2026-10-12 | 快捷键归属：在 Desktop 里焦点在灵感台时，⌘K、⌘N、⌘B、⌘W 等组合键归 dsh；灵感台命令面板改用单键 `P` 和页头按钮打开，独立浏览器里 ⌘K 照旧（[S5](../spikes/s5-frame-shortcuts/README.md)，T17） |
 | 2026-10-18 | dsh 锁定版本升到 0.2.1-rc.2，参考源码改为上游提交 `d1b9c04067`（[ADR 0007](decisions/0007-dsh-0-2-1-rc-2.md)） |
 | 2026-10-22 | 新增工作台第二个模块「Skill 台」：在网页里看清本机 skill 装在哪些工具里、是否正常、dsh 能否用到。早先的 skill-board 原型不原样嵌入，重写进本仓库，与灵感台同一套外壳和设计规范；skill 正本仍是 AgentSkillRepos 与 manifest.yaml；先只读。相关任务由 Codex 实现（[ADR 0008](decisions/0008-skill-desk.md)） |
+| 2026-10-26 | 启动阶段 3「知识台」：照 SalesOS Arsenal 的体系组织本机知识库，资料不搬家、统一搜索。个人库新建在 `~/Documents/Knowledge`（按人生领域分类）；Arsenal 只读挂载；Obsidian 等已有资料先在主题里登记引用、以后经 `_Inbox` 逐步入库；第一版只做本机全文检索；验收用用户出的 10 个真实问题。长期知识的正本是 Markdown 库，Desktop 只建可重建的索引；灵感仍是卡片。阶段 3 由 Claude Code 自己规划和开发（[ADR 0009](decisions/0009-knowledge-desk.md)，[计划](phase-3.md)） |
 
 ## 架构
 
@@ -60,6 +61,8 @@
 
 | 数据 | 当前正本 | 状态 | 去向 |
 |---|---|---|---|
+| 长期知识（个人） | 个人库 `~/Documents/Knowledge`（Markdown，Arsenal 结构） | 2026-10-26 新建；Desktop 只建索引 | 已有资料经 `_Inbox` 逐步入库（入库即搬家） |
+| 售前主题知识 | `~/Documents/Shuyun/SalesOS/Arsenal` | 活跃，由 SalesOS 维护 | Desktop 只读挂载、索引 |
 | 灵感 | Desktop（`~/Library/Application Support/BluemantaDesktop/`） | 活跃；2026-10-11 起 Grok Bot 直接写入 Desktop，workbench 中的旧灵感已导入，workbench 只读 | — |
 | 内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 冻结，只读 | 阶段 2 导入 Desktop |
 | 场景卡、选题卡（内容台账） | Notion ContentHub | 活跃，暂留 | 阶段 2 功能对齐后导入 Desktop，Notion 归档为只读 |
@@ -78,7 +81,7 @@
 | 0 | 本仓库的规划文档；技术验证 S1（dsh 面板扩展点，已通过）；确认正本归属表；对象模型草案，先定公共对象（任务、项目、人、卡片），再定各模块对象（参照 Notion 两个库和灵感台 schema 6） | 文档定稿；S1 结论为 verified 或 failed |
 | 1 | Desktop core（项目、任务、卡片、写入规则、存储）；灵感清单面板；agent 读写灵感的工具；导入 workbench 冻结数据中的灵感和档案（内容线数据留到阶段 2） | 日常记录和回看灵感都在 Desktop 里完成，不再打开 workbench |
 | 2（暂缓） | 内容线：场景卡、选题、产出、发布台、内容台账面板，对齐 Notion ContentHub；Grok Bot 改为写入 Desktop；侧栏品牌换成 bluemanta（T9，IFM-281） | 连续 2 周内容生产全部在 Desktop 完成，每周发布 N 篇（N 由用户定） |
-| 3 | 知识库：知识卡片、检索、导入本地 ContentHub 和 Obsidian | 随口问一个半年前的想法，能找回来 |
+| 3（进行中） | 知识台：按 Arsenal 体系的本机 Markdown 库（个人库 + Arsenal 只读），统一全文检索，agent 按路由读；原计划的「导入 ContentHub 和 Obsidian」改为登记引用（[ADR 0009](decisions/0009-knowledge-desk.md)） | 随口问一个半年前的想法，能找回来：用户出的 10 个真实问题，前 5 条里命中 8 个以上 |
 | 4 起 | 交付（SalesOS 只读索引、飞书纪要）、开发项目、家庭 | 按领域分别定义 |
 
 ## 待决问题
