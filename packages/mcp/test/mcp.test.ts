@@ -11,9 +11,11 @@ import {
   IDEA_GET_TOOL,
   IDEA_SEARCH_TOOL,
 } from '@bluemanta/cli/idea-tools';
+import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL } from '@bluemanta/cli/knowledge-tools';
 import { captureWithClient, clientSourceName, mcpCaptureRequestId, mcpProcessToken } from '../src/server.js';
 
 const mcpJs = fileURLToPath(new URL('../dist/mcp.js', import.meta.url));
+const KNOWLEDGE_FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 const dirs: string[] = [];
 
 function tempDir(): string {
@@ -82,6 +84,7 @@ function serverEnv(dataDir: string): Record<string, string> {
     if (typeof value === 'string') env[key] = value;
   }
   env.BLUEMANTA_DATA_DIR = dataDir;
+  env.BLUEMANTA_KNOWLEDGE_HOME = KNOWLEDGE_FIXTURE_HOME;
   return env;
 }
 
@@ -147,6 +150,9 @@ describe('stdio MCP 服务', () => {
         IDEA_CAPTURE_TOOL,
         IDEA_SEARCH_TOOL,
         IDEA_GET_TOOL,
+        KNOWLEDGE_ROUTE_TOOL,
+        KNOWLEDGE_SEARCH_TOOL,
+        KNOWLEDGE_READ_TOOL,
       ]);
 
       const captured = await client.callTool({
@@ -207,6 +213,34 @@ describe('stdio MCP 服务', () => {
       expect(cards[0]?.createdBy).toEqual({ kind: 'agent', name: 'fixture-mcp' });
     } finally {
       core.close();
+    }
+  });
+});
+
+describe('知识工具（独立进程，虚构知识库）', () => {
+  it('路由、搜索、读取都只读，结果带出处', async () => {
+    const dataDir = tempDir();
+    const transport = new StdioClientTransport({ command: process.execPath, args: [mcpJs], env: serverEnv(dataDir), stderr: 'pipe' });
+    const client = new Client({ name: 'fixture-mcp', version: '0.0.0' });
+    try {
+      await client.connect(transport);
+      const routed = await client.callTool({ name: KNOWLEDGE_ROUTE_TOOL, arguments: { query: 'Loyalty' } });
+      expect(routed.structuredContent).toMatchObject({ ok: true, candidates: [expect.objectContaining({ library: 'arsenal', name: '会员体系' })] });
+
+      const searched = await client.callTool({ name: KNOWLEDGE_SEARCH_TOOL, arguments: { query: '评分项', library: 'personal' } });
+      expect(searched.structuredContent).toMatchObject({
+        ok: true,
+        items: [expect.objectContaining({ library: 'personal', path: '02_职业与业务/售前方法/Topic_Knowledge.md' })],
+      });
+      expect(searched.content).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('库：personal　路径：02_职业与业务/售前方法/Topic_Knowledge.md') })]);
+
+      const read = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'arsenal', path: '01_业务主题/会员体系/Topic_Knowledge.md' } });
+      expect(read.structuredContent).toMatchObject({ ok: true, kind: 'markdown', content: expect.stringContaining('积分要有消耗出口') });
+
+      const escaped = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'personal', path: '../../x.md' } });
+      expect(escaped.structuredContent).toMatchObject({ ok: false });
+    } finally {
+      await client.close();
     }
   });
 });

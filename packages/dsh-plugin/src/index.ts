@@ -13,6 +13,9 @@ import {
   type LocalServer,
 } from './local-server.js';
 import { registerIdeaTools } from './register-idea-tools.js';
+import { registerKnowledgeTools } from './register-knowledge-tools.js';
+import { openKnowledgeIndex } from '@bluemanta/cli/knowledge-tools';
+import { defaultKnowledgeEnv, type KnowledgeEnv, type KnowledgeIndex } from '@bluemanta/knowledge';
 
 export const name = 'bluemanta';
 export const inject = ['connection', 'tools'];
@@ -31,6 +34,7 @@ export {
   searchIdeas,
 } from './idea-tools.js';
 export { registerIdeaTools } from './register-idea-tools.js';
+export { registerKnowledgeTools } from './register-knowledge-tools.js';
 export {
   DEFAULT_SERVER_PORT,
   HEALTH_TIMEOUT_MS,
@@ -51,6 +55,8 @@ export type ApplyOptions = {
   /** 测试注入。缺省时按环境变量检查并按需拉起本地服务。 */
   server?: LocalServer;
   dataDir?: string;
+  /** 测试注入虚构知识库；缺省按 BLUEMANTA_KNOWLEDGE_HOME 或 home 目录。 */
+  knowledgeEnv?: KnowledgeEnv;
 };
 
 function defaultServer(dataDir: string): LocalServer {
@@ -73,8 +79,12 @@ export function apply(ctx: HostContext, options: ApplyOptions = {}): void {
   const dataDir = options.dataDir ?? resolveDataDir(process.env.BLUEMANTA_DATA_DIR, defaultDataDir);
   const server = options.server ?? defaultServer(dataDir);
   const core = openCore({ dataDir });
+  const knowledgeEnv = options.knowledgeEnv ?? defaultKnowledgeEnv();
   ctx.effect(() => {
-    const disposeTools = registerIdeaTools(ctx, core);
+    // 知识索引第一次用到时才在数据目录建（ADR 0009 决定 4）。
+    let knowledgeIndex: KnowledgeIndex | null = null;
+    const index = (): KnowledgeIndex => (knowledgeIndex ??= openKnowledgeIndex({ dataDir, core, env: knowledgeEnv }));
+    const disposeTools = [...registerIdeaTools(ctx, core), ...registerKnowledgeTools(ctx, knowledgeEnv, index)];
     const disposeRoute = ctx.connection.fetch.register({
       path: WEB_CONFIG_PATH,
       methods: ['GET'],
@@ -93,6 +103,7 @@ export function apply(ctx: HostContext, options: ApplyOptions = {}): void {
       disposeRoute();
       for (const dispose of disposeTools) dispose();
       server.stop();
+      knowledgeIndex?.close();
       core.close();
     };
   }, 'bluemanta: core');

@@ -115,6 +115,22 @@ npm run dev:dsh
 
 不提供修改、收藏、追记、删除。这些在网页里由人操作。
 
+### 知识工具（只读，ADR 0009）
+
+执行函数和说明在 `packages/cli/src/knowledge-tools.ts`，MCP 共用。全文索引第一次调用时才在数据目录建 `knowledge-index.sqlite`；知识库位置由 `BLUEMANTA_KNOWLEDGE_HOME` 或 home 决定。
+
+| 工具 | 作用 |
+|---|---|
+| `bluemanta_knowledge_route` | Router Lite：按个人库和 Arsenal 总索引的主题名、别名、关键词、典型问题找候选主题，返回读取顺序（README → Asset_Index → Topic_Knowledge → Topic_Log） |
+| `bluemanta_knowledge_search` | 全文搜索两个库和灵感；`library` 可选（指定后不含灵感），`limit` 默认 10、最多 30；结果带库、路径、标题链、摘录 |
+| `bluemanta_knowledge_read` | 读主题（README 正文 + 文件清单）或文件（Markdown 正文，每次最多 2 万字，`offset` 接着读）；路径越出库目录时拒绝 |
+
+工具卡片：知识搜索的每条结果带「打开」，库内结果在右侧栏的知识 tab 里打开阅读器，灵感结果在灵感 tab 里打开；路由结果打开主题，读取结果打开对应文件或主题。
+
+## 知识台入口
+
+左侧栏「知识台」（`bluemanta.knowledge`，排在灵感台后面）在主区嵌入 `/knowledge?embed=main`；右侧栏页类型 `bluemanta.knowledge`（开始页入口「知识台」）嵌入 `/knowledge/lib/<库>/<topic|file>/<路径>?embed=sidebar`。知识台的框名是 `bluemanta-knowledge-main` / `bluemanta-knowledge-sidebar-<tab>`，与灵感台的框分开，`data-html-preview` 同样保留（S5）。纯函数在 `src/knowledge-sidebar.js`，client.js 内嵌同一份文本（测试核对）；`test/client-smoke.test.ts` 在假宿主里真的执行一遍 client.js。
+
 ## 品牌
 
 插件会停用官方品牌插件 `ui-brand-official`。`cordis.patch.yml` 用 `- id: ui-brand-official` 和 `disabled: true` 覆盖这一行：官方标志占着品牌 single slot，第二个注册会抛错 `single slot "..." already has a registration`。卸载本插件后，这条停用随之消失，侧栏的「deepseek HARNESS」和新会话首屏的鱼会自动恢复。

@@ -227,6 +227,14 @@ describe('搜索', () => {
     expect(hits[archived]?.area).toBe('archive');
   });
 
+  it('总索引表格在搜索里排在主题正文后面', () => {
+    const hits = open().search('会员 积分', { libraries: ['arsenal'], includeIdeas: false, limit: 20 }).hits;
+    const knowledge = hits.findIndex((hit) => hit.path === '01_业务主题/会员体系/Topic_Knowledge.md');
+    const index = hits.findIndex((hit) => hit.path === 'Arsenal_Index.md');
+    expect(knowledge).toBe(0);
+    expect(index).toBeGreaterThan(knowledge);
+  });
+
   it('按库筛选，灵感可以排除', () => {
     const index = open();
     expect(index.search('会员', { libraries: ['personal'], includeIdeas: false }).hits.every((hit) => hit.library === 'personal')).toBe(true);

@@ -5,7 +5,18 @@ import { fileURLToPath } from 'node:url';
 import { openCore } from '@bluemanta/core';
 import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
 import { afterEach, describe, expect, it } from 'vitest';
-import { KNOWLEDGE_INDEX_FILE, ideaDocsFrom } from '../src/knowledge-tools.js';
+import {
+  KNOWLEDGE_INDEX_FILE,
+  KNOWLEDGE_READ_MAX_CHARS,
+  ideaDocsFrom,
+  openKnowledgeIndex,
+  readKnowledge,
+  renderKnowledgeRead,
+  renderKnowledgeRoute,
+  renderKnowledgeSearch,
+  routeKnowledge,
+  searchKnowledge,
+} from '../src/knowledge-tools.js';
 import { runKnowledge } from '../src/run-knowledge.js';
 
 const FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
@@ -124,5 +135,70 @@ describe('knowledge 命令', () => {
   it('参数错误返回 2', () => {
     expect(run(['search', 'x', '--limit', '0']).code).toBe(2);
     expect(run(['search', 'x', '--bogus']).code).toBe(2);
+  });
+});
+
+describe('知识 agent 工具', () => {
+  function index(dataDir: string) {
+    const core = openCore({ dataDir });
+    const opened = openKnowledgeIndex({ dataDir, core, env: knowledgeEnv });
+    return { opened, close: () => { opened.close(); core.close(); } };
+  }
+
+  it('路由：按别名找主题，输出带库、路径和读取顺序', () => {
+    const dataDir = tempDir();
+    const { opened, close } = index(dataDir);
+    try {
+      const result = routeKnowledge(opened, knowledgeEnv, { query: 'Loyalty 怎么讲' });
+      expect(result).toMatchObject({ ok: true, candidates: [{ library: 'arsenal', topicPath: '01_业务主题/会员体系', name: '会员体系' }] });
+      const text = renderKnowledgeRoute(result);
+      expect(text).toContain('1. 会员体系\n   库：arsenal　路径：01_业务主题/会员体系');
+      expect(text).toContain('读取顺序：01_业务主题/会员体系/README.md → ');
+      expect(routeKnowledge(opened, knowledgeEnv, { query: ' ' })).toEqual({ ok: false, error: 'query 不能为空' });
+      expect(routeKnowledge(opened, knowledgeEnv, { query: 'x', library: 'nope' })).toMatchObject({ ok: false });
+      expect(renderKnowledgeRoute({ ok: true, query: 'x', candidates: [] })).toContain('没有匹配的主题');
+    } finally {
+      close();
+    }
+  });
+
+  it('搜索：库和灵感一起，指定库时不含灵感；输出可按行解析', () => {
+    const dataDir = tempDir();
+    const id = seedIdea(dataDir);
+    const { opened, close } = index(dataDir);
+    try {
+      const result = searchKnowledge(opened, knowledgeEnv, { query: '会员分层' });
+      expect(result.ok && result.items[0]).toMatchObject({ source: 'idea', ideaId: id });
+      const text = renderKnowledgeSearch(result);
+      expect(text).toMatch(/^找到 \d+ 条（关键词：会员分层）：/);
+      expect(text).toContain(`   灵感 id：${id}`);
+      const scoped = searchKnowledge(opened, knowledgeEnv, { query: '评分项', library: 'personal' });
+      expect(scoped.ok && scoped.items.every((item) => item.library === 'personal')).toBe(true);
+      expect(renderKnowledgeSearch(scoped)).toContain('   库：personal　路径：02_职业与业务/售前方法/Topic_Knowledge.md　主题：售前方法');
+      expect(searchKnowledge(opened, knowledgeEnv, { query: '火星移民计划xyz' })).toMatchObject({ ok: true, count: 0 });
+      expect(renderKnowledgeSearch({ ok: true, query: 'x', keywords: ['x'], count: 0, items: [] })).toContain('没有找到');
+    } finally {
+      close();
+    }
+  });
+
+  it('读取：主题给 README 和文件清单，文件给正文，越界拒绝', () => {
+    const topic = readKnowledge(knowledgeEnv, { library: 'personal', path: '02_职业与业务/售前方法' });
+    expect(topic).toMatchObject({ ok: true, kind: 'topic', displayPath: '~/Documents/Knowledge/02_职业与业务/售前方法' });
+    expect(topic.ok && topic.files).toEqual([
+      '02_职业与业务/售前方法/README.md',
+      '02_职业与业务/售前方法/Asset_Index.md',
+      '02_职业与业务/售前方法/Topic_Knowledge.md',
+      '02_职业与业务/售前方法/方案框架_v1.pptx',
+      '02_职业与业务/售前方法/客户研究清单.md',
+    ]);
+    const file = readKnowledge(knowledgeEnv, { library: 'arsenal', path: '01_业务主题/会员体系/Topic_Knowledge.md' });
+    expect(file).toMatchObject({ ok: true, kind: 'markdown', nextOffset: null });
+    expect(renderKnowledgeRead(file)).toContain('积分要有消耗出口');
+    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '02_职业与业务/售前方法/方案框架_v1.pptx' })).toMatchObject({ ok: true, kind: 'file' });
+    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '../Shuyun/SalesOS/Arsenal/README.md' })).toMatchObject({ ok: false });
+    expect(readKnowledge(knowledgeEnv, { library: '', path: 'x' })).toEqual({ ok: false, error: 'library 不能为空' });
+    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '没有.md' })).toMatchObject({ ok: false });
+    expect(KNOWLEDGE_READ_MAX_CHARS).toBe(20000);
   });
 });
