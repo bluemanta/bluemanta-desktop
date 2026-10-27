@@ -4,7 +4,8 @@
   display: flex;
   align-items: center;
   gap: var(--bm-sp-10);
-  padding: 0 var(--bm-sp-12) 0 var(--bm-sp-16);
+  /* 没收到 bm:chrome 时变量为 0，左内边距仍是 --bm-sp-16。 */
+  padding: 0 var(--bm-sp-12) 0 max(var(--bm-sp-16), var(--bm-leading-clearance, 0px));
   background: var(--bm-canvas);
   min-width: 0;
 }
@@ -128,6 +129,7 @@
   .head {
     gap: var(--bm-sp-8);
     padding: 0 var(--bm-sp-8);
+    padding-left: max(var(--bm-sp-8), var(--bm-leading-clearance, 0px));
   }
 
   .seg button {

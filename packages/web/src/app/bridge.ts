@@ -1,11 +1,13 @@
 /**
  * 与 dsh 的消息桥（docs/phase-1-5.md 第 3 节）。
  * 网页 → dsh：`bm:ready`、`bm:openSidebar`、`bm:quote`、`bm:dirty`。
- * dsh → 网页：`bm:theme { dark }`、`bm:result { action, ok, reason? }`。
+ * dsh → 网页：`bm:theme { dark }`、`bm:chrome { leadingClearance }`、`bm:result { action, ok, reason? }`。
  * 只和 `#parent=<origin>` 指定的父窗口通信；没指定时既不发也不收。
  */
 
 export type ThemeMessage = { type: 'bm:theme'; dark: boolean };
+
+export type ChromeMessage = { type: 'bm:chrome'; leadingClearance: number };
 
 export type ResultMessage = {
   type: 'bm:result';
@@ -28,6 +30,15 @@ export function parseThemeMessage(data: unknown): ThemeMessage | null {
   const record = data as Record<string, unknown>;
   if (record.type !== 'bm:theme' || typeof record.dark !== 'boolean') return null;
   return { type: 'bm:theme', dark: record.dark };
+}
+
+/** 只接受有限的非负像素数。字符串、负数、NaN、Infinity 都丢掉。 */
+export function parseChromeMessage(data: unknown): ChromeMessage | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const record = data as Record<string, unknown>;
+  if (record.type !== 'bm:chrome' || typeof record.leadingClearance !== 'number') return null;
+  if (!Number.isFinite(record.leadingClearance) || record.leadingClearance < 0) return null;
+  return { type: 'bm:chrome', leadingClearance: record.leadingClearance };
 }
 
 export function parseResultMessage(data: unknown): ResultMessage | null {
@@ -67,6 +78,7 @@ export function postToParent(win: Window, parentOrigin: string | null, message: 
 export type BridgeOptions = {
   parentOrigin: string | null;
   onTheme: (dark: boolean) => void;
+  onChrome?: (leadingClearance: number) => void;
 };
 
 export function startBridge(win: Window, options: BridgeOptions): () => void {
@@ -77,6 +89,8 @@ export function startBridge(win: Window, options: BridgeOptions): () => void {
     if (event.origin !== parentOrigin || event.source !== win.parent) return;
     const theme = parseThemeMessage(event.data);
     if (theme) options.onTheme(theme.dark);
+    const chrome = parseChromeMessage(event.data);
+    if (chrome) options.onChrome?.(chrome.leadingClearance);
     const result = parseResultMessage(event.data);
     if (result?.requestId === undefined) return;
     const waiter = stateOf(win).waiters.get(result.requestId);

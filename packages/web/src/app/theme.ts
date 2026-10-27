@@ -72,7 +72,11 @@ export function initialTheme(embedded: boolean): Theme {
  * 根元素的 `data-theme`。
  * 独立打开：本地偏好（跟随系统 / 浅色 / 深色）；嵌入：只听 dsh 的 `bm:theme`，没有消息时跟随系统。
  */
-export function useTheme(parentOrigin: string | null, embedded: boolean): Theme {
+export function useTheme(
+  parentOrigin: string | null,
+  embedded: boolean,
+  onChrome?: (leadingClearance: number) => void,
+): Theme {
   const choice = useSyncExternalStore(subscribeThemePreference, getThemePreference, () => 'system' as ThemePreference);
   const [system, setSystem] = useState<Theme>(() => (window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light'));
   const [fromParent, setFromParent] = useState<Theme | null>(null);
@@ -89,8 +93,9 @@ export function useTheme(parentOrigin: string | null, embedded: boolean): Theme 
       startBridge(window, {
         parentOrigin: embedded ? parentOrigin : null,
         onTheme: (dark) => setFromParent(dark ? 'dark' : 'light'),
+        onChrome: embedded ? onChrome : undefined,
       }),
-    [embedded, parentOrigin],
+    [embedded, parentOrigin, onChrome],
   );
 
   const theme = embedded ? (fromParent ?? system) : themeFromPreference(choice, system === 'dark');

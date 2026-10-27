@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useLeadingClearance } from '../app/chrome';
 import { useLaunch, useViewport } from '../app/context';
 import { useOpenCapture } from '../ideas/capture/openCapture';
 import { useCommandPalette } from '../ideas/CommandPalette';
@@ -21,10 +22,15 @@ function isTyping(target: EventTarget | null): boolean {
 export function Header({ module, section, onSection, children, actions }: { module: WorkbenchModule; section: string; onSection: (id: string) => void; children?: ReactNode; actions?: ReactNode }) {
   const palette = useCommandPalette();
   const { embed } = useLaunch();
+  const leadingClearance = useLeadingClearance();
   const viewport = useViewport();
   const paletteButton = headerPaletteButton(() => palette.open());
+  const style: CSSProperties | undefined =
+    embed === 'main' && leadingClearance > 0
+      ? ({ '--bm-leading-clearance': `${leadingClearance}px` } as CSSProperties)
+      : undefined;
   return (
-    <header className={styles.head}>
+    <header className={styles.head} style={style}>
       <h1 className={styles.title}>{module.name}</h1>
       <div className={styles.seg} role="group" aria-label={`${module.name}页面`}>
         {module.sections.map((item) => (

@@ -14,6 +14,7 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const shell = { sidebarRight: null, ctx: null, baseUrl: '' }
     const frames = new Set()
+    const chromeSent = new WeakMap()
     const railIndex = { lists: new Map(), ideas: new Map() }
     const railClose = {
       entries: new Map(),
@@ -311,6 +312,26 @@ function appendQuote(draft, text) {
   return source.replace(/\s+$/, '') + ' ' + text + ' ';
 }
 
+/** 把 `--dsh-frame-leading-clearance` 解析成像素。空值、读不到、不是 px 都是 0。 */
+function parseLeadingClearance(raw) {
+  if (typeof raw !== 'string') return 0;
+  const match = /^(\d+(?:\.\d+)?)px$/.exec(raw.trim());
+  if (!match) return 0;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * 和上次发出的像素数相同就不重发。
+ * lastSent 为 null 表示还没发过，或刚收到 bm:ready、需要再发一次当前值。
+ * 返回要发送的像素数；null 表示这次跳过。
+ */
+function planChromePost(lastSent, next) {
+  if (typeof next !== 'number' || !Number.isFinite(next) || next < 0) return null;
+  if (lastSent === next) return null;
+  return next;
+}
+
 /**
  * Desktop 把快捷键交给 dsh 用的 iframe 标记。
  * 依据 S5（dsh 0.2.0-rc.2，提交 c1b47e41fc 的 apps/desktop/src/preload-app.ts）：
@@ -575,6 +596,32 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
       }
     }
 
+    function readLeadingClearance(frame) {
+      if (!frame || typeof getComputedStyle !== 'function') return 0
+      try {
+        return parseLeadingClearance(getComputedStyle(frame).getPropertyValue('--dsh-frame-leading-clearance'))
+      } catch {
+        return 0
+      }
+    }
+
+    /** 只发给主区框。force 用于 bm:ready：即使像素数没变也再发一次当前值。 */
+    function postChrome(frame, force) {
+      if (!frame || frame.getAttribute('name') !== MAIN_FRAME_NAME) return
+      const origin = messageOrigin(shell.baseUrl)
+      if (!origin || !frame.contentWindow) return
+      const value = readLeadingClearance(frame)
+      const lastSent = force || !chromeSent.has(frame) ? null : chromeSent.get(frame)
+      const next = planChromePost(lastSent, value)
+      if (next === null) return
+      try {
+        frame.contentWindow.postMessage({ type: 'bm:chrome', leadingClearance: next }, origin)
+        chromeSent.set(frame, next)
+      } catch {
+        // 框已经卸掉时忽略。
+      }
+    }
+
     function reply(source, origin, action, result, requestId) {
       if (!source || !origin) return
       const body = { type: 'bm:result', action, ok: result.ok === true }
@@ -619,7 +666,10 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
       const requestId = Object.prototype.hasOwnProperty.call(msg, 'requestId') ? msg.requestId : undefined
       if (msg.type === 'bm:ready') {
         const frame = [...frames].find((item) => item.contentWindow === event.source)
-        if (frame) postTheme(frame)
+        if (frame) {
+          postTheme(frame)
+          postChrome(frame, true)
+        }
         return
       }
       if (msg.type === 'bm:openSidebar') {
@@ -1112,11 +1162,18 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
         ctx.effect(() => {
           const onMessage = (event) => handleBridgeMessage(event)
           window.addEventListener('message', onMessage)
-          const observer = new MutationObserver(() => { frames.forEach((frame) => postTheme(frame)) })
-          observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+          const themeObserver = new MutationObserver(() => { frames.forEach((frame) => postTheme(frame)) })
+          themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+          const chromeObserver = new MutationObserver(() => { frames.forEach((frame) => postChrome(frame, false)) })
+          chromeObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['data-sidebar-collapsed', 'data-fullscreen'],
+            subtree: true,
+          })
           return () => {
             window.removeEventListener('message', onMessage)
-            observer.disconnect()
+            themeObserver.disconnect()
+            chromeObserver.disconnect()
           }
         }, 'bluemanta: bridge')
       },

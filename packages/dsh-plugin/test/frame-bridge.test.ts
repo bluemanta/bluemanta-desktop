@@ -1,7 +1,29 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { createContext, runInContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { appendQuote, embedFrameUrl, isOwnFrameMessage, messageOrigin, quoteText } from '../src/frame-bridge.js';
+
+function chromeFns(): {
+  parseLeadingClearance: (raw: unknown) => number;
+  planChromePost: (lastSent: number | null, next: number) => number | null;
+} {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const client = readFileSync(root + 'client.js', 'utf8');
+  const start = client.indexOf('function parseLeadingClearance');
+  const end = client.indexOf('/**\n * Desktop 把快捷键交给 dsh 用的 iframe 标记。');
+  if (start < 0 || end <= start) throw new Error('client.js 里没有留白解析函数');
+  const sandbox: {
+    parseLeadingClearance?: (raw: unknown) => number;
+    planChromePost?: (lastSent: number | null, next: number) => number | null;
+  } = {};
+  runInContext(
+    `${client.slice(start, end)}\nthis.parseLeadingClearance = parseLeadingClearance;\nthis.planChromePost = planChromePost;`,
+    createContext(sandbox),
+  );
+  if (!sandbox.parseLeadingClearance || !sandbox.planChromePost) throw new Error('没有取到留白函数');
+  return { parseLeadingClearance: sandbox.parseLeadingClearance, planChromePost: sandbox.planChromePost };
+}
 
 describe('消息来源', () => {
   const base = 'http://127.0.0.1:4310';
@@ -37,6 +59,21 @@ describe('消息来源', () => {
     expect(appendQuote('  ', '【灵感】')).toBe('【灵感】 ');
     expect(appendQuote('已有  ', '下一句')).toBe('已有 下一句 ');
   });
+
+  it('左上角留白：160px、84px、空值解析成 160、84、0，值不变不重发', () => {
+    const { parseLeadingClearance, planChromePost } = chromeFns();
+    expect(parseLeadingClearance('160px')).toBe(160);
+    expect(parseLeadingClearance('84px')).toBe(84);
+    expect(parseLeadingClearance('')).toBe(0);
+    expect(parseLeadingClearance('   ')).toBe(0);
+    expect(parseLeadingClearance(undefined)).toBe(0);
+    expect(planChromePost(null, parseLeadingClearance('160px'))).toBe(160);
+    expect(planChromePost(160, parseLeadingClearance('160px'))).toBeNull();
+    expect(planChromePost(160, parseLeadingClearance('84px'))).toBe(84);
+    expect(planChromePost(84, parseLeadingClearance(''))).toBe(0);
+    expect(planChromePost(0, parseLeadingClearance(''))).toBeNull();
+    expect(planChromePost(null, parseLeadingClearance(''))).toBe(0);
+  });
 });
 
 describe('浏览器端内嵌消息桥', () => {
@@ -53,6 +90,10 @@ describe('浏览器端内嵌消息桥', () => {
     expect(client).not.toContain('api/bluemanta/health');
     expect(client).toContain('api/bluemanta/web-config');
     expect(client).toContain('正在打开灵感台…');
+    expect(client).toContain("postMessage({ type: 'bm:chrome', leadingClearance: next }, origin)");
+    expect(client).toContain("frame.getAttribute('name') !== MAIN_FRAME_NAME");
+    expect(client).toContain("attributeFilter: ['data-sidebar-collapsed', 'data-fullscreen']");
+    expect(client).toContain('getPropertyValue(\'--dsh-frame-leading-clearance\')');
     expect(client).toContain("inject: ['slots', 'sidebarRightTabs', 'sidebarRight', 'sessions']");
   });
 });
