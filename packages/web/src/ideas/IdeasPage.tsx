@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppNavigate, useLaunch, useViewport } from '../app/context';
 import { describeError } from '../api/client';
 import { useIdea, useIdeaList, useIdeaSearch } from '../api/queries';
@@ -54,7 +54,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
   const navigate = useAppNavigate();
   const { embed } = useLaunch();
   const state = useIdeasState();
-  const { searchQuery, filters, tabs, openTab, closeTab, lastActive, listScroll, setQuery, clearFilters, capture, dirtyIds, discardSessions } = state;
+  const { searchQuery, filters, tabs, openTab, closeTab, lastActive, listScroll, setQuery, clearFilters, capture, dirtyIds, discardSessions, returnFocus } = state;
   const confirm = useConfirm();
   const toast = useToast();
   const openCapture = useOpenCapture();
@@ -70,7 +70,8 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
     setRestoreScroll(null);
   }, [listScroll]);
 
-  useEffect(() => {
+  // 绘制前打开标签，直接进入 /ideas/:id 时详情卡片和拖动条一起出现，不先闪一帧空清单。
+  useLayoutEffect(() => {
     if (activeId === null || narrow) return;
     const opened = openTab(activeId);
     lastActive.current = activeId;
@@ -136,13 +137,31 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
 
   const libraryEmpty = list.data?.count === 0;
   const showFiltersEmpty = !source.isPending && source.data && items.length === 0;
+  // 没有打开的标签时不渲染详情和拖动条，清单占满主列。窄屏本来就没有这张卡片。
+  const showDetail = !narrow && tabs.length > 0;
+
+  useLayoutEffect(() => {
+    if (showDetail) return;
+    const id = returnFocus.current;
+    if (!id) return;
+    const row = document.querySelector<HTMLElement>(
+      `[role="listbox"][aria-label="灵感清单"] [role="option"][data-id="${CSS.escape(id)}"]`,
+    );
+    const list = document.querySelector<HTMLElement>('[role="listbox"][aria-label="灵感清单"]');
+    const fallback = document.querySelector<HTMLElement>('[data-idea-list]');
+    const target = row ?? list ?? fallback;
+    if (!target) return;
+    returnFocus.current = null;
+    target.focus({ preventScroll: true });
+    if (row) row.scrollIntoView({ block: 'nearest' });
+  }, [showDetail, returnFocus, libraryEmpty, showFiltersEmpty, source.data]);
 
   let body;
   if (source.isPending && !source.data) {
     body = <IdeaListSkeleton />;
   } else if (!source.data) {
     body = (
-      <div className={styles.listArea}>
+      <div className={styles.listArea} tabIndex={-1} data-idea-list>
         <EmptyState
           icon="alert"
           tone="danger"
@@ -159,7 +178,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
     );
   } else if (libraryEmpty && !searching && !capture) {
     body = (
-      <div className={styles.listArea}>
+      <div className={styles.listArea} tabIndex={-1} data-idea-list>
         <EmptyState
           icon="idea"
           title="还没有灵感"
@@ -175,7 +194,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
     );
   } else if (showFiltersEmpty && !capture) {
     body = (
-      <div className={styles.listArea}>
+      <div className={styles.listArea} tabIndex={-1} data-idea-list>
         <EmptyState
           icon="search"
           title="没有匹配的灵感"
@@ -216,7 +235,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
       ) : null}
       <div className={styles.body} data-embed={embed ?? 'none'}>
         {body}
-        {narrow ? null : (
+        {showDetail ? (
           <>
             <Resizer width={width} onChange={setWidth} measure={() => panel.current?.getBoundingClientRect().width ?? 0} />
             <DetailPanel
@@ -230,7 +249,7 @@ function IdeasBoard({ activeId, narrow }: { activeId: string | null; narrow: boo
               onClose={onCloseTab}
             />
           </>
-        )}
+        ) : null}
       </div>
     </>
   );

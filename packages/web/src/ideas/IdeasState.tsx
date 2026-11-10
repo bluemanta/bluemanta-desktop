@@ -43,6 +43,8 @@ type IdeasState = {
   ignoreNextPop: RefObject<boolean>;
   /** J / K 移动后要聚焦的行。 */
   rowFocus: RefObject<string | null>;
+  /** 最后一个标签关掉后要回到的行；行不在清单里时聚焦清单本身。 */
+  returnFocus: RefObject<string | null>;
 };
 
 const Context = createContext<IdeasState | null>(null);
@@ -66,6 +68,7 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
   const captureActions = useRef<EditorActions | null>(null);
   const ignoreNextPop = useRef(false);
   const rowFocus = useRef<string | null>(null);
+  const returnFocus = useRef<string | null>(null);
   const tabsRef = useRef(tabs);
   tabsRef.current = tabs;
   const dirtyIds = useMemo(() => new Set(Object.entries(sessions).filter(([, session]) => session.dirty).map(([id]) => id)), [sessions]);
@@ -107,10 +110,12 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const closeTab = useCallback((id: string) => {
+    const had = tabsRef.current.includes(id);
     const result = closeTabIn(tabsRef.current, id);
     tabsRef.current = result.tabs;
     setTabs(result.tabs);
     if (lastActive.current === id) lastActive.current = result.neighbor;
+    if (had && result.tabs.length === 0) returnFocus.current = id;
     return result.neighbor;
   }, []);
 
@@ -202,6 +207,7 @@ export function IdeasStateProvider({ children }: { children: ReactNode }) {
       captureActions,
       ignoreNextPop,
       rowFocus,
+      returnFocus,
     }),
     [
       query,

@@ -60,15 +60,6 @@ export const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(function De
           <IdeaDetailView id={id} />
         </div>
       ))}
-      {activeId === null ? (
-        <div className={styles.scroll}>
-          <p className={styles.placeholder}>
-            在左边选一条灵感，详情会在这里打开。
-            <br />
-            可以同时打开多条，用上方的标签切换。
-          </p>
-        </div>
-      ) : null}
     </aside>
   );
 });

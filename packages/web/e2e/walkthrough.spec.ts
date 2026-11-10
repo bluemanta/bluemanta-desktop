@@ -324,11 +324,141 @@ test.describe('详情', () => {
   });
 });
 
+test.describe('没有打开的灵感', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('清单占满主列；打开后用已保存宽度；关掉最后一个标签回到对应行', async ({ page }) => {
+    await openApp(page);
+    await expectDetailHidden(page);
+    await expectListFillsMain(page);
+
+    await page.keyboard.press('j');
+    await expect(detail(page)).toBeVisible();
+    expect(await detailWidth(page)).toBe(420);
+    const title = await detail(page).getByRole('heading', { level: 2 }).innerText();
+    const opened = row(page, title);
+    await detail(page).getByRole('button', { name: `关闭「${title}」` }).click();
+    await expectDetailHidden(page);
+    await expect(opened).toBeFocused();
+    await expectListFillsMain(page);
+
+    await page.keyboard.press('p');
+    const palette = page.getByRole('dialog', { name: '命令面板' });
+    await palette.getByRole('combobox', { name: '命令面板' }).fill(SEEDED.rich);
+    await palette.getByRole('option', { name: SEEDED.rich }).click();
+    await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    await expect(page.getByRole('separator', { name: '调整详情宽度' })).toBeVisible();
+
+    await page.evaluate(() => window.localStorage.setItem('bluemanta.detailWidth', '480'));
+    const direct = page.url();
+    await page.goto(direct);
+    await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    expect(await detailWidth(page)).toBe(480);
+    await expect(page.getByRole('separator', { name: '调整详情宽度' })).toBeVisible();
+  });
+
+  test('↵ 打开焦点行，关闭后卡片收起', async ({ page }) => {
+    await openApp(page);
+    const target = row(page, SEEDED.rich);
+    await target.focus();
+    await page.keyboard.press('Enter');
+    await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    await detail(page).getByRole('button', { name: `关闭「${SEEDED.rich}」` }).click();
+    await expectDetailHidden(page);
+    await expect(target).toBeFocused();
+  });
+
+  test('对应行不在清单里时，关掉标签后焦点回到清单', async ({ page }) => {
+    await openApp(page);
+    await row(page, SEEDED.rich).click();
+    await page.getByRole('searchbox', { name: '搜索灵感' }).fill('播客');
+    await expect(row(page, SEEDED.rich)).toHaveCount(0);
+    await expect(rows(page).first()).toBeVisible();
+    await detail(page).getByRole('button', { name: `关闭「${SEEDED.rich}」` }).click();
+    await expectDetailHidden(page);
+    await expect(page.getByRole('listbox', { name: '灵感清单' })).toBeFocused();
+
+    await row(page, '英语播客每天听 15 分钟').click();
+    await page.getByRole('searchbox', { name: '搜索灵感' }).fill('没有这条灵感');
+    await expect(page.getByRole('heading', { name: '没有匹配的灵感' })).toBeVisible();
+    await detail(page).getByRole('button', { name: '关闭「英语播客每天听 15 分钟」' }).click();
+    await expectDetailHidden(page);
+    await expect(page.locator('[data-idea-list]')).toBeFocused();
+  });
+
+  test('移入回收站后最后一个标签收起，焦点回到清单', async ({ page }) => {
+    await openApp(page);
+    const listed = await page.request.get(`${app.url}/api/v1/ideas`, {
+      headers: { authorization: `Bearer ${app.token}` },
+    });
+    const record = ((await listed.json()) as { items: { id: string; title: string; rev: number }[] }).items.find(
+      (item) => item.title === SEEDED.rich,
+    );
+    if (!record) throw new Error('没有找到要移入回收站的灵感');
+    await page.route('**/api/v1/ideas/**/trash', async (route) => {
+      await route.fulfill({
+        json: { ok: true, record: { ...record, deletedAt: new Date().toISOString(), rev: record.rev + 1 } },
+      });
+    });
+    await row(page, SEEDED.rich).click();
+    await detail(page).getByRole('button', { name: '移入回收站' }).click();
+    await expect(page.getByRole('status')).toContainText('已移入回收站');
+    await expectDetailHidden(page);
+    await expect(row(page, SEEDED.rich)).toHaveCount(0);
+    await expect(page.getByRole('listbox', { name: '灵感清单' })).toBeFocused();
+  });
+
+  test('灵感从清单消失后，最后一个标签自动收起', async ({ page }) => {
+    await page.clock.install();
+    await openApp(page);
+    await row(page, SEEDED.rich).click();
+    await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+    const id = decodeURIComponent(new URL(page.url()).pathname.split('/').pop() ?? '');
+    await page.route('**/api/v1/ideas', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname !== '/api/v1/ideas' || url.searchParams.has('q') || url.searchParams.get('scope') === 'trash') {
+        await route.continue();
+        return;
+      }
+      const response = await route.fetch();
+      const json = (await response.json()) as { items: { id: string }[]; count: number };
+      json.items = json.items.filter((item) => item.id !== id);
+      json.count = json.items.length;
+      await route.fulfill({ json });
+    });
+    await page.clock.runFor(5_100);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expectDetailHidden(page);
+    await expect(page.getByRole('listbox', { name: '灵感清单' })).toBeFocused();
+  });
+});
+
+async function expectDetailHidden(page: Page): Promise<void> {
+  await expect(detail(page)).toHaveCount(0);
+  await expect(page.getByRole('separator', { name: '调整详情宽度' })).toHaveCount(0);
+  await expect(page.getByText('在左边选一条灵感，详情会在这里打开。')).toHaveCount(0);
+}
+
+async function expectListFillsMain(page: Page): Promise<void> {
+  const main = await page.getByRole('main').boundingBox();
+  const list = await page.getByRole('listbox', { name: '灵感清单' }).boundingBox();
+  expect(main).not.toBeNull();
+  expect(list).not.toBeNull();
+  expect(Math.abs(main!.x - list!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(main!.x + main!.width - (list!.x + list!.width))).toBeLessThanOrEqual(1);
+}
+
+async function detailWidth(page: Page): Promise<number> {
+  return Math.round((await detail(page).boundingBox())!.width);
+}
+
 test.describe('窄屏', () => {
   test('整页详情与「← 返回」，返回后恢复滚动位置', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
     await openApp(page);
     await expect(page.getByRole('navigation', { name: '模块' })).toHaveCount(0);
+    await expect(detail(page)).toHaveCount(0);
+    await expect(page.getByRole('separator', { name: '调整详情宽度' })).toHaveCount(0);
     // 只留星标、标题、分类、时间：摘要、图片与延展计数、来源徽标都不显示
     const rich = row(page, SEEDED.rich);
     await expect(rich.getByRole('button', { name: '取消收藏' })).toBeVisible();

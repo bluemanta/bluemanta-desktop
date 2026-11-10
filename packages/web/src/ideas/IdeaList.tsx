@@ -45,7 +45,7 @@ export function IdeaList({ sections, query, selectedId, nowMs, onOpen, restoreSc
   const open = (id: string) => onOpen(id, scroller.current?.scrollTop ?? 0);
 
   return (
-    <div ref={scroller} className={styles.list} role="listbox" aria-label="灵感清单">
+    <div ref={scroller} className={styles.list} role="listbox" aria-label="灵感清单" tabIndex={-1}>
       {header}
       {sections.map((section) => (
         <Section key={section.key} section={section} query={query} selectedId={selectedId} nowMs={nowMs} onOpen={open} />

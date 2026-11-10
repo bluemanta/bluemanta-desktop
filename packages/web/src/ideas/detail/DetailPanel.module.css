@@ -126,12 +126,3 @@
 .scroll[hidden] {
   display: none;
 }
-
-.placeholder {
-  margin: var(--bm-sp-48) auto 0;
-  max-width: var(--bmw-empty-max);
-  text-align: center;
-  color: var(--bm-text-3);
-  font-size: var(--bm-fs-sm);
-  line-height: var(--bmw-lh-body);
-}

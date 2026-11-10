@@ -41,6 +41,29 @@ for (const theme of ['light', 'dark'] as const) {
   }
 }
 
+for (const embed of ['standalone', 'main'] as const) {
+  for (const theme of ['light', 'dark'] as const) {
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1280, height: 800 },
+    ]) {
+      const size = `${viewport.width}x${viewport.height}`;
+      test(`没有打开灵感与打开一条 ${embed} ${size} ${theme}`, async ({ browser }) => {
+        const context = await browser.newContext({ viewport, colorScheme: theme });
+        const page = await context.newPage();
+        await openApp(page, { shot: true, search: embed === 'main' ? '?embed=main' : undefined });
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(detail(page)).toHaveCount(0);
+        await shoot(page, `t21-closed-${embed}-${size}-${theme}`);
+        await row(page, SEEDED.rich).click();
+        await expect(detail(page).getByRole('heading', { level: 2 })).toHaveText(SEEDED.rich);
+        await shoot(page, `t21-open-${embed}-${size}-${theme}`);
+        await context.close();
+      });
+    }
+  }
+}
+
 test.describe('状态 1440 浅色', () => {
   test.use({ viewport: { width: 1440, height: 900 }, colorScheme: 'light' });
 
