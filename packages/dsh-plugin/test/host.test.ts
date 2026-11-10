@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,10 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL } from '@bluemanta/cli/knowledge-tools';
 import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
-
-const KNOWLEDGE_FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 import type { FetchRoute, HostContext, ToolRegistration } from '../src/context.js';
 import { resolveDataDir } from '../src/data-dir.js';
+import { DSH_ENGINE_RANGE, DSH_REFERENCE_VERSION } from '../src/dsh-smoke-plan.js';
 import {
   apply,
   IDEA_CAPTURE_TOOL,
@@ -19,6 +19,13 @@ import {
   WEB_CONFIG_PATH,
   type LocalServer,
 } from '../src/index.js';
+
+const require = createRequire(import.meta.url);
+const semver = require('semver') as {
+  satisfies(version: string, range: string, options?: { includePrerelease?: boolean }): boolean;
+};
+
+const KNOWLEDGE_FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 
 describe('数据目录', () => {
   it('空白环境变量回退到默认目录，其它值原样使用去掉首尾空白后的路径', () => {
@@ -130,14 +137,19 @@ describe('包清单与浏览器端', () => {
   it('声明组合包、client 入口和嵌入页', () => {
     const root = fileURLToPath(new URL('..', import.meta.url));
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+      engines?: { node?: string; dsh?: string };
       dsh: { bundle: { patch: string }; client: { platform: string; immediately: boolean; inject: string[] } };
       exports: { '.': { import: string }; './client': string };
       dependencies?: Record<string, string>;
       peerDependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    expect(pkg.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.1-rc.2');
-    expect(pkg.devDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.1-rc.2');
+    expect(pkg.engines?.node).toBe('>=24');
+    expect(pkg.engines?.dsh).toBe(DSH_ENGINE_RANGE);
+    expect(pkg.engines?.dsh).toBe('>=0.2.1-rc.2 <0.3.0-0');
+    expect(pkg.peerDependencies?.['@deepseek-ai/dsh-tools']).toBe(DSH_ENGINE_RANGE);
+    expect(pkg.devDependencies?.['@deepseek-ai/dsh-tools']).toBe(DSH_REFERENCE_VERSION);
+    expect(pkg.devDependencies?.['@deepseek-ai/dsh-tools']).toBe('0.2.2-rc.1');
     expect(pkg.dependencies?.['@deepseek-ai/dsh-tools']).toBeUndefined();
     expect(pkg.dsh.bundle.patch).toBe('./cordis.patch.yml');
     expect(pkg.dsh.client).toEqual({
@@ -178,5 +190,16 @@ describe('包清单与浏览器端', () => {
     const withoutBrandColors = client.replaceAll('#2A715A', '').replaceAll('#FFFFFF', '');
     expect(withoutBrandColors).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(client).not.toMatch(/rgba?\(/);
+  });
+
+  it('用 dsh 的方式判断 engines.dsh：预发布版本参与范围匹配', () => {
+    const range = '>=0.2.1-rc.2 <0.3.0-0';
+    const options = { includePrerelease: true };
+    for (const version of ['0.2.1-rc.2', '0.2.2-rc.1', '0.2.2', '0.2.9']) {
+      expect(semver.satisfies(version, range, options)).toBe(true);
+    }
+    for (const version of ['0.2.1-rc.1', '0.3.0-alpha.1', '0.3.0']) {
+      expect(semver.satisfies(version, range, options)).toBe(false);
+    }
   });
 });
