@@ -43,6 +43,7 @@
 | 2026-10-18 | dsh 锁定版本升到 0.2.1-rc.2，参考源码改为上游提交 `d1b9c04067`（[ADR 0007](decisions/0007-dsh-0-2-1-rc-2.md)） |
 | 2026-10-22 | 新增工作台第二个模块「Skill 台」：在网页里看清本机 skill 装在哪些工具里、是否正常、dsh 能否用到。早先的 skill-board 原型不原样嵌入，重写进本仓库，与灵感台同一套外壳和设计规范；skill 正本仍是 AgentSkillRepos 与 manifest.yaml；先只读。相关任务由 Codex 实现（[ADR 0008](decisions/0008-skill-desk.md)） |
 | 2026-10-26 | 启动阶段 3「知识台」：照 SalesOS Arsenal 的体系组织本机知识库，资料不搬家、统一搜索。个人库新建在 `~/Documents/Knowledge`（按人生领域分类）；Arsenal 只读挂载；Obsidian 等已有资料先在主题里登记引用、以后经 `_Inbox` 逐步入库；第一版只做本机全文检索；验收用用户出的 10 个真实问题。长期知识的正本是 Markdown 库，Desktop 只建可重建的索引；灵感仍是卡片。阶段 3 由 Claude Code 自己规划和开发（[ADR 0009](decisions/0009-knowledge-desk.md)，[计划](phase-3.md)） |
+| 2026-11-10 | dsh 分开「API 参考版本」和「允许运行的版本范围」：参考版本升到 0.2.2-rc.1（上游提交 `2f97f60455`），插件用 `engines.dsh` 声明运行范围 `>=0.2.1-rc.2 <0.3.0-0`，0.2.x 内的自动升级不再拒载；升级后用 `npm run dsh:smoke` 自检（[ADR 0010](decisions/0010-dsh-version-range.md)） |
 
 ## 架构
 
