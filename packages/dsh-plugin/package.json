@@ -5,7 +5,8 @@
   "description": "bluemanta Desktop 的 dsh 插件：嵌入网页版灵感台，并保留 agent 工具与工具卡片",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24",
+    "dsh": ">=0.2.1-rc.2 <0.3.0-0"
   },
   "exports": {
     ".": {
@@ -50,10 +51,10 @@
     "@bluemanta/server": "file:../server"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-tools": "0.2.1-rc.2"
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.2 <0.3.0-0"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
     "@types/node": "^24.7.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

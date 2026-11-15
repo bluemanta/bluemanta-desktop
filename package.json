@@ -24,6 +24,7 @@
     "test": "npm run test:pr && npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "dev:dsh": "node packages/dsh-plugin/scripts/dev-dsh.mjs",
+    "dsh:smoke": "node packages/dsh-plugin/scripts/dsh-smoke.mjs",
     "import:workbench": "node packages/importer/dist/cli.js",
     "idea": "node packages/cli/dist/idea.js",
     "knowledge": "node packages/cli/dist/knowledge.js",
