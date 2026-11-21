@@ -56,3 +56,22 @@
 
 1. 复核 R1–R3 的提交和路径；重跑构建、测试和全量走查（`BLUEMANTA_PW_CHANNEL=chrome`）。
 2. 经 Chris 同意后，用真实 PersonalOS 只读试跑：今天页与晨间简报一致；任选三个领域核对详情；动态页条目数与日志条目数一致；前后 PersonalOS 的 Git 工作区和提交不变。
+
+## 4. 返工验收与真实只读试跑（2026-11-21）
+
+结论：**迭代 1 验收通过。** 接下来做迭代 2，什么时候开始由 Chris 定。
+
+| 项 | 结果 | 命令与结果 |
+|---|---|---|
+| 返工提交与路径 | verified | R1 `bbb7748`、R2 `cb527f8`、R3 `b2401af`，各一笔，改动都在返工单列的允许路径内。工作区唯一未提交的是 Codex 留下的 R3 SHA 补记（一行）。 |
+| R1 代码 | verified | `parseLog`：不缩进的日期行一律算条目，不计入小节正文；`[…]` 和已登记领域名（含「我」）一致才填 `domain`，否则填 `tag`。接口加了 `unassigned=0/1`；动态页有灰色标签和「未归领域」选项。fixture 补齐了第 9 节新增的三种情形。 |
+| 构建、类型、单测 | verified | fixture 环境下 `npm run build && npm run check && npm test` 退出 0，各 workspace 合计 422 项通过。 |
+| 全量走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`：166 passed，退出 0。上次失败的 2 条已通过。 |
+| 真实数据前后快照 | verified | 试跑前后 PersonalOS 的 HEAD 相同，`git status --porcelain --untracked-files=all` 都为空，`.gitdata.nosync` 以外 30 个文件的 SHA-256 完全一致。查 Git 时设了 `GIT_OPTIONAL_LOCKS=0`，避免改写索引。 |
+| 今天页对晨间简报 | verified | 临时服务：`cli.js start --data-dir <临时目录> --port 4391`，不设 `BLUEMANTA_KNOWLEDGE_HOME` 和 `BLUEMANTA_TODAY`，所以读真实目录、用本机当天日期。今天页分组为逾期 1、今天 0、未来 7 天 0、等待 0、无日期 0、更晚 1，没有过期领域，收件箱 0。按 `协议/晨间简报.md` 第 5 步的顺序对照，结果一致。独立 `grep` 核对：全库未完成待办只在一个领域里有 2 条；蓝图里的示例待办没有被计入，符合预期。各领域「更新于」日期和「待补充」次数都与 `grep` 结果一致。 |
+| 三个领域详情 | verified | 抽了三个领域，`##` 节名、挂接卡片数、近期变化条数、待办数都与源文件一致。文件接口返回的内容与源文件逐字相同。 |
+| 动态页 | verified | 真实日志：`grep` 数出 39 条条目、7 个小节，接口也是 39 和 7。7 条条目的方括号标签不是领域名，都进了 `tag`；小节正文里不再有日期条目。浏览器里打开动态页，控制台没有报错。 |
+| 隐藏路径 | verified | 读 `.claude/…`、`.gitdata.nosync/…` 都返回 400；所有接口的返回里都没有点开头的路径。 |
+| 外部来源 | not-run | 晨间简报里的日历、Linear、SalesOS 现查不是看板的范围。 |
+
+试跑结束：临时服务已停，临时数据目录已删；开机自启的 4310 服务没有动。
