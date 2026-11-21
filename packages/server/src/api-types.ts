@@ -1,3 +1,13 @@
+import type {
+  PersonalOsDocument,
+  PersonalOsDomain,
+  PersonalOsFile,
+  PersonalOsLog,
+  PersonalOsOverview,
+  PersonalOsRegistryRow,
+  PersonalOsToday,
+} from '@bluemanta/knowledge';
+
 /**
  * `/api/v1` 返回给网页的数据形状。网页（packages/web）直接引用这些类型。
  * 灵感接口不含本机路径、数据目录和口令。Skill 台是本机模块，路径仅用于显示且 home 缩写为 `~`。
@@ -241,6 +251,9 @@ export type ApiErrorCode =
   | 'knowledge_library_missing'
   | 'knowledge_invalid_path'
   | 'knowledge_read_error'
+  | 'library_missing'
+  | 'invalid_path'
+  | 'read_error'
   | 'internal';
 
 export type ApiFailure = {
@@ -391,3 +404,18 @@ export type KnowledgeRouteCandidate = {
 };
 
 export type KnowledgeRouteResponse = { ok: true; query: string; candidates: KnowledgeRouteCandidate[] };
+
+
+/** PersonalOS is a local read-only library; all source content stays in its Markdown files. */
+export type PersonalOsOverviewResponse = { ok: true; documents: PersonalOsDocument[] } & PersonalOsOverview;
+export type PersonalOsTodayResponse = { ok: true } & PersonalOsToday;
+export type PersonalOsDomainResponse = { ok: true } & PersonalOsDomain;
+export type PersonalOsRegistryResponse = { ok: true; items: PersonalOsRegistryRow[] };
+export type PersonalOsLogResponse = { ok: true } & PersonalOsLog;
+export type PersonalOsFileResponse = {
+  ok: true;
+  library: KnowledgeLibrary;
+  file: PersonalOsFile;
+  /** Display-only path, with the injected home directory abbreviated to ~. */
+  displayPath: string;
+};

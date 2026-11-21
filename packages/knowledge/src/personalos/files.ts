@@ -13,10 +13,22 @@ export function normalizePersonalOsPath(input: string): string {
 function within(root: string, target: string): boolean {
   const rel = relative(root, target); return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..' && !isAbsolute(rel));
 }
+/** Filesystem access faults are read errors; malformed paths and link loops remain client errors. */
+function pathFailure(error: unknown): KnowledgeError {
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ELOOP' || code === 'ENOTDIR'
+    ? new KnowledgeError('invalid_path', '文件路径无法安全读取')
+    : new KnowledgeError('read_error', '无法读取文件路径');
+}
 /** Check every existing ancestor too: nonexistent targets must not bypass a parent symlink. */
 function physical(root: string, target: string, placeholder = false): string {
   let realRoot: string;
-  try { realRoot = realpathSync(root); } catch { throw new KnowledgeError('library_missing', '没有找到 PersonalOS'); }
+  try { realRoot = realpathSync(root); }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') throw new KnowledgeError('library_missing', '没有找到 PersonalOS');
+    throw pathFailure(error);
+  }
   if (!within(resolve(root), resolve(target))) throw new KnowledgeError('invalid_path', '路径不能越出 PersonalOS');
   let ancestor = target;
   while (true) {
@@ -25,9 +37,12 @@ function physical(root: string, target: string, placeholder = false): string {
     catch (error) {
       if (ancestor === root || dirname(ancestor) === ancestor) throw new KnowledgeError('read_error', '无法检查文件路径');
       // Only missing nodes may fall back to their parent; permissions and link loops are errors.
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new KnowledgeError('invalid_path', '文件路径无法安全读取');
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw pathFailure(error);
       try { if (lstatSync(ancestor).isSymbolicLink()) throw new KnowledgeError('invalid_path', '文件链接无法安全读取'); }
-      catch (linkError) { if (linkError instanceof KnowledgeError) throw linkError; }
+      catch (linkError) {
+        if (linkError instanceof KnowledgeError) throw linkError;
+        if ((linkError as NodeJS.ErrnoException).code !== 'ENOENT') throw pathFailure(linkError);
+      }
       ancestor = dirname(ancestor); continue;
     }
     if (!within(realRoot, actual)) throw new KnowledgeError('invalid_path', '路径指向 PersonalOS 之外');
@@ -39,7 +54,14 @@ function physical(root: string, target: string, placeholder = false): string {
 export function resolvePersonalOsPath(root: string, path: string): string {
   const rel = normalizePersonalOsPath(path); return physical(resolve(root), join(resolve(root), ...rel.split('/')));
 }
-export function personalOsExists(root: string): boolean { try { return statSync(root).isDirectory(); } catch { return false; } }
+export function personalOsExists(root: string): boolean {
+  try { return statSync(root).isDirectory(); }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return false;
+    throw pathFailure(error);
+  }
+}
 export function isPersonalOsDirectory(root: string, path: string): boolean {
   try { return statSync(resolvePersonalOsPath(root, path)).isDirectory(); } catch { return false; }
 }
@@ -54,13 +76,14 @@ export function readPersonalOsFile(root: string, path: string): FileContent {
   let info: ReturnType<typeof statSync>;
   try { info = statSync(absolute); }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw new KnowledgeError('read_error', '文件读取失败');
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw pathFailure(error);
     const placeholder = join(dirname(absolute), `.${basename(absolute)}.icloud`);
     try {
       physical(resolve(root), placeholder, true);
       if (statSync(placeholder).isFile()) return { ...metadata(rel, placeholder, 'icloud'), message: '尚未从 iCloud 下载' };
     } catch (placeholderError) {
-      if (placeholderError instanceof KnowledgeError && placeholderError.code !== 'read_error') throw placeholderError;
+      if (placeholderError instanceof KnowledgeError) throw placeholderError;
+      if ((placeholderError as NodeJS.ErrnoException).code !== 'ENOENT') throw pathFailure(placeholderError);
     }
     throw new KnowledgeError('not_found', '文件不存在');
   }

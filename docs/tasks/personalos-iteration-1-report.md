@@ -53,3 +53,37 @@ npm run build && npm run check && npm test
 缺目录的财务同时没有更新日期，按规格纳入 staleDomains；现存领域中 3 个超过 14 天、园艺无日期。iCloud 以逻辑文件名返回 availability=icloud，不暴露隐藏占位路径。fixture 的 .DS_Store 是纯文本排除测试哨兵，按具体路径强制加入（未改 .gitignore）。真实库验收不在本轮范围。
 
 提交 SHA：提交完成后补记于下方。
+
+P1 提交 SHA：`2cc750fe36a399fbc5d668323baf8add4658d441`。
+
+## P2 本地服务 PersonalOS 只读接口
+
+### 实现与偏离
+
+六个 GET 接口接入共享 Bearer / Host 校验，响应均 no-store；公共响应类型位于 api-types.ts。错误区分 library_missing / invalid_path / not_found / read_error；普通文件仅元信息，iCloud 明确未下载。
+
+为支持规格 4.3 的入口说明/协议/蓝图导航，概览增加只读 `documents` 列表（加法字段，不改变原字段）。文件接口保留 v1 的 library/file/displayPath 形状，领域详情按规格顶层平铺。
+
+knowledge/src 两处小改均为接口所需：旧 getLibrary 拒绝 PersonalOS，阻断旧 HTTP 与 agent 文件通道绕过新隐藏路径规则；文件路径探测区分真实权限/I/O 故障与非法路径。没有改允许范围外文件。权限回归先实际复现旧实现误返回400，修复后为500。
+
+### 验收
+
+1. **verified**：与 P1 相同 fixture 环境下执行 `npm run build && npm run check && npm test`，最终退出 0。15 个 PR 检查器单测 + 400 个 workspace 单测全通过，合计415。server 99（新增 PersonalOS 22）、knowledge 72；两条真实 chmod 权限测试在当前普通用户实际执行，无跳过。用例各自在 finally 恢复临时目录权限。
+2. **verified**：运行 `node --input-type=module` 启动构建产物 `startServer`，BLUEMANTA_KNOWLEDGE_HOME 指向 fixture、BLUEMANTA_TODAY=2026-11-21，数据目录由 mkdtemp 创建在 bm-pos/packages/server/dist，随机127.0.0.1端口。逐条执行 `curl --silent --show-error --fail-with-body --max-time 10 -H 'Authorization: Bearer <临时口令>' http://127.0.0.1:<临时端口>/api/v1/<路径>`，以下均200；口令未打印，finally关闭服务并清理本次临时目录。
+
+| curl 路径 | 实际结果摘要 |
+|---|---|
+| personalos | exists=true，10领域，inbox=3，root=~/Documents/PersonalOS |
+| personalos/today | 2 / 1 / 2 / 1 / 5 / 1 |
+| personalos/domains/工作（URL编码） | id=工作，todos=3，mounts=2 |
+| personalos/registry | items=9 |
+| personalos/log | items=6，hasMore=true |
+| personalos/files/我/状态.md（分段URL编码） | kind=markdown，availability=available，path为库内相对路径 |
+
+3. **verified**：全仓命令中的旧 `test/knowledge-api.test.ts` 10项全部通过；新增测试也验证personal/arsenal仍可读、旧personalos文件入口404拒读。
+4. **verified**：`npm run test -w @bluemanta/server -- test/personalos-api.test.ts`（agent局部验证）22项通过：六接口鉴权/Host/no-store/形状、缺库、非法/隐藏/越界路径、缺文件、日期覆盖、每次重读、iCloud、资料路径、日志筛选、读取异常脱敏与真实EACCES分支。
+5. **not-run**：Playwright走查，原因同P1（所需chromium-1248未缓存），未下载浏览器。
+
+已知问题：没有剩余单元测试或类型失败；真实库与Desktop运行验收未执行，属于用户保留的后续验收范围。
+
+提交 SHA：提交完成后补记于下方。

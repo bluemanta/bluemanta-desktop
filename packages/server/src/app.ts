@@ -44,6 +44,7 @@ import { isEditedHistory, sortIdeas, toAttachmentMeta, toIdeaRecord } from './re
 import { SERVER_VERSION } from './version.js';
 import { createSkillsApi } from './skills-api.js';
 import { createKnowledgeApi } from './knowledge-api.js';
+import { createPersonalOsApi } from './personalos-api.js';
 
 /** 服务只用到 core 的这些方法，测试可以换成同形状的对象。 */
 export type ServerCore = Pick<
@@ -242,6 +243,7 @@ export function createApp(options: CreateAppOptions): Hono {
   app.route('/api/v1', createSkillsApi(options.skillEnv ?? defaultSkillEnv()));
 
   const knowledgeEnv = options.knowledgeEnv ?? defaultKnowledgeEnv();
+  app.route('/api/v1', createPersonalOsApi(knowledgeEnv));
   let knowledgeIndex = options.knowledgeIndex;
   app.route(
     '/api/v1',
