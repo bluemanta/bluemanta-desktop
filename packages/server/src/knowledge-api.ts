@@ -92,6 +92,7 @@ function hitView(hit: SearchHit): KnowledgeSearchHit {
 export type KnowledgeApiOptions = {
   env: KnowledgeEnv;
   /** Created on first use so requests that never search do not touch the index file. */
+  personalOsVersion?: () => string;
   index: () => KnowledgeIndex;
 };
 
@@ -168,6 +169,7 @@ export function createKnowledgeApi(options: KnowledgeApiOptions): Hono {
     }
   });
 
+  let lastSearchVersion: string | undefined;
   app.get('/knowledge/search', (c) => {
     const params = new URL(c.req.url).searchParams;
     const query = params.get('q')?.trim() ?? '';
@@ -178,7 +180,11 @@ export function createKnowledgeApi(options: KnowledgeApiOptions): Hono {
     if (libraries.some((id) => !LIBRARY_ID.test(id))) return failure(c, 400, 'invalid_input', '库 id 不合法');
     const ideas = params.get('ideas');
     if (ideas !== null && ideas !== '0' && ideas !== '1') return failure(c, 400, 'invalid_input', 'ideas 只能是 0 或 1');
-    const result = options.index().search(query, {
+    const index = options.index();
+    const version = options.personalOsVersion?.();
+    if (lastSearchVersion !== undefined && version !== lastSearchVersion) index.refreshPersonalOs();
+    lastSearchVersion = version;
+    const result = index.search(query, {
       limit,
       includeIdeas: ideas !== '0',
       ...(libraries.length > 0 ? { libraries } : {}),

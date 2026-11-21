@@ -428,3 +428,4 @@ export type PersonalOsFileResponse = {
 
 export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommits>>;
 export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
+export type PersonalOsVersionResponse = {ok:true} & ReturnType<import('@bluemanta/knowledge').PersonalOsVersion['current']>;

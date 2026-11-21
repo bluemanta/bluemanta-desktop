@@ -25,7 +25,7 @@ function fetchPage(domains:string[],unassigned:boolean,skip:number,limit:number,
   return apiJson<GitCommitsResponse>(api+'?'+params,{signal});
 }
 export function useDomainCommits(domain:string) {
-  return useQuery({queryKey:['pos-git','domain',domain],staleTime:30000,queryFn:({signal})=>fetchPage([domain],false,0,10,signal)});
+  return useQuery({queryKey:['pos-git','domain',domain],refetchInterval:30000,staleTime:30000,queryFn:({signal})=>fetchPage([domain],false,0,10,signal)});
 }
 function Row({item,tags=true,selected=false}:{item:Commit;tags?:boolean;selected?:boolean}) {
   const navigate=useAppNavigate();
@@ -46,7 +46,7 @@ function Unavailable({reason,retry}:{reason:string;retry:()=>void}) {
 }
 function CommitDetail({sha}:{sha:string}) {
   const navigate=useAppNavigate();
-  const q=useQuery({queryKey:['pos-git','commit',sha],queryFn:({signal})=>apiJson<GitCommitResponse>(api+'/'+sha,{signal}),staleTime:30000});
+  const q=useQuery({queryKey:['pos-git','commit',sha],queryFn:({signal})=>apiJson<GitCommitResponse>(api+'/'+sha,{signal}),refetchInterval:30000,staleTime:30000});
   if(!q.data) return q.isError?<Banner onRetry={()=>void q.refetch()}>{describeError(q.error)}</Banner>:<p>正在读取提交…</p>;
   if(!q.data.available) return <Unavailable reason={q.data.reason} retry={()=>void q.refetch()}/>;
   const c=q.data.commit;
@@ -71,7 +71,7 @@ function CommitTimeline({sha,preset}:{sha:string|null;preset:string|null}) {
   const q=useInfiniteQuery({queryKey:['pos-git','pages',domains,unassigned],initialPageParam:0,
     queryFn:({signal,pageParam})=>fetchPage(domains,unassigned,pageParam,30,signal),
     getNextPageParam:(last,_pages,offset)=>last.available && last.hasMore?offset+last.commits.length:undefined,
-    staleTime:30000});
+    refetchInterval:30000,staleTime:30000});
   useNavigationKeys(root,false,sha?()=>navigate(base):null);
   const first=q.data?.pages[0];
   const commits=q.data?.pages.flatMap(p=>p.available?p.commits:[]) ?? [];

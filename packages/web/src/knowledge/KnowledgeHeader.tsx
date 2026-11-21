@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppNavigate } from '../app/context';
+import { ReadTime } from './PersonalOsRefresh';
 import { Header } from '../shell/Header';
 import { Icon } from '../ui/Icon';
 import headerStyles from '../shell/Header.module.css';
@@ -40,6 +41,7 @@ export function KnowledgeHeader({ section, query = '' }: { section: KnowledgeSec
         if (target) navigate(target.path);
       }}
     >
+      <ReadTime />
       <form
         className={headerStyles.search}
         role="search"

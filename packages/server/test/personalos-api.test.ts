@@ -8,7 +8,7 @@ import { openCore, type Core } from '@bluemanta/core';
 import { defaultKnowledgeEnv, KnowledgeError, PersonalOsReader, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  ApiFailure,
+  ApiFailure, PersonalOsVersionResponse, KnowledgeSearchResponse,
   PersonalOsDomainResponse,
   PersonalOsFileResponse,
   PersonalOsLogResponse,
@@ -26,11 +26,13 @@ const BASE = '/api/v1/personalos';
 const FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 const FIXTURE_ROOT = join(FIXTURE_HOME, 'Documents', 'PersonalOS');
 const cores: Core[] = [];
+const apps: ReturnType<typeof createApp>[] = [];
 
 beforeEach(() => vi.stubEnv('BLUEMANTA_TODAY', '2026-11-21'));
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
+  while (apps.length) apps.pop()?.close();
   while (cores.length) cores.pop()?.close();
   removeTempDirs();
 });
@@ -45,6 +47,7 @@ function fixture(env: KnowledgeEnv | null = defaultKnowledgeEnv({ home: FIXTURE_
   const core = openCore({ dataDir: tempDir() });
   cores.push(core);
   const app = createApp({ core, token: TOKEN, port: PORT, webDir: null, ...(env ? { knowledgeEnv: env } : {}) });
+  apps.push(app);
   return {
     call: async (path: string, options: { token?: string | null; host?: string; method?: string } = {}) => {
       const token = options.token === undefined ? TOKEN : options.token;
@@ -413,4 +416,19 @@ it('Git 接口鉴权、缺库、无仓库、分页筛选、隐藏路径与逐文
   expect(detail.status).toBe(200);
   expect(await detail.text()).not.toContain('.claude/');
   expect(snapshot()).toEqual(before);
+});
+
+it('版本接口需口令且 no-store，下一次搜索立即刷新 PersonalOS',async()=>{
+  const {root,call}=copiedFixture();
+  const path=BASE+'/version';
+  await expectFailure(await call(path,{token:null}),401,'unauthorized');
+  const response=await call(path);
+  expect(response.headers.get('cache-control')).toBe('no-store');
+  const initial=await json<PersonalOsVersionResponse>(response);
+  expect(initial.mode).toBe('watch');
+  const search=()=>call('/api/v1/knowledge/search?q=弧面纸塔&library=personalos&ideas=0');
+  expect((await json<KnowledgeSearchResponse>(await search())).hits).toHaveLength(0);
+  writeFileSync(join(root,'我/弧面纸塔.md'),'# 弧面纸塔\n虚构的纸塔观测');
+  await vi.waitFor(async()=>expect((await json<PersonalOsVersionResponse>(await call(path))).version).not.toBe(initial.version),{timeout:3000});
+  expect((await json<KnowledgeSearchResponse>(await search())).hits.some(h=>h.path==='我/弧面纸塔.md')).toBe(true);
 });

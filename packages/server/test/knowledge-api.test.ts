@@ -22,8 +22,10 @@ const TOKEN = '34'.repeat(32);
 const HOST = `127.0.0.1:${PORT}`;
 const FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
 const cores: Core[] = [];
+const apps: ReturnType<typeof createApp>[] = [];
 
 afterEach(() => {
+  while (apps.length) apps.pop()?.close();
   while (cores.length) cores.pop()?.close();
   removeTempDirs();
 });
@@ -37,6 +39,7 @@ function fixture(env: KnowledgeEnv = defaultKnowledgeEnv({ home: FIXTURE_HOME })
   const core = openCore({ dataDir });
   cores.push(core);
   const app = createApp({ core, token: TOKEN, port: PORT, webDir: null, knowledgeEnv: env });
+  apps.push(app);
   return {
     dataDir,
     core,

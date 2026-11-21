@@ -140,7 +140,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
         return () => { window.clearTimeout(timer); delete target.dataset.flash; };
       }
     } else if (heading) scrollToHeading(root.current, heading);
-  }, [data, tab, todoId, heading]);
+  }, [data?.id, tab, todoId, heading]);
 
   if (query.isPending) return <p className={common.none}>正在读取…</p>;
   const error = query.isError ? <Banner onRetry={() => void query.refetch()} retrying={query.isFetching}>读不到这个领域：{describeError(query.error)}{data ? `。以下是 ${new Date(query.dataUpdatedAt).toLocaleTimeString()} 读取的旧数据。` : ''}</Banner> : null;

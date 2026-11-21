@@ -25,7 +25,6 @@ type PageRoute = Exclude<PersonalOsRoute, { view: 'search' | 'arsenal' }>;
 type Selected = { domain: string; todoId?: string } | null;
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const week = (date: string) => WEEKDAYS[new Date(`${date}T12:00:00`).getDay()] ?? '';
-const readAt = (time: number) => time ? new Date(time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
 
 function dueLabel(todo: Todo, today: string): string {
   if (!todo.due) return '';
@@ -132,7 +131,7 @@ function TodayView() {
         {today.isError ? <ReadWarning message={`今天事项读取失败：${describeError(today.error)}`} updatedAt={today.dataUpdatedAt} onRetry={() => void today.refetch()} retrying={today.isFetching} /> : null}
         {today.isPending ? <p className={styles.note}>正在读取今天的事项…</p> : null}
         {data ? <>
-          <div className={styles.summary} data-testid="personalos-summary"><span>{data.today} {week(data.today)}</span><span>{count} 件到期或逾期</span><span>{data.waiting.length} 件等待中</span><span>收件箱 {data.inbox.length} 条未分拣</span><span className={styles.readTime}>数据读取于 {readAt(today.dataUpdatedAt)}</span></div>
+          <div className={styles.summary} data-testid="personalos-summary"><span>{data.today} {week(data.today)}</span><span>{count} 件到期或逾期</span><span>{data.waiting.length} 件等待中</span><span>收件箱 {data.inbox.length} 条未分拣</span></div>
           {data.warnings.length ? <p className={styles.notice} role="status">有 {data.warnings.length} 项资料需要核对，详情中保留了原文与读取说明。</p> : null}
           {allCount === 0 ? <EmptyState icon="book" title="没有到期的事" /> : null}
           {renderGroup('已逾期', data.overdue)}

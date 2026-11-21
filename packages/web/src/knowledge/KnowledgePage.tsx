@@ -11,6 +11,7 @@ import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { useKnowledgeIndex, useKnowledgeSearch, usePersonalOsOverview } from './api';
 import { FileReader } from './FileReader';
+import { usePersonalOsRefresh } from './PersonalOsRefresh';
 import { KnowledgeHeader, type KnowledgeSection } from './KnowledgeHeader';
 import { KNOWLEDGE_MODULE } from './module';
 import { filePath, libraryTarget, topicPath, type KnowledgeRoute } from './paths';
@@ -288,6 +289,7 @@ export function SearchView({ query }: { query: string }) {
 
 /** Knowledge desk routing: PersonalOS pages plus compatible Arsenal and search views. */
 export function KnowledgePage() {
+  usePersonalOsRefresh();
   const [location] = useLocation();
   useEffect(() => {
     const previous = document.title;

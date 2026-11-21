@@ -41,6 +41,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   execFileSync(process.execPath,[join(WEB_DIST,'../../knowledge/scripts/git-fixture.mjs'),join(home,'Documents/PersonalOS')]);
   process.env.BLUEMANTA_KNOWLEDGE_HOME = home;
   const git = await serve('git','empty');
+  const refreshHome = sandboxDir('refresh-home');
+  resetSandbox(refreshHome);
+  execFileSync(process.execPath,[join(WEB_DIST,'../../knowledge/scripts/git-fixture.mjs'),join(refreshHome,'Documents/PersonalOS')]);
+  process.env.BLUEMANTA_KNOWLEDGE_HOME=refreshHome;
+  const refresh=await serve('refresh','empty');
+  process.env.BM_E2E_REFRESH_URL=refresh.url;
+  process.env.BM_E2E_REFRESH_TOKEN=refresh.token;
   process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
   process.env.BM_E2E_GIT_URL=git.url;
   process.env.BM_E2E_GIT_TOKEN=git.token;
@@ -53,6 +60,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.BM_E2E_SHOT_URL = shots.url;
   process.env.BM_E2E_SHOT_TOKEN = shots.token;
   return async () => {
+    await refresh.server.close();
     await git.server.close();
     await full.server.close();
     await empty.server.close();

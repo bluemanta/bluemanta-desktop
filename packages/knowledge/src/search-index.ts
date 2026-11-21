@@ -302,6 +302,16 @@ export class KnowledgeIndex {
     return stats;
   }
 
+  refreshPersonalOs(): void {
+    const library=this.activeLibraries.find(lib=>lib.kind==='personalos');
+    if(!library) return;
+    this.db.exec('BEGIN');
+    try {
+      this.refreshLibrary(library.id,{files:0,added:0,updated:0,removed:0,ideas:0,refreshedAt:new Date(this.now()).toISOString()});
+      this.db.exec('COMMIT');
+    } catch(error){this.db.exec('ROLLBACK');throw error;}
+  }
+
   private refreshLibrary(libraryId: string, stats: RefreshStats): void {
     const library = this.env.libraries.find((item) => item.id === libraryId);
     if (!library) return;

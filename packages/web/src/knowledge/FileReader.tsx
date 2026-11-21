@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { describeError } from '../api/client';
+import { ApiError, describeError } from '../api/client';
 import { Banner } from '../ui/Banner';
 import { EmptyState } from '../ui/EmptyState';
 import { Icon } from '../ui/Icon';
@@ -26,11 +26,14 @@ export function FileReader({ library, path, heading = null, onOpen, onTopic }: F
   const content = data?.file.kind === 'markdown' ? data.file.content ?? null : null;
   const headings = useMemo(() => (content === null ? [] : outline(content)), [content]);
 
+  const hasContent = content !== null;
   useEffect(() => {
-    if (content === null || heading === null || !root.current) return;
+    if (!hasContent || heading === null || !root.current) return;
     scrollToHeading(root.current, heading);
-  }, [content, heading]);
+  }, [hasContent, path, heading]);
 
+  if (library==='personalos' && file.error instanceof ApiError && file.error.code==='not_found')
+    return <EmptyState icon="file" title="这个文件已不存在" />;
   if (file.isPending) return <p className={styles.none}>正在读取…</p>;
   const error = file.isError ? (
     <div className={styles.notice}><Banner onRetry={() => void file.refetch()} retrying={file.isFetching}>

@@ -53,3 +53,19 @@ P5a 提交 SHA：`ae7cb60f2b38627b69e215ff160e55916b42094b`。
 | 4 键盘 | verified，J/Enter 选择并打开提交及全仓原有快捷键走查通过；全页面逐控件人工焦点走查 not-run。 |
 | 5 放大 | verified，提交视图 200% 放大下检查无整页横向溢出并键盘或点击打开详情。 |
 | 6 结果及截图 | verified，检查上述本地产物，未登记视觉基线。 |
+
+P5b 提交 SHA：`1f1a0fd6815598a96a1b857ba1ff4cbaaa5069f4`。
+
+## P6 · 自动刷新
+
+服务按需开始监听，分开记录文件版本和 Git 版本，300 ms 去抖，监控失败后按 10 秒签名比对，库出现后恢复监听，服务关闭时释放句柄。搜索在检测到新的内容版本后对 PersonalOS 做增量索引。网页每 5 秒检查版本，保留已加载的日志窗口和阅读状态，页头展示当前主查询的读取时间并支持手动刷新。走查使用独立的 .dev-data/refresh-home，避免改变 P5b 的历史和截图。
+
+| 验收项 | 状态、命令与结果 |
+|---|---|
+| 1 构建、类型与单测 | verified。任务规定的 fixture 环境中执行 `npm run build && npm run check && npm test`，退出 0。core 57、knowledge 88、cli 18、dsh 73、importer 4、mcp 5、server 105、skills 24、web 56，合计 430 项，另有 15 项 PR 检查器单测。 |
+| 监听与搜索 | verified。上述测试中的 personalos-version.test.ts 验证去抖、隐藏路径、Git index/objects/lock、独立计数、poll 的增改删、off 恢复、关闭清理。server 的「版本接口需口令且 no-store，下一次搜索立即刷新 PersonalOS」使用临时副本，先查询无命中、再创建文件并检查下一次查询命中。 |
+| 1 Chrome 全量走查 | verified。`BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough` 退出 0，179 passed (33.9s)。专用副本上的四条 P6 用例分别用时 5.8、5.7、5.9、5.6 秒，验证待办换组且无加载闪烁、读取时间更新、领域页签与非零滚动位置保持、新提交出现、正在阅读的文件删除后提示。 |
+| 2 curl 手工核对 | verified。临时 Git 副本启动服务，以 `curl -fsS -H 'Authorization: Bearer …' http://127.0.0.1:48672/api/v1/personalos/version` 调用两次。中间向副本的 我/纸船.md 追加虚构文字。两次 mode=watch，启动标识同为 5ce33db3-a9ca-4343-8a30-018e4f01de16，version 后缀 0→1，gitVersion 后缀均为 0，changedAt 从 08:08:26.897Z 变为 08:08:27.222Z。 |
+| 3 既有模块回归 | verified，以上全量运行覆盖已有灵感台、Arsenal 与外壳走查；Skill 包 24 项单测及 server 的 4 项 Skill API 测试通过。not-run：仓库无 Skill 台专属浏览器用例。 |
+
+过程与已知问题：首次单测发现无遍历权限时监听器覆盖概览接口的 read_error，已修正并重跑。新增搜索测试曾因响应未声明类型以及回调类型过窄而未通过类型检查，已修正。最终检查无剩余失败。无范围偏离。与 P5b 相同，构建仍有 Vite 包体积提示。真实 PersonalOS 试跑属于整体验收方，本轮 not-run。

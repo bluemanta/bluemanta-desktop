@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, abbreviateHome, type KnowledgeEnv } from '@bluemanta/knowledge';
+import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, abbreviateHome, type PersonalOsVersion, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
@@ -39,13 +39,16 @@ function validDate(value: string): boolean {
 }
 
 /** Registered below the server's shared Host and Bearer-token middleware. Construction does no I/O. */
-export function createPersonalOsApi(env: KnowledgeEnv): Hono {
+export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersion): Hono {
   const root = env.libraries.find((library) => library.kind === 'personalos' || library.id === 'personalos')?.root;
   const reader = new PersonalOsReader({ home: env.home, ...(root === undefined ? {} : { root }) });
   const app = new Hono();
+  app.use('/personalos/*', async (_c,next) => { monitor.current(); await next(); });
+  app.get('/personalos/version',c=>c.json({ok:true,...monitor.current()},200,NO_STORE));
 
   app.get('/personalos', (c) => {
     try {
+      monitor.current();
       const overview = reader.overview();
       const body: PersonalOsOverviewResponse = { ok: true, ...overview, documents: overview.exists ? reader.documents() : [] };
       return c.json(body, 200, NO_STORE);

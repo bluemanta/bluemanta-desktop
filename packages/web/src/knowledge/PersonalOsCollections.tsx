@@ -1,12 +1,12 @@
 import type { PersonalOsLogResponse, PersonalOsOverviewResponse } from '@bluemanta/server/api-types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { describeError } from '../api/client';
 import { useAppNavigate } from '../app/context';
 import listStyles from '../ideas/IdeaList.module.css';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Icon } from '../ui/Icon';
-import { usePersonalOsLog, usePersonalOsOverview, usePersonalOsRegistry } from './api';
+import { usePersonalOsLogPages, usePersonalOsOverview, usePersonalOsRegistry } from './api';
 import { InlineMarkdown, Markdown, type MarkdownProps } from './Markdown';
 import { PersonalOsRegistryTable, PERSONAL_OS_GAP_TERMS } from './PersonalOsDomainDetail';
 import { PersonalOsMissing, PersonalOsReadWarning } from './PersonalOsReadState';
@@ -89,13 +89,10 @@ function ActivityEntry({ entry, onOpen }: { entry: LogEntry; onOpen: MarkdownPro
 
 /** Each cursor owns a 30-day window, including empty windows; older records cannot create gaps. */
 function ActivityTimeline({ domains, includeUnassigned, today, onOpen }: { domains: readonly string[]; includeUnassigned: boolean; today: string; onOpen: MarkdownProps['onOpen'] }) {
-  const [before, setBefore] = useState(() => shiftDate(today, 1));
-  const [pages, setPages] = useState<Record<string, Page>>({});
-  const query = usePersonalOsLog(domains, before, includeUnassigned);
-  useEffect(() => {
-    if (query.data) setPages((current) => ({ ...current, [before]: { data: query.data!, updatedAt: query.dataUpdatedAt } }));
-  }, [before, query.data, query.dataUpdatedAt]);
-  const loaded = { ...pages, ...(query.data ? { [before]: { data: query.data, updatedAt: query.dataUpdatedAt } } : {}) };
+  const [cursors,setCursors]=useState(()=>[shiftDate(today,1)]);
+  const queries=usePersonalOsLogPages(domains,cursors,includeUnassigned);
+  const query=queries.at(-1)!;
+  const loaded:Page[]=queries.flatMap(q=>q.data?[{data:q.data,updatedAt:q.dataUpdatedAt}]:[]);
   const unique = new Map<string, LogEntry>();
   for (const page of Object.values(loaded)) for (const item of page.data.items) unique.set(item.id, item);
   const items = [...unique.values()].sort((a, b) => b.date.localeCompare(a.date) || a.file.localeCompare(b.file) || a.line - b.line);
@@ -109,7 +106,7 @@ function ActivityTimeline({ domains, includeUnassigned, today, onOpen }: { domai
       {warnings.length ? <details className={styles.warnings}><summary>读取提示（{warnings.length}）</summary><ul>{warnings.map((warning, index) => <li key={index}>{warning.message}</li>)}</ul></details> : null}
       {dates.map((date) => <section key={date} aria-label={date}><h2 className={`${listStyles.group} ${styles.dateGroup}`}><time dateTime={date}>{dateLabel(date)}</time></h2>{items.filter((item) => item.date === date).map((entry) => <ActivityEntry key={entry.id} entry={entry} onOpen={onOpen} />)}</section>)}
       {query.data && items.length === 0 ? <EmptyState icon="book" title="这段时间没有动态" /> : null}
-      {query.data?.hasMore ? <div className={styles.loadMore}><Button disabled={query.isFetching || query.isError} onClick={() => setBefore((current) => shiftDate(current, -30))}>加载更早</Button></div> : null}
+      {query.data?.hasMore ? <div className={styles.loadMore}><Button disabled={query.isFetching || query.isError} onClick={() => setCursors(current=>[...current,shiftDate(current.at(-1)!,-30)])}>加载更早</Button></div> : null}
     </div>
   </>;
 }
