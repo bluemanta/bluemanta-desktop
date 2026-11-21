@@ -142,8 +142,28 @@ describe('PersonalOS fixture（规格第 9 节）', () => {
     expect(all.filter((entry) => entry.kind === 'section' && entry.title?.includes('交付说明'))).toHaveLength(2);
     expect(all.find((entry) => entry.title?.includes('回看要点'))?.markdown).toContain('两个失败样例');
     expect(all.map((entry) => entry.date)).toEqual(all.map((entry) => entry.date).sort().reverse());
-    expect(reader.log({ domains: ['工作'], days: 90 }).items.map((entry) => entry.domain)).toEqual(['工作']);
+    expect(reader.log({ domains: ['工作'], days: 90 }).items.map((entry) => entry.domain)).toEqual(['工作', '工作']);
     expect(reader.log({ before: '2026-11-01', days: 30 }).items.every((entry) => entry.date < '2026-11-01')).toBe(true);
+  });
+
+  it('追加日志条目独立显示且从小节正文移除；未归领域筛选包含普通标签和小节', () => {
+    const reader = fixture();
+    const recent = reader.log().items;
+    expect(recent).toHaveLength(9);
+    expect(reader.log({ days: 90 }).items).toHaveLength(11);
+    const section = recent.find((entry) => entry.title?.includes('索引实验交付说明'))!;
+    for (const text of ['将访谈顺序改成先观察后提问', '为纸面记录预留一栏失败假设', '为演示输入补上重复书名样例']) {
+      expect(recent.some((entry) => entry.kind === 'entry' && entry.text.includes(text))).toBe(true);
+      expect(section.markdown).not.toContain(text);
+    }
+    expect(section.markdown).toContain('- 空书名应得到提示。\n- 相同输入应得到同样顺序。');
+    expect(recent.find((entry) => entry.tag === '蓝图')).toMatchObject({ domain: null, kind: 'entry' });
+    const unassigned = reader.log({ includeUnassigned: true });
+    expect(unassigned.items).toHaveLength(4);
+    expect(unassigned.items.every((entry) => entry.domain === null)).toBe(true);
+    expect(unassigned.items.filter((entry) => entry.kind === 'section')).toHaveLength(2);
+    expect(reader.log({ domains: ['技术'], includeUnassigned: true }).items).toHaveLength(6);
+    expect(reader.log({ domains: ['蓝图'] }).items).toEqual([]);
   });
 
   it('事项文件、事项目录入口、知识文件以及协议和蓝图按需发现', () => {
@@ -260,10 +280,36 @@ describe('PersonalOS 宽容解析与日历边界', () => {
 
   it('收件箱忽略说明与代码；二三级日志小节保留正文，缺日期归月份', () => {
     expect(parseInbox('说明\n- 2026-11-20 一条\n```\n- 2026-11-21 假条目\n```\n- 2026-02-30 无效')).toEqual([{ date: '2026-11-20', text: '一条', line: 2 }]);
-    const log = parseLog('- 2026-11-21 无领域\n## 2026-11-20 [工作] 交付\n正文\n\n### 无日期回顾\n**备注**\n```md\n## 不分节\n```', '日志/2026-11.md');
+    const log = parseLog('- 2026-11-21 无领域\n## 2026-11-20 [工作] 交付\n正文\n\n### 无日期回顾\n**备注**\n```md\n## 不分节\n```', '日志/2026-11.md', ['工作']);
     expect(log.map((entry) => [entry.kind, entry.date, entry.domain])).toEqual([['entry', '2026-11-21', null], ['section', '2026-11-20', '工作'], ['section', '2026-11', null]]);
     expect(log[2]?.markdown).toContain('## 不分节');
     expect(log[2]?.markdown).toContain('**备注**');
+  });
+
+  it('日志条目可紧跟标题或夹在列表中；空节保留，缩进/代码/非法日期仍是正文', () => {
+    const lines = [
+      '## 2026-11-21 开头', '- 2026-11-21 [工作] 第一个条目', '- 2026-11-21 [蓝图] 第二个条目',
+      '### 列表边界', '', '- 普通列表前半', '- 2026-11-20 [我] 中间条目', '- 普通列表后半',
+      '  - 2026-11-21 [工作] 缩进的说明', '```md', '- 2026-11-21 [工作] 代码示例', '```',
+      '- 2026-02-30 [工作] 无效日期原文', '### 空节', '- 2026-11-19 [阶段 3] 最后条目', '',
+    ];
+    const log = parseLog(lines.join('\r\n'), '日志/2026-11.md', ['工作']);
+    const entries = log.filter((entry) => entry.kind === 'entry');
+    expect(entries.map((entry) => [entry.line, entry.domain, entry.tag])).toEqual([[2, '工作', undefined], [3, null, '蓝图'], [7, '我', undefined], [15, null, '阶段 3']]);
+    expect(entries[3]?.id).toBe('日志/2026-11.md:15');
+    expect(log.find((entry) => entry.title === '2026-11-21 开头')?.markdown).toBe('');
+    expect(log.find((entry) => entry.title === '空节')?.markdown).toBe('');
+    expect(log.find((entry) => entry.title === '列表边界')?.markdown).toBe(lines.slice(5, 13).filter((_, index) => index !== 1).join('\n'));
+  });
+
+  it('日志只按当前路由表的领域名归类，不把别名、目录名或未登记目录当成领域', () => {
+    const { root, reader } = sandbox(true);
+    put(root, '日志/2026-11.md', '- 2026-11-21 [工作] 原名\n- 2026-11-21 [职业记录] 登记名\n- 2026-11-21 [纸舟实验] 别名\n- 2026-11-21 [园艺] 未登记\n- 2026-11-21 [我] 自己');
+    put(root, 'AGENTS.md', source('AGENTS.md').replace('| 工作 |', '| 职业记录 |'));
+    const items = reader.log({ days: 21 }).items;
+    expect(items.map(({ domain, tag }) => [domain, tag])).toEqual([[null, '工作'], ['职业记录', undefined], [null, '纸舟实验'], [null, '园艺'], ['我', undefined]]);
+    expect(reader.log({ domains: ['职业记录'] }).items).toHaveLength(1);
+    expect(reader.log({ includeUnassigned: true }).items).toHaveLength(3);
   });
 
   it('BLUEMANTA_TODAY 固定日期，无效覆盖回退本机日历而非 UTC 日期', () => {

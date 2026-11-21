@@ -105,16 +105,49 @@ test.describe('PersonalOS 资料、动态与搜索', () => {
   test('动态支持领域多选并加载早于默认30天窗口的日志', async ({ page }) => {
     await open(page, '/knowledge/activity');
     await activity(page).getByRole('button', { name: '技术', exact: true }).click();
-    await expect(activity(page).getByTestId('personalos-log-entry')).toHaveCount(1);
+    await expect(activity(page).getByTestId('personalos-log-entry')).toHaveCount(2);
     await expect(activity(page)).toContainText('十个虚构书名');
     await activity(page).getByRole('button', { name: '副业', exact: true }).click();
-    await expect(activity(page).getByTestId('personalos-log-entry')).toHaveCount(2);
+    await expect(activity(page).getByTestId('personalos-log-entry')).toHaveCount(3);
     await expect(activity(page)).toContainText('纸张比较记录');
     await open(page, '/knowledge/activity');
     await expect(activity(page)).not.toContainText('把试点想法整理成一页纸');
     await activity(page).getByRole('button', { name: '加载更早', exact: true }).click();
     await expect(activity(page).getByRole('region', { name: '2026-10-15', exact: true })).toContainText('把试点想法整理成一页纸');
     await expect(activity(page).locator('summary').filter({ hasText: '纸面试点交付说明' })).toBeVisible();
+  });
+
+  test('追加条目独立显示，普通标签为灰色；未归领域包含条目与小节且可和领域多选', async ({ page }) => {
+    await open(page, '/knowledge/activity');
+    const entries = activity(page).getByTestId('personalos-log-entry');
+    await expect(entries).toHaveCount(9);
+    const section = activity(page).locator('details').filter({ has: page.locator('summary').filter({ hasText: '索引实验交付说明' }) });
+    await section.locator('summary').click();
+    await expect(section).not.toContainText('将访谈顺序改成先观察后提问');
+    await expect(section).not.toContainText('失败假设');
+    await expect(section).not.toContainText('重复书名样例');
+    await expect(entries.filter({ hasText: '重复书名样例' })).toBeVisible();
+    const tag = activity(page).getByTestId('personalos-log-tag');
+    await expect(tag).toHaveText('蓝图');
+    expect(await tag.evaluate((element) => getComputedStyle(element).color)).toBe(await tag.evaluate((element) => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--bm-text-3)';
+      element.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }));
+    await activity(page).getByRole('button', { name: '未归领域', exact: true }).click();
+    await expect(entries).toHaveCount(4);
+    await expect(activity(page).locator('details')).toHaveCount(2);
+    await expect(tag).toHaveText('蓝图');
+    await activity(page).getByRole('button', { name: '技术', exact: true }).click();
+    await expect(entries).toHaveCount(6);
+    await activity(page).getByRole('button', { name: '未归领域', exact: true }).click();
+    await expect(entries).toHaveCount(2);
+    await activity(page).getByRole('button', { name: '全部', exact: true }).click();
+    await expect(entries).toHaveCount(9);
+    await expect(activity(page).getByRole('button', { name: '未归领域', exact: true })).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('资料和动态读取失败保持可见说明', async ({ page }) => {

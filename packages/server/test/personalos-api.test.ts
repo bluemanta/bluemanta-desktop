@@ -171,18 +171,42 @@ describe('PersonalOS 只读接口', () => {
     const { call } = fixture();
     const body = await json<PersonalOsLogResponse>(await call(`${BASE}/log`));
     expect(body.hasMore).toBe(true);
+    expect(body.items).toHaveLength(9);
     expect(body.items.map((item) => item.date)).toEqual([...body.items.map((item) => item.date)].sort().reverse());
     expect(body.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'entry', domain: null, date: '2026-11-19' }),
       expect.objectContaining({ kind: 'section', title: '2026-11-20 索引实验交付说明', markdown: expect.stringContaining('输入输出说明') }),
     ]));
     const tech = await json<PersonalOsLogResponse>(await call(`${BASE}/log?domain=${enc('技术')}`));
-    expect(tech.items).toHaveLength(1);
+    expect(tech.items).toHaveLength(2);
     expect(tech.items.every((item) => item.domain === '技术')).toBe(true);
     const earlier = await json<PersonalOsLogResponse>(await call(`${BASE}/log?before=2026-10-23&days=30`));
     expect(earlier.hasMore).toBe(false);
     expect(earlier.items).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'section', date: '2026-10-15', title: '2026-10-15 纸面试点交付说明' })]));
     expect(earlier.items.every((item) => item.date < '2026-10-23')).toBe(true);
+  });
+
+  it('非领域标签通过tag保留，未归领域可单独或与领域合并筛选', async () => {
+    const { call } = fixture();
+    const response = await call(`${BASE}/log?unassigned=1`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = await json<PersonalOsLogResponse>(response);
+    expect(body.items).toHaveLength(4);
+    expect(body.items.every((item) => item.domain === null)).toBe(true);
+    expect(body.items.filter((item) => item.kind === 'section')).toHaveLength(2);
+    expect(body.items.find((item) => item.tag === '蓝图')).toMatchObject({ kind: 'entry', date: '2026-11-21', text: '为纸面记录预留一栏失败假设。' });
+    const section = body.items.find((item) => item.title?.includes('索引实验交付说明'))!;
+    expect(section.markdown).not.toContain('失败假设');
+    expect(section.markdown).not.toContain('重复书名样例');
+    const combined = await json<PersonalOsLogResponse>(await call(`${BASE}/log?domain=${enc('技术')}&unassigned=1`));
+    expect(combined.items).toHaveLength(6);
+    expect(combined.items.every((item) => item.domain === null || item.domain === '技术')).toBe(true);
+    expect((await json<PersonalOsLogResponse>(await call(`${BASE}/log?domain=${enc('蓝图')}`))).items).toEqual([]);
+    expect((await json<PersonalOsLogResponse>(await call(`${BASE}/log?unassigned=0`))).items).toHaveLength(9);
+    const older = await json<PersonalOsLogResponse>(await call(`${BASE}/log?unassigned=1&before=2026-10-23&days=30`));
+    expect(older.items).toHaveLength(1);
+    expect(older.items[0]).toMatchObject({ kind: 'section', domain: null });
   });
 
   it('文件接口沿用 v1 形状，Markdown 给正文，普通文件只有元信息', async () => {
@@ -345,6 +369,6 @@ describe('PersonalOS 只读接口', () => {
 
   it('日志非法参数返回 400，不把错误日期或天数悄悄当成默认值', async () => {
     const { call } = fixture();
-    for (const query of ['days=0', 'days=abc', 'days=1.5', 'before=2026-02-30']) await expectFailure(await call(`${BASE}/log?${query}`), 400, 'invalid_input');
+    for (const query of ['days=0', 'days=abc', 'days=1.5', 'before=2026-02-30', 'unassigned=yes', 'unassigned=1&unassigned=0']) await expectFailure(await call(`${BASE}/log?${query}`), 400, 'invalid_input');
   });
 });

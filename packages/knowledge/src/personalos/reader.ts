@@ -111,8 +111,9 @@ export class PersonalOsReader {
   inbox(): InboxEntry[] { this.requireRoot(); return parseInbox(this.markdown('收件箱.md', [], true).content); }
   log(options: LogOptions = {}): LogResult {
     this.requireRoot(); const warnings: Warning[] = []; const entries = listPersonalOsFiles(this.root, '日志', warnings).filter((entry) => /^\d{4}-\d{2}\.md$/.test(entry.name));
-    let items = entries.flatMap((entry) => parseLog(this.markdown(entry.path, warnings).content, entry.path));
-    if (options.domains?.length) items = items.filter((item) => item.domain !== null && options.domains!.includes(item.domain));
+    const domainNames = this.routes(warnings).domains.filter((domain) => domain.registered).map((domain) => domain.name);
+    let items = entries.flatMap((entry) => parseLog(this.markdown(entry.path, warnings).content, entry.path, domainNames));
+    if (options.domains?.length || options.includeUnassigned) items = items.filter((item) => item.domain === null ? options.includeUnassigned : options.domains?.includes(item.domain));
     const before = options.before && validDate(options.before) ? options.before : addDays(this.date(), 1);
     const days = Number.isInteger(options.days) && (options.days ?? 0) > 0 ? options.days! : 30;
     const start = addDays(before, -days);

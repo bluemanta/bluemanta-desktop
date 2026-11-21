@@ -96,7 +96,7 @@ export const personalOsKeys = {
   today: ['personalos', 'today'] as const,
   domain: (id: string) => ['personalos', 'domain', id] as const,
   registry: ['personalos', 'registry'] as const,
-  log: (domains: readonly string[], before: string | null) => ['personalos', 'log', [...domains].sort(), before] as const,
+  log: (domains: readonly string[], before: string | null, includeUnassigned = false) => ['personalos', 'log', [...domains].sort(), before, includeUnassigned] as const,
 };
 
 export function usePersonalOsOverview() {
@@ -147,12 +147,13 @@ export function usePersonalOsRegistry() {
   });
 }
 
-export function usePersonalOsLog(domains: readonly string[], before?: string | null) {
+export function usePersonalOsLog(domains: readonly string[], before?: string | null, includeUnassigned = false) {
   const params = new URLSearchParams({ days: '30' });
   for (const domain of [...domains].sort()) params.append('domain', domain);
   if (before) params.set('before', before);
+  if (includeUnassigned) params.set('unassigned', '1');
   return useQuery({
-    queryKey: personalOsKeys.log(domains, before ?? null),
+    queryKey: personalOsKeys.log(domains, before ?? null, includeUnassigned),
     queryFn: ({ signal }) => apiJson<PersonalOsLogResponse>(`/api/v1/personalos/log?${params}`, { signal }),
     staleTime: STALE_MS,
   });

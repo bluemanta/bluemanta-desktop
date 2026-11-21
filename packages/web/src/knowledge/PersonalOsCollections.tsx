@@ -32,11 +32,12 @@ function domainOptions(domains: readonly Domain[], extra: readonly string[] = []
   return [...domains.map(({ id, name }) => ({ id, name })), ...[...new Set(extra)].filter((id) => !domains.some((domain) => domain.id === id)).map((id) => ({ id, name: id }))];
 }
 
-function DomainFilters({ options, selected, onChange }: { options: Array<{ id: string; name: string }>; selected: readonly string[]; onChange: (ids: string[]) => void }) {
+function DomainFilters({ options, selected, onChange, unassigned }: { options: Array<{ id: string; name: string }>; selected: readonly string[]; onChange: (ids: string[]) => void; unassigned?: { selected: boolean; onChange: (value: boolean) => void } }) {
   return <div role="group" aria-label="领域" className={styles.filterGroup}>
     <span className={styles.filterLabel}>领域</span>
-    <button type="button" className={common.chip} aria-pressed={selected.length === 0} onClick={() => onChange([])}>全部</button>
+    <button type="button" className={common.chip} aria-pressed={selected.length === 0 && !unassigned?.selected} onClick={() => { onChange([]); unassigned?.onChange(false); }}>全部</button>
     {options.map((domain) => <button key={domain.id} type="button" className={common.chip} aria-pressed={selected.includes(domain.id)} onClick={() => onChange(selected.includes(domain.id) ? selected.filter((id) => id !== domain.id) : [...selected, domain.id])}>{domain.name}</button>)}
+    {unassigned ? <button type="button" className={common.chip} aria-pressed={unassigned.selected} onClick={() => unassigned.onChange(!unassigned.selected)}>未归领域</button> : null}
   </div>;
 }
 
@@ -78,7 +79,7 @@ function dateLabel(date: string): string {
 }
 
 function ActivityEntry({ entry, onOpen }: { entry: LogEntry; onOpen: MarkdownProps['onOpen'] }) {
-  const content = <>{entry.domain ? <span className={common.tag}>{entry.domain}</span> : null}<span className={styles.entryText}><InlineMarkdown source={entry.title ?? entry.text} basePath={entry.file} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></span></>;
+  const content = <>{entry.domain ? <span className={common.tag}>{entry.domain}</span> : entry.tag !== undefined ? <span className={common.tag} data-testid="personalos-log-tag">{entry.tag}</span> : null}<span className={styles.entryText}><InlineMarkdown source={entry.title ?? entry.text} basePath={entry.file} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></span></>;
   if (entry.kind === 'section') return <details className={styles.logSection} data-testid="personalos-log-entry" data-log-id={entry.id}>
     <summary className={styles.entry} title={entry.title ?? entry.text}><Icon name="right" />{content}</summary>
     <div className={styles.sectionBody}><Markdown source={entry.markdown ?? ''} basePath={entry.file} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></div>
@@ -87,10 +88,10 @@ function ActivityEntry({ entry, onOpen }: { entry: LogEntry; onOpen: MarkdownPro
 }
 
 /** Each cursor owns a 30-day window, including empty windows; older records cannot create gaps. */
-function ActivityTimeline({ domains, today, onOpen }: { domains: readonly string[]; today: string; onOpen: MarkdownProps['onOpen'] }) {
+function ActivityTimeline({ domains, includeUnassigned, today, onOpen }: { domains: readonly string[]; includeUnassigned: boolean; today: string; onOpen: MarkdownProps['onOpen'] }) {
   const [before, setBefore] = useState(() => shiftDate(today, 1));
   const [pages, setPages] = useState<Record<string, Page>>({});
-  const query = usePersonalOsLog(domains, before);
+  const query = usePersonalOsLog(domains, before, includeUnassigned);
   useEffect(() => {
     if (query.data) setPages((current) => ({ ...current, [before]: { data: query.data!, updatedAt: query.dataUpdatedAt } }));
   }, [before, query.data, query.dataUpdatedAt]);
@@ -115,13 +116,14 @@ function ActivityTimeline({ domains, today, onOpen }: { domains: readonly string
 
 export function PersonalOsActivity() {
   const overview = usePersonalOsOverview(); const navigate = useAppNavigate(); const [domains, setDomains] = useState<string[]>([]);
+  const [includeUnassigned, setIncludeUnassigned] = useState(false);
   const open: MarkdownProps['onOpen'] = (path, anchor) => navigate(personalOsTarget(path, overview.data?.domains), { state: anchor ? { knowledgeHeading: anchor } : undefined });
   return <div className={styles.page} data-testid="personalos-activity">
     {overview.isError ? <PersonalOsReadWarning message={`概览读取失败：${describeError(overview.error)}`} updatedAt={overview.dataUpdatedAt} onRetry={() => void overview.refetch()} retrying={overview.isFetching} /> : null}
     {overview.isPending ? <p className={common.none}>正在读取动态…</p> : null}
     {overview.data ? overview.data.exists ? <>
-      <div className={styles.filters} role="toolbar" aria-label="动态筛选"><DomainFilters options={domainOptions(overview.data.domains)} selected={domains} onChange={setDomains} /><span className={common.count}>最近 30 天起</span></div>
-      <ActivityTimeline key={`${overview.data.today}:${[...domains].sort().join('/')}`} domains={domains} today={overview.data.today} onOpen={open} />
+      <div className={styles.filters} role="toolbar" aria-label="动态筛选"><DomainFilters options={domainOptions(overview.data.domains.filter((domain) => domain.registered || domain.name === '我'))} selected={domains} onChange={setDomains} unassigned={{ selected: includeUnassigned, onChange: setIncludeUnassigned }} /><span className={common.count}>最近 30 天起</span></div>
+      <ActivityTimeline key={JSON.stringify([overview.data.today, [...domains].sort(), includeUnassigned])} domains={domains} includeUnassigned={includeUnassigned} today={overview.data.today} onOpen={open} />
     </> : <PersonalOsMissing root={overview.data.root} /> : null}
   </div>;
 }

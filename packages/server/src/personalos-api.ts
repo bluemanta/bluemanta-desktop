@@ -71,14 +71,16 @@ export function createPersonalOsApi(env: KnowledgeEnv): Hono {
 
   app.get('/personalos/log', (c) => {
     const params = new URL(c.req.url).searchParams;
-    if (params.getAll('before').length > 1 || params.getAll('days').length > 1) return failure(c, 400, 'invalid_input', 'before 和 days 只能出现一次');
+    if (['before', 'days', 'unassigned'].some((name) => params.getAll(name).length > 1)) return failure(c, 400, 'invalid_input', 'before、days 和 unassigned 只能出现一次');
     const before = params.get('before') || undefined;
     if (before !== undefined && !validDate(before)) return failure(c, 400, 'invalid_input', 'before 必须是有效的 YYYY-MM-DD 日期');
     const rawDays = params.get('days'); const days = rawDays === null || rawDays === '' ? 30 : Number(rawDays);
     if (!Number.isSafeInteger(days) || days < 1 || days * 86_400_000 > 8.64e15) return failure(c, 400, 'invalid_input', 'days 必须是有效的正整数天数');
     const domains = params.getAll('domain').map((domain) => domain.trim()).filter(Boolean);
+    const unassigned = params.get('unassigned');
+    if (unassigned !== null && unassigned !== '0' && unassigned !== '1') return failure(c, 400, 'invalid_input', 'unassigned 只能是 0 或 1');
     try {
-      const body: PersonalOsLogResponse = { ok: true, ...reader.log({ days, ...(before === undefined ? {} : { before }), ...(domains.length ? { domains } : {}) }) };
+      const body: PersonalOsLogResponse = { ok: true, ...reader.log({ days, includeUnassigned: unassigned === '1', ...(before === undefined ? {} : { before }), ...(domains.length ? { domains } : {}) }) };
       return c.json(body, 200, NO_STORE);
     } catch (error) { return readFailure(c, error); }
   });

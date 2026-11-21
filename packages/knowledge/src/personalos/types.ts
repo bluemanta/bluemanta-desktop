@@ -29,6 +29,8 @@ export interface RegistryRow { domain: string; topic: string; title: string; loc
 export interface InboxEntry { date: string; text: string; line: number }
 export interface LogEntry {
   id: string; kind: 'entry' | 'section'; date: string; domain: string | null; text: string;
+  /** Original bracket label when it is not a registered domain name. */
+  tag?: string;
   title?: string; markdown?: string; file: string; line: number;
 }
 export interface LogResult { items: LogEntry[]; hasMore: boolean; warnings: Warning[] }
@@ -49,4 +51,4 @@ export interface StatInfo { isFile(): boolean; isDirectory(): boolean; size?: nu
 /** Used only to check registered external paths; contents are never read. */
 export type StatFunction = (path: string) => unknown;
 export interface PersonalOsReaderOptions { home: string; root?: string; today?: string; stat?: StatFunction }
-export interface LogOptions { domains?: readonly string[]; before?: string; days?: number }
+export interface LogOptions { domains?: readonly string[]; includeUnassigned?: boolean; before?: string; days?: number }

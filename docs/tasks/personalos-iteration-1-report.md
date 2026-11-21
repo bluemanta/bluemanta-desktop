@@ -162,3 +162,26 @@ P3 提交 SHA：`91781835fc7f81998f3efa5bc2076235b2babc70`。
 四个任务按顺序各做一次本地实现提交；未push、未开PR、未合并、未改写提交。为保持每任务一笔提交，P4完成后的SHA补记只追加在当前结果文件，不再创建第五笔提交，也不amend；交接时该SHA补记是唯一未提交改动。
 
 提交 SHA：提交完成后补记于下方。
+
+P4 提交 SHA：`00f7e02d88adc6ebb34b568a1b25cbc49f518fe5`。
+
+## 返工
+
+依据：`docs/tasks/personalos-iteration-1-acceptance.md` 第2节及规格1.7/9的验收补充。仅在bm-pos的codex/personalos-desk工作；沿用fixture home与2026-11-21，未接触真实PersonalOS、Knowledge或Shuyun。P4 SHA补记随R1一并提交。各项仍一笔本地提交，提交后SHA补记进入下一项；最后一项的SHA补记保留在工作区，不改写提交。
+
+### R1 日志边界与非领域标签
+
+实现：parseLog先提取不缩进、有效日期的条目，再组装各小节正文；保留空节标题与其余Markdown、缩进、代码示例和无效日期原文。领域匹配使用本次读取的登记领域名及“我”，别名、目录名、未登记目录不冒充领域。非领域方括号文字放入可选tag；动态页复用灰色标签样式，增加“未归领域”。日志接口增加`unassigned=1`，可单独筛选或与domain多选取并集；该参数是新增筛选所需的接口细节，无范围偏离。
+
+| 验收项 | 状态、命令与结果 |
+|---|---|
+| 1 条目与小节边界 | verified：`npm run build && npm run check && npm test`通过。PersonalOS测试37/37覆盖标题后连续条目、列表中夹条目、正文去重、空小节、行号、CRLF及Markdown保留。 |
+| 2 领域/tag与接口类型 | verified：同一全仓命令中知识包82/82、PersonalOS接口23/23通过；含路由领域改名、别名/未登记标签不归领域、tag透传、未归领域/领域并集、分页和非法参数。 |
+| 3 灰色标签与未归领域界面 | verified（构建/类型/静态）：使用既有`--bm-text-3`灰色tag和筛选胶囊；新增走查断言条目数量、灰色标签、领域与未归领域多选及清除。not-run（本项阶段浏览器）：按顺序留到R3启用Chrome后全量验证。 |
+| 4 fixture及期望数字 | verified：虚构11月日志新增3条；构建产物的`node --input-type=module`只读脚本创建fixture PersonalOsReader，得到最近30天9条（7条目+2小节）、90天11条、未归领域4条、技术2条、技术+未归领域6条；蓝图的domain=null/tag=蓝图。接口与走查期望同步更新。 |
+| 构建、类型、全仓单测 | verified：设置`BLUEMANTA_KNOWLEDGE_HOME=$PWD/packages/knowledge/fixtures/home`、同值`BLUEMANTA_SKILL_HOME`、`BLUEMANTA_TODAY=2026-11-21`后执行`npm run build && npm run check && npm test`，退出0；422项workspace测试+15项PR检查器单测，共437项通过。 |
+| 改动检查 | verified：`git diff --check`退出0；12个文件均在R1允许范围，未增加依赖。 |
+
+过程记录：首次`npm run test -w @bluemanta/knowledge -- test/personalos.test.ts`为36通过/1失败，新增路由改名测试误把10月28日的旧fixture条目也计入期望；将该测试窗口限定为21天后，全仓重跑通过，无剩余单测失败。没有修改生产规则以迎合错误期望。
+
+R1提交SHA：提交完成后补记。

@@ -413,7 +413,11 @@ export type PersonalOsOverviewResponse = { ok: true; documents: PersonalOsDocume
 export type PersonalOsTodayResponse = { ok: true } & PersonalOsToday;
 export type PersonalOsDomainResponse = { ok: true } & PersonalOsDomain;
 export type PersonalOsRegistryResponse = { ok: true; items: PersonalOsRegistryRow[] };
-export type PersonalOsLogResponse = { ok: true } & PersonalOsLog;
+export type PersonalOsLogEntry = PersonalOsLog['items'][number] & {
+  /** Original bracket label that does not match a registered domain. */
+  tag?: string;
+};
+export type PersonalOsLogResponse = { ok: true; items: PersonalOsLogEntry[] } & Omit<PersonalOsLog, 'items'>;
 export type PersonalOsFileResponse = {
   ok: true;
   library: KnowledgeLibrary;

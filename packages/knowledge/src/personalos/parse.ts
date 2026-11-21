@@ -196,19 +196,26 @@ export function parseInbox(markdown: string): InboxEntry[] {
     return match && validDate(match[1]!) ? [{ date: match[1]!, text: match[2]!, line: row.line }] : [];
   });
 }
-export function parseLog(markdown: string, file: string): LogEntry[] {
+export function parseLog(markdown: string, file: string, domainNames: readonly string[] = []): LogEntry[] {
   const result: LogEntry[] = []; const rows = visibleLines(markdown); const month = /(?:^|\/)(\d{4}-\d{2})\.md$/.exec(file)?.[1] ?? '';
+  const domains = new Set(['我', ...domainNames]);
+  const classify = (tag: string | undefined): Pick<LogEntry, 'domain' | 'tag'> =>
+    tag !== undefined && domains.has(tag) ? { domain: tag } : { domain: null, ...(tag === undefined ? {} : { tag }) };
   let section: LogEntry | null = null;
   const flush = (): void => { if (section) { section.markdown = trimBlankLines(section.markdown ?? ''); result.push(section); section = null; } };
   for (const row of rows) {
     const heading = row.fenced ? null : /^#{2,3}\s+(.+?)\s*#*\s*$/.exec(row.text);
     if (heading) {
       flush(); const title = heading[1]!.trim(); const stamp = /\d{4}-\d{2}-\d{2}/.exec(title)?.[0];
-      section = { id: `${file}:${row.line}`, kind: 'section', date: stamp && validDate(stamp) ? stamp : month, domain: /\[([^\]]+)\]/.exec(title)?.[1] ?? null, title, text: title, markdown: '', file, line: row.line }; continue;
+      section = { id: `${file}:${row.line}`, kind: 'section', date: stamp && validDate(stamp) ? stamp : month, ...classify(/\[([^\]]+)\]/.exec(title)?.[1]), title, text: title, markdown: '', file, line: row.line }; continue;
     }
-    if (section) { section.markdown += `${row.text}\n`; continue; }
-    const entry = row.fenced ? null : /^\s*- (\d{4}-\d{2}-\d{2})\s+(?:\[([^\]]+)\]\s*)?(.+)$/.exec(row.text);
-    if (entry && validDate(entry[1]!)) result.push({ id: `${file}:${row.line}`, kind: 'entry', date: entry[1]!, domain: entry[2] ?? null, text: entry[3]!, file, line: row.line });
+    // Appended entries may occur anywhere between headings, even between ordinary list items.
+    const entry = row.fenced ? null : /^- (\d{4}-\d{2}-\d{2})\s+(?:\[([^\]]+)\]\s*)?(.+)$/.exec(row.text);
+    if (entry && validDate(entry[1]!)) {
+      result.push({ id: `${file}:${row.line}`, kind: 'entry', date: entry[1]!, ...classify(entry[2]), text: entry[3]!, file, line: row.line });
+      continue;
+    }
+    if (section) section.markdown += `${row.text}\n`;
   }
   flush(); return result.sort((a, b) => b.date.localeCompare(a.date) || a.line - b.line);
 }
