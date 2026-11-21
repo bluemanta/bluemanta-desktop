@@ -185,3 +185,20 @@ P4 提交 SHA：`00f7e02d88adc6ebb34b568a1b25cbc49f518fe5`。
 过程记录：首次`npm run test -w @bluemanta/knowledge -- test/personalos.test.ts`为36通过/1失败，新增路由改名测试误把10月28日的旧fixture条目也计入期望；将该测试窗口限定为21天后，全仓重跑通过，无剩余单测失败。没有修改生产规则以迎合错误期望。
 
 R1提交SHA：提交完成后补记。
+
+R1 提交 SHA：`bbb7748ed49d84eec0f0c0d4d6451e9294251afc`。
+
+### R2 走查辅助函数同页导航
+
+实现：`personalos-p4.spec.ts`、`personalos.spec.ts`、`personalos-screenshots.spec.ts`的打开辅助函数均先导航到`about:blank`，再带token打开目标地址，确保重新创建文档。没有修改产品代码，也未改变测试断言以规避原失败。
+
+| 验收项 | 状态、命令与结果 |
+|---|---|
+| 修正同路径重新打开 | verified（静态）：`git diff -- packages/web/e2e/personalos-p4.spec.ts packages/web/e2e/personalos.spec.ts packages/web/e2e/personalos-screenshots.spec.ts`显示仅三处辅助函数增加blank导航与原因注释。原资料/动态用例的重新打开步骤保留。 |
+| 全仓构建与检查 | verified：R1相同fixture环境下`npm run build && npm run check && npm test`退出0，422项workspace+15项PR检查器单测，共437项通过。 |
+| 原2个浏览器失败的复验 | not-run（本项阶段）：R3接入本机Chrome后统一执行全量走查，届时补记。 |
+| 路径与空白检查 | verified：`git diff --check`退出0，只改3份e2e文件及结果报告（含R1 SHA补记）。 |
+
+偏离：无。已知问题：浏览器结论待R3执行，不能用构建通过替代。
+
+R2提交SHA：提交完成后补记。

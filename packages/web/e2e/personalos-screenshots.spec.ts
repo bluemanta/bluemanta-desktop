@@ -9,6 +9,8 @@ const OUT = join(WEB_ROOT, 'screenshots');
 const detail = (page: Page) => page.getByTestId('personalos-domain-detail');
 
 async function open(page: Page, path: string): Promise<void> {
+  // Token fragments are removed at startup; revisiting must create a new document.
+  await page.goto('about:blank');
   await page.goto(`${app.shotUrl}${path}#token=${app.shotToken}`);
 }
 async function shoot(page: Page, name: string): Promise<void> {

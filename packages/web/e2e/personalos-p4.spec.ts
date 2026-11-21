@@ -10,6 +10,8 @@ const activity = (page: Page) => page.getByTestId('personalos-activity');
 const results = (page: Page) => page.getByRole('listbox', { name: '搜索结果' });
 const searchPath = (query: string) => `/knowledge/search/${encodeURIComponent(query)}`;
 async function open(page: Page, path: string): Promise<void> {
+  // Token fragments are removed at startup; revisiting must create a new document.
+  await page.goto('about:blank');
   await page.goto(`${app.url}${path}#token=${app.token}`);
 }
 

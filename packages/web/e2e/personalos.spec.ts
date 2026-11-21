@@ -10,6 +10,8 @@ const grid = (page: Page) => page.getByRole('listbox', { name: '领域列表' })
 const domainCard = (page: Page, name: string) => grid(page).getByRole('option', { name: `领域：${name}`, exact: true });
 
 async function openPersonalOs(page: Page, path = '/knowledge/today', search = ''): Promise<void> {
+  // Token fragments are removed at startup; revisiting must create a new document.
+  await page.goto('about:blank');
   await page.goto(`${app.url}${path}${search}#token=${app.token}`);
 }
 
