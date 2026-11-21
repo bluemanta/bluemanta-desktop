@@ -115,6 +115,7 @@
 }
 
 .tableWrap table {
+  width: 100%;
   border-collapse: collapse;
   font-size: var(--bm-fs-sm);
 }
@@ -143,3 +144,8 @@
 .tableWrap tr:last-child td {
   border-bottom: 0;
 }
+
+.tableText { display: block; max-width: var(--bmw-cell-max); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tableLocation { display: flex; align-items: center; gap: var(--bm-sp-4); min-width: calc(var(--bm-sp-48) * 3); max-width: var(--bmw-cell-max); }
+.tableLocation .tableText { flex: 1; min-width: 0; }
+.tableLocation button, .tableLocation > .warning { flex: none; }

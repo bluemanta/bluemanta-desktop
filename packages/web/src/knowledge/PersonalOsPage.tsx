@@ -4,7 +4,6 @@ import { describeError } from '../api/client';
 import { useAppNavigate, useLaunch, useViewport } from '../app/context';
 import listStyles from '../ideas/IdeaList.module.css';
 import { Shell } from '../shell/Shell';
-import { Banner } from '../ui/Banner';
 import { EmptyState } from '../ui/EmptyState';
 import { usePersonalOsOverview, usePersonalOsToday } from './api';
 import { DetailArea } from './DetailArea';
@@ -13,6 +12,8 @@ import { KnowledgeHeader, type KnowledgeSection } from './KnowledgeHeader';
 import { InlineMarkdown } from './Markdown';
 import { KNOWLEDGE_MODULE } from './module';
 import { PersonalOsDomainDetail } from './PersonalOsDomainDetail';
+import { PersonalOsActivity, PersonalOsResources } from './PersonalOsCollections';
+import { PersonalOsMissing as Missing, PersonalOsReadWarning as ReadWarning } from './PersonalOsReadState';
 import { DOMAINS_PATH, domainPath, personalOsFilePath, personalOsTarget, type PersonalOsRoute } from './personalos-paths';
 import shared from './Knowledge.module.css';
 import styles from './PersonalOsPages.module.css';
@@ -82,14 +83,6 @@ function PageFrame({ section, detail, onClose, children, sidebarFallback }: { se
     <KnowledgeHeader section={section} />
     <div className={shared.body}>{children}{detail ? <DetailArea full={false} onClose={onClose}>{detail}</DetailArea> : null}</div>
   </Shell>;
-}
-
-function Missing({ root }: { root: string }) {
-  return <EmptyState icon="folder" title="没有找到 PersonalOS">服务按 {root} 查找。在启动服务前设置 BLUEMANTA_KNOWLEDGE_HOME 可更换位置。</EmptyState>;
-}
-
-function ReadWarning({ message, updatedAt, onRetry, retrying }: { message: string; updatedAt: number; onRetry: () => void; retrying: boolean }) {
-  return <div className={styles.warning}><Banner onRetry={onRetry} retrying={retrying}>{message}{updatedAt ? `；当前仍显示 ${readAt(updatedAt)} 读取的内容。` : ''}</Banner></div>;
 }
 
 function TodoRow({ todo, today, selected, onOpen, onFile }: { todo: Todo; today: string; selected: boolean; onOpen: () => void; onFile: (path: string, anchor?: string) => void }) {
@@ -201,5 +194,5 @@ export function PersonalOsPage({ route }: { route: PageRoute }) {
   if (route.view === 'redirect') return <Redirect to={route.to} />;
   if (route.view === 'today') return <TodayView />;
   if (route.view === 'domains' || route.view === 'file') return <DomainsView route={route} />;
-  return <PageFrame section={route.view} onClose={() => {}}><EmptyState icon="book" title="下一步实现">{route.view === 'resources' ? '资料登记与 Arsenal 浏览将在下一步接入。' : '日志动态将在下一步接入。'}</EmptyState></PageFrame>;
+  return <PageFrame section={route.view} onClose={() => {}}>{route.view === 'resources' ? <PersonalOsResources /> : <PersonalOsActivity />}</PageFrame>;
 }

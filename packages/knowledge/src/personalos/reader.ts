@@ -4,7 +4,7 @@ import { KnowledgeError } from '../types.js';
 import { abbreviateHome } from '../env.js';
 import { addDays, currentDate, dateDistance, groupTodos, parseInbox, parseLog, parseRegistry, parseRouter, parseStatus, todoBucket, validDate } from './parse.js';
 import { isPersonalOsDirectory, listPersonalOsFiles, normalizePersonalOsPath, personalOsExists, readPersonalOsFile, walkPersonalOsFiles } from './files.js';
-import type { Availability, DocumentFile, DomainDetail, InboxEntry, LogOptions, LogResult, Matter, Overview, PersonalOsReaderOptions, RegistryRow, Route, StatFunction, TodayResult, Warning } from './types.js';
+import type { Availability, DocumentFile, DomainDetail, InboxEntry, LogOptions, LogResult, Matter, Overview, PersonalOsReaderOptions, RegistryRow, Route, Router, StatFunction, TodayResult, Warning } from './types.js';
 
 export class PersonalOsReader {
   readonly home: string;
@@ -51,6 +51,11 @@ export class PersonalOsReader {
       paths.add(item.path); domains.push({ id: item.name, name: item.name, path: item.path, aliases: [], keywords: [], typicalQuestions: [], registered: false });
     }
     return { about: parsed.about, domains };
+  }
+  /** Routing metadata without reading domain documents or checking external registry locations. */
+  routing(): Router {
+    this.requireRoot(); const warnings: Warning[] = [];
+    return { ...this.routes(warnings), warnings };
   }
   private registryFor(route: Route, warnings: Warning[]): RegistryRow[] {
     const file = `${route.path}/资料登记.md`; const input = this.markdown(file, warnings, true);

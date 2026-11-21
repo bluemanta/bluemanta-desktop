@@ -1,8 +1,9 @@
-/** P3 设计验收截图；实际浏览器运行后才会产生文件，收集用例不代表截图已完成。 */
+/** P3/P4 设计验收截图；实际浏览器运行后才会产生文件，收集用例不代表截图已完成。 */
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { WEB_ROOT } from '../scripts/sandbox.ts';
 import { app, noHorizontalScroll, VIEWPORTS } from './helpers.ts';
+import { mockThreeGroupSearch, SEARCH_QUERY } from './personalos-search-fixture.ts';
 
 const OUT = join(WEB_ROOT, 'screenshots');
 const detail = (page: Page) => page.getByTestId('personalos-domain-detail');
@@ -42,4 +43,32 @@ for (const theme of ['light', 'dark'] as const) {
       }
     });
   }
+}
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`PersonalOS资料缺失路径、展开动态、三组搜索 1440x900 ${theme}`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme });
+    try {
+      const page = await context.newPage();
+      await open(page, '/knowledge/resources');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await page.getByTestId('personalos-resources').getByRole('button', { name: '本机路径不存在', exact: true }).click();
+      await expect(page.getByTestId('personalos-registry').locator('tbody tr[data-missing="true"]')).toHaveCount(2);
+      await shoot(page, `personalos-resources-missing-path-1440x900-${theme}`);
+
+      await open(page, '/knowledge/activity');
+      const section = page.getByTestId('personalos-activity').locator('details').filter({ has: page.locator('summary').filter({ hasText: '索引实验交付说明' }) });
+      await section.locator('summary').click();
+      await expect(section.getByText('交付的是一份输入输出说明，没有对外服务，也没有接入真实读者数据。', { exact: true })).toBeVisible();
+      await shoot(page, `personalos-activity-expanded-1440x900-${theme}`);
+
+      await mockThreeGroupSearch(page);
+      await open(page, `/knowledge/search/${encodeURIComponent(SEARCH_QUERY)}`);
+      await expect(page.getByRole('listbox', { name: '搜索结果' }).getByRole('region')).toHaveCount(3);
+      await expect(page.getByTestId('search-title-chain').first()).toHaveText('工作 › 状态.md › 现状');
+      await shoot(page, `personalos-search-groups-1440x900-${theme}`);
+    } finally {
+      await context.close();
+    }
+  });
 }

@@ -9,17 +9,19 @@ import { Shell } from '../shell/Shell';
 import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
-import { useKnowledgeIndex, useKnowledgeLibraries, useKnowledgeSearch } from './api';
+import { useKnowledgeIndex, useKnowledgeSearch, usePersonalOsOverview } from './api';
 import { FileReader } from './FileReader';
 import { KnowledgeHeader, type KnowledgeSection } from './KnowledgeHeader';
 import { KNOWLEDGE_MODULE } from './module';
-import { DEFAULT_LIBRARY, filePath, topicPath, topicsPath, type KnowledgeRoute } from './paths';
-import { statusLabel, statusTone, useOpenInLibrary } from './shared';
+import { filePath, libraryTarget, topicPath, type KnowledgeRoute } from './paths';
+import { statusLabel, statusTone } from './shared';
 import { TopicDetail } from './TopicDetail';
 import styles from './Knowledge.module.css';
 import { DetailArea } from './DetailArea';
 import { PersonalOsPage } from './PersonalOsPage';
-import { parsePersonalOsPath } from './personalos-paths';
+import { ResourceTabs } from './PersonalOsCollections';
+import { PersonalOsReadWarning } from './PersonalOsReadState';
+import { parsePersonalOsPath, personalOsTarget } from './personalos-paths';
 
 type StatusFilter = 'all' | 'active' | 'seed' | 'needs_review' | 'unregistered';
 
@@ -73,14 +75,15 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
   const navigate = useAppNavigate();
   const viewport = useViewport();
   const { embed } = useLaunch();
-  const libraries = useKnowledgeLibraries();
-  const index = useKnowledgeIndex(route.library);
+  const libraryId = 'arsenal';
+  const index = useKnowledgeIndex(libraryId);
   const [status, setStatus] = useState<StatusFilter>('all');
-  const open = useOpenInLibrary(route.library);
+  const open = (path: string, anchor?: string) => navigate(libraryTarget(libraryId, path), { state: anchor ? { knowledgeHeading: anchor } : undefined });
+  const heading = typeof window.history.state?.knowledgeHeading === 'string' ? window.history.state.knowledgeHeading as string : null;
   const selected = route.topic ?? (route.file ? route.file.split('/').slice(0, 2).join('/') : null);
   const hasDetail = route.topic !== null || route.file !== null;
   const full = hasDetail && (viewport === 'narrow' || embed === 'sidebar');
-  const close = () => navigate(topicsPath(route.library));
+  const close = () => navigate('/knowledge/resources/arsenal');
   useListKeys('主题清单', hasDetail ? close : null);
 
   const categories = useMemo(
@@ -91,17 +94,17 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
     [index.data, status],
   );
   const total = categories.reduce((count, category) => count + category.topics.length, 0);
-  const library = index.data?.library ?? libraries.data?.libraries.find((item) => item.id === route.library);
+  const library = index.data?.library;
 
   const detail = route.topic !== null ? (
-    <TopicDetail key={`${route.library}:${route.topic}`} library={route.library} path={route.topic} onOpen={open} onTopic={(path) => navigate(topicPath(route.library, path))} />
+    <TopicDetail key={`${libraryId}:${route.topic}`} library={libraryId} path={route.topic} onOpen={open} onTopic={(path) => navigate(topicPath(libraryId, path))} />
   ) : route.file !== null ? (
-    <FileReader key={`${route.library}:${route.file}`} library={route.library} path={route.file} onOpen={open} onTopic={(path) => navigate(topicPath(route.library, path))} />
+    <FileReader key={`${libraryId}:${route.file}`} library={libraryId} path={route.file} heading={heading} onOpen={open} onTopic={(path) => navigate(topicPath(libraryId, path))} />
   ) : null;
 
   if (full) {
     return (
-      <Shell module={KNOWLEDGE_MODULE} section="topics" header={false}>
+      <Shell module={KNOWLEDGE_MODULE} section="resources" header={false}>
         <DetailArea full onClose={close}>
           {detail}
         </DetailArea>
@@ -109,17 +112,13 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
     );
   }
 
+  if (embed === 'sidebar') return <Shell module={KNOWLEDGE_MODULE} section="resources" header={false}><EmptyState icon="book" title="选择一个主题查看" /></Shell>;
+
   let list: ReactNode;
   if (index.isPending) {
     list = <p className={styles.intro}>正在读取…</p>;
-  } else if (index.isError) {
-    list = (
-      <div className={styles.banner}>
-        <Banner onRetry={() => void index.refetch()} retrying={index.isFetching}>
-          读不到这个库：{describeError(index.error)}
-        </Banner>
-      </div>
-    );
+  } else if (index.isError && !index.data) {
+    list = null;
   } else if (library && !library.exists) {
     list = (
       <EmptyState icon="folder" title="没有找到这个库">
@@ -150,9 +149,9 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
                   data-missing={!topic.exists}
                   className={`${listStyles.row} ${styles.row}`}
                   title={topic.notes ?? undefined}
-                  onClick={() => (topic.exists ? navigate(topicPath(route.library, topic.path)) : undefined)}
+                  onClick={() => (topic.exists ? navigate(topicPath(libraryId, topic.path)) : undefined)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' && topic.exists) navigate(topicPath(route.library, topic.path));
+                    if (event.key === 'Enter' && topic.exists) navigate(topicPath(libraryId, topic.path));
                   }}
                 >
                   <span className={styles.rowName}>{topic.name}</span>
@@ -175,24 +174,10 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
   }
 
   return (
-    <Shell module={KNOWLEDGE_MODULE} section="topics" header={false}>
-      <KnowledgeHeader section="topics" />
+    <Shell module={KNOWLEDGE_MODULE} section="resources" header={false}>
+      <KnowledgeHeader section="resources" />
+      <ResourceTabs selected="arsenal" />
       <div className={styles.bar} role="toolbar" aria-label="筛选">
-        {(libraries.data?.libraries ?? []).filter((item) => item.id === 'arsenal').map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={styles.chip}
-            aria-pressed={item.id === route.library}
-            disabled={!item.exists}
-            title={item.exists ? item.root : `没有找到：${item.root}`}
-            onClick={() => navigate(topicsPath(item.id))}
-          >
-            {item.name}
-            {item.writable ? null : <span className={styles.tag}>只读</span>}
-          </button>
-        ))}
-        <span className={styles.sep} aria-hidden="true" />
         {STATUS_FILTERS.map((item) => (
           <button key={item.id} type="button" className={styles.chip} aria-pressed={status === item.id} onClick={() => setStatus(item.id)}>
             {item.label}
@@ -202,6 +187,7 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
           {index.data ? `${total} 个主题` : ''}
         </span>
       </div>
+      {index.isError ? <PersonalOsReadWarning message={`主题读取失败：${describeError(index.error)}`} updatedAt={index.dataUpdatedAt} onRetry={() => void index.refetch()} retrying={index.isFetching} /> : null}
       {index.data && index.data.warnings.length > 0 ? <p className={styles.intro}>{index.data.warnings.join('；')}</p> : null}
       <div className={styles.body}>
         {list}
@@ -211,137 +197,93 @@ export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: '
   );
 }
 
-const SOURCE_GROUPS: ReadonlyArray<{ id: string; label: string }> = [
-  { id: 'personal', label: '个人库' },
+const SOURCE_GROUPS = [
+  { id: 'personalos', label: 'PersonalOS' },
   { id: 'arsenal', label: 'Arsenal' },
   { id: 'idea', label: '灵感' },
-];
+] as const;
 
 function groupOf(hit: KnowledgeSearchHit): string {
   return hit.source === 'idea' ? 'idea' : (hit.library ?? 'other');
 }
 
+/** Root documents have no domain; the file name remains visible in every title chain. */
+export function personalOsHitTitle(hit: KnowledgeSearchHit): string {
+  const headings = hit.headings.filter((heading, index) => index !== 0 || heading !== hit.title);
+  return [hit.domain ?? 'PersonalOS', hit.path?.split('/').at(-1) ?? hit.title, ...headings].join(' › ');
+}
+
 export function SearchView({ query }: { query: string }) {
   const navigate = useAppNavigate();
   const viewport = useViewport();
-  const libraries = useKnowledgeLibraries();
+  const { embed } = useLaunch();
   const search = useKnowledgeSearch(query);
+  const overview = usePersonalOsOverview();
   const [sources, setSources] = useState<ReadonlySet<string>>(new Set());
   const [opened, setOpened] = useState<KnowledgeSearchHit | null>(null);
   useEffect(() => setOpened(null), [query]);
   useListKeys('搜索结果', opened ? () => setOpened(null) : null);
 
-  const names = new Map((libraries.data?.libraries ?? []).filter((item) => item.id === 'arsenal').map((item) => [item.id, item.name]));
-  // 分组顺序跟着最相关的那条走：哪组里有排名最靠前的结果，哪组排前面。
-  const ranked = [...new Set((search.data?.hits ?? []).map(groupOf))];
-  const known = new Map(SOURCE_GROUPS.map((group) => [group.id, group.label]));
-  const groups = [...ranked, ...SOURCE_GROUPS.map((group) => group.id).filter((id) => !ranked.includes(id))].map((id) => ({ id, label: known.get(id) ?? names.get(id) ?? id }));
-  const hits = (search.data?.hits ?? []).filter((hit) => sources.size === 0 || sources.has(groupOf(hit)));
-  const toggle = (id: string) =>
-    setSources((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
+  const visibleHits = (search.data?.hits ?? []).filter((hit) => SOURCE_GROUPS.some((group) => group.id === groupOf(hit)));
+  const ranked = [...new Set(visibleHits.map(groupOf))];
+  const groups = [...SOURCE_GROUPS].sort((a, b) => {
+    const rank = (id: string) => ranked.includes(id) ? ranked.indexOf(id) : ranked.length + SOURCE_GROUPS.findIndex((group) => group.id === id);
+    return rank(a.id) - rank(b.id);
+  });
+  const hits = visibleHits.filter((hit) => sources.size === 0 || sources.has(groupOf(hit)));
+  const toggle = (id: string) => setSources((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const openHit = (hit: KnowledgeSearchHit) => {
     if (hit.source === 'idea' && hit.ideaId) navigate(`/ideas/${encodeURIComponent(hit.ideaId)}`);
-    else if (viewport === 'narrow' && hit.library && hit.path) navigate(filePath(hit.library, hit.path));
     else setOpened(hit);
   };
+  const openedLibrary = opened?.library ?? 'personalos';
+  const reader = opened?.library && opened.path ? <FileReader
+    key={`${opened.library}:${opened.path}:${opened.headings.join('/')}`}
+    library={openedLibrary} path={opened.path} heading={opened.headings.at(-1) ?? null}
+    onOpen={(path, anchor) => navigate(openedLibrary === 'personalos' ? personalOsTarget(path, overview.data?.domains) : filePath(openedLibrary, path), { state: anchor ? { knowledgeHeading: anchor } : undefined })}
+    onTopic={openedLibrary === 'arsenal' ? (path) => navigate(topicPath('arsenal', path)) : undefined}
+  /> : null;
+  if (reader && (viewport === 'narrow' || embed === 'sidebar')) return <Shell module={KNOWLEDGE_MODULE} section="search" header={false}><DetailArea full onClose={() => setOpened(null)}>{reader}</DetailArea></Shell>;
+  if (embed === 'sidebar') return <Shell module={KNOWLEDGE_MODULE} section="search" header={false}><EmptyState icon="search" title="选择搜索结果后查看" /></Shell>;
 
   let content: ReactNode;
-  if (query.trim() === '') {
-    content = <EmptyState icon="search" title="搜索知识和灵感">在页头输入关键词后回车。多个关键词用空格隔开。</EmptyState>;
-  } else if (search.isError) {
-    content = (
-      <div className={styles.banner}>
-        <Banner onRetry={() => void search.refetch()} retrying={search.isFetching}>
-          搜索失败：{describeError(search.error)}
-        </Banner>
-      </div>
-    );
-  } else if (search.isPending) {
-    content = <p className={styles.intro}>正在搜索…</p>;
-  } else if (hits.length === 0) {
-    content = <EmptyState icon="search" title="没有找到">换个说法，或只用一两个关键词。</EmptyState>;
-  } else {
-    content = (
-      <div className={listStyles.list} role="listbox" aria-label="搜索结果">
-        {groups.map((group) => {
-          const items = hits.filter((hit) => groupOf(hit) === group.id);
-          if (items.length === 0) return null;
-          return (
-            <section key={group.id} aria-label={group.label}>
-              <div className={listStyles.group}>
-                {group.label}
-                <span className={listStyles.groupCount}>{items.length}</span>
-              </div>
-              {items.map((hit, i) => (
-                <div
-                  key={`${hit.source}:${hit.library}:${hit.path}:${hit.ideaId}:${i}`}
-                  role="option"
-                  tabIndex={0}
-                  aria-selected={opened !== null && opened.path === hit.path && opened.library === hit.library && opened.headings.join() === hit.headings.join()}
-                  className={styles.hit}
-                  onClick={() => openHit(hit)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') openHit(hit);
-                  }}
-                >
-                  <div className={styles.hitLine}>
-                    <span className={styles.hitTitle}>{hit.title}</span>
-                    <span className={styles.hitHeadings}>{hit.headings.join(' › ')}</span>
-                    {hit.area === 'archive' ? <span className={styles.tag}>归档</span> : null}
-                    {hit.topicName ? <span className={styles.tag}>{hit.topicName}</span> : null}
-                  </div>
-                  <div className={styles.hitExcerpt}>
-                    <Highlight text={hit.excerpt} query={search.data?.keywords.join(' ') ?? query} />
-                  </div>
-                </div>
-              ))}
-            </section>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const openedLibrary = opened?.library ?? DEFAULT_LIBRARY;
-  return (
-    <Shell module={KNOWLEDGE_MODULE} section="search" header={false}>
-      <KnowledgeHeader section="search" query={query} />
-      <div className={styles.bar} role="toolbar" aria-label="筛选来源">
-        <button type="button" className={styles.chip} aria-pressed={sources.size === 0} onClick={() => setSources(new Set())}>
-          全部
-        </button>
-        {groups.map((group) => (
-          <button key={group.id} type="button" className={styles.chip} aria-pressed={sources.has(group.id)} onClick={() => toggle(group.id)}>
-            {group.label}
-          </button>
-        ))}
-        <span className={styles.count} aria-live="polite" data-testid="hit-count">
-          {search.data && query.trim() !== '' ? `${hits.length} 条` : ''}
-        </span>
-      </div>
-      <div className={styles.body}>
-        {content}
-        {opened && opened.library && opened.path ? (
-          <DetailArea full={false} onClose={() => setOpened(null)}>
-            <FileReader
-              key={`${opened.library}:${opened.path}:${opened.headings.join('/')}`}
-              library={openedLibrary}
-              path={opened.path}
-              heading={opened.headings.at(-1) ?? null}
-              onOpen={(path) => navigate(filePath(openedLibrary, path))}
-              onTopic={(path) => navigate(topicPath(openedLibrary, path))}
-            />
-          </DetailArea>
-        ) : null}
-      </div>
-    </Shell>
-  );
+  if (query.trim() === '') content = <EmptyState icon="search" title="搜索知识和灵感">在页头输入关键词后回车。多个关键词用空格隔开。</EmptyState>;
+  else if (search.isPending) content = <p className={styles.intro}>正在搜索…</p>;
+  else if (hits.length === 0 && !search.isError) content = <EmptyState icon="search" title="没有找到">换个说法，或只用一两个关键词。</EmptyState>;
+  else content = <div className={listStyles.list} role="listbox" aria-label="搜索结果">
+    {groups.map((group) => {
+      const items = hits.filter((hit) => groupOf(hit) === group.id);
+      if (!items.length) return null;
+      return <section key={group.id} aria-label={group.label}>
+        <div className={listStyles.group}>{group.label}<span className={listStyles.groupCount}>{items.length}</span></div>
+        {items.map((hit, index) => <div key={`${hit.source}:${hit.library}:${hit.path}:${hit.ideaId}:${index}`} role="option" tabIndex={0}
+          aria-selected={opened !== null && opened.path === hit.path && opened.library === hit.library && opened.headings.join() === hit.headings.join()}
+          className={styles.hit} onClick={() => openHit(hit)} onKeyDown={(event) => { if (event.key === 'Enter') openHit(hit); }}>
+          <div className={styles.hitLine}>
+            {hit.library === 'personalos' ? <span className={styles.hitTitle} data-testid="search-title-chain" title={personalOsHitTitle(hit)}>{personalOsHitTitle(hit)}</span> : <><span className={styles.hitTitle}>{hit.title}</span><span className={styles.hitHeadings}>{hit.headings.join(' › ')}</span></>}
+            {hit.domain ? <span className={styles.tag} data-testid="search-domain">{hit.domain}</span> : null}
+            {hit.area === 'archive' ? <span className={styles.tag}>归档</span> : null}
+            {hit.library !== 'personalos' && hit.topicName ? <span className={styles.tag}>{hit.topicName}</span> : null}
+          </div>
+          <div className={styles.hitExcerpt}><Highlight text={hit.excerpt} query={search.data?.keywords.join(' ') ?? query} /></div>
+        </div>)}
+      </section>;
+    })}
+  </div>;
+  return <Shell module={KNOWLEDGE_MODULE} section="search" header={false}>
+    <KnowledgeHeader section="search" query={query} />
+    <div className={styles.bar} role="toolbar" aria-label="筛选来源">
+      <button type="button" className={styles.chip} aria-pressed={sources.size === 0} onClick={() => setSources(new Set())}>全部</button>
+      {groups.map((group) => <button key={group.id} type="button" className={styles.chip} aria-pressed={sources.has(group.id)} onClick={() => toggle(group.id)}>{group.label}</button>)}
+      <span className={styles.count} aria-live="polite" data-testid="hit-count">{search.data && query.trim() ? `${hits.length} 条` : ''}</span>
+    </div>
+    {search.isError ? <div className={styles.banner}><Banner onRetry={() => void search.refetch()} retrying={search.isFetching}>搜索失败：{describeError(search.error)}{search.data ? `；仍显示 ${new Date(search.dataUpdatedAt).toLocaleTimeString()} 读取的结果。` : ''}</Banner></div> : null}
+    <div className={styles.body}>{content}{reader ? <DetailArea full={false} onClose={() => setOpened(null)}>{reader}</DetailArea> : null}</div>
+  </Shell>;
 }
 
 /** Knowledge desk routing: PersonalOS pages plus compatible Arsenal and search views. */

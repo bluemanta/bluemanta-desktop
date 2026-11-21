@@ -98,21 +98,21 @@ function Files({ files, domainPath, onOpen }: { files: readonly FileEntry[]; dom
   </li>)}</ul>;
 }
 
-function Registry({ rows, onOpen }: { rows: Domain['registry']; onOpen: OpenFile }) {
+export function PersonalOsRegistryTable({ rows, onOpen }: { rows: Domain['registry']; onOpen: OpenFile }) {
   const copyPath = useCopyPath();
   if (rows.length === 0) return <p className={common.none}>这个领域还没有资料登记</p>;
-  return <div className={styles.tableWrap}><table><thead><tr>{['领域', '主题', '资料', '位置', '用途', '状态'].map((label) => <th key={label}>{label}</th>)}</tr></thead>
+  return <div className={styles.tableWrap}><table aria-label="资料登记" data-testid="personalos-registry"><thead><tr>{['领域', '主题', '资料', '位置', '用途', '状态'].map((label) => <th key={label}>{label}</th>)}</tr></thead>
     <tbody>{rows.map((row, index) => {
       const location = row.location;
       const target = location.kind === 'link' ? resolveLink(location.url ?? location.display, row.source) : null;
-      return <tr key={`${row.source}:${index}`}>
-        {[row.domain, row.topic, row.title].map((value, cell) => <td key={cell} title={value}><InlineMarkdown source={value} basePath={row.source} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></td>)}
-        <td title={location.display}>
+      return <tr key={`${row.source}:${index}`} data-missing={location.kind === 'local' && location.exists === false}>
+        {[row.domain, row.topic, row.title].map((value, cell) => <td key={cell} title={value}><div className={styles.tableText}><InlineMarkdown source={value} basePath={row.source} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></div></td>)}
+        <td title={location.display}><div className={styles.tableLocation}>
           {location.kind === 'local' && location.exists === false ? <span className={styles.warning} title="这个路径现在不存在" aria-label="这个路径现在不存在">● </span> : null}
-          {target?.kind === 'external' ? <a href={target.href} target="_blank" rel="noreferrer noopener">{location.display}</a> : <span>{location.display}</span>}
+          {target?.kind === 'external' ? <a className={styles.tableText} href={target.href} target="_blank" rel="noreferrer noopener">{location.display}</a> : <span className={styles.tableText}>{location.display}</span>}
           {location.kind === 'local' ? <button type="button" className={common.iconButton} onClick={() => copyPath(location.display)} title={`复制路径：${location.display}`} aria-label={`复制路径：${location.display}`}><Icon name="copy" /></button> : null}
-        </td>
-        {[row.purpose, row.status].map((value, cell) => <td key={cell} title={value}><InlineMarkdown source={value} basePath={row.source} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></td>)}
+        </div></td>
+        {[row.purpose, row.status].map((value, cell) => <td key={cell} title={value}><div className={styles.tableText}><InlineMarkdown source={value} basePath={row.source} onOpen={onOpen} highlightTerms={PERSONAL_OS_GAP_TERMS} /></div></td>)}
       </tr>;
     })}</tbody></table></div>;
 }
@@ -179,7 +179,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
         {data.availability !== 'available' ? <p className={common.notice}>{!data.exists ? '这个领域的目录不存在。' : data.availability === 'icloud' ? '状态文件尚未从 iCloud 下载。请在访达中下载后重试。' : data.availability === 'missing' ? '这个领域还没有状态.md。' : '状态文件暂时无法读取，请检查文件后重试。'} <button type="button" className={common.linkButton} onClick={() => void query.refetch()}>重试</button></p> : null}
         {data.sections.map((section, index) => <section key={`${section.line}:${index}`} className={styles.section}>{section.title ? <h3 className={styles.sectionTitle} data-heading={section.title}><InlineMarkdown source={section.title} basePath={data.file} onOpen={onOpen} onAnchor={onAnchor} highlightTerms={PERSONAL_OS_GAP_TERMS} /></h3> : null}{renderSection(section, index)}</section>)}
       </> : null}
-      {current.id === 'registry' ? <Registry rows={data.registry} onOpen={onOpen} /> : null}
+      {current.id === 'registry' ? <PersonalOsRegistryTable rows={data.registry} onOpen={onOpen} /> : null}
       {current.id === 'matters' ? data.matters.map((matter) => <section key={matter.path} className={styles.section}><h3 className={styles.sectionTitle}>{matter.name}</h3><Files files={matter.files} domainPath={data.path} onOpen={onReadFile} /></section>) : null}
       {current.id === 'knowledge' ? <Files files={data.knowledge} domainPath={data.path} onOpen={onReadFile} /> : null}
       {current.id === 'files' ? <Files files={data.files.filter((file) => file.kind === 'markdown')} domainPath={data.path} onOpen={onReadFile} /> : null}

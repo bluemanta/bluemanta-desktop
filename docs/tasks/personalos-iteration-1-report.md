@@ -123,3 +123,42 @@ P2 提交 SHA：`bf79f88c8148029e7947b9e3d840234bdf012ad0`。
 已知问题：浏览器验收、截图与200%文字放大待匹配版本浏览器可用后执行；没有剩余构建、类型或单元测试失败。P3的资料/动态占位与旧搜索保留由P4继续替换。
 
 提交 SHA：提交完成后补记于下方。
+
+P3 提交 SHA：`91781835fc7f81998f3efa5bc2076235b2babc70`。
+
+## P4 资料、动态与 PersonalOS 搜索
+
+### 实现与偏离
+
+资料登记合表复用领域详情的同一表格，提供领域多选、位置类型与缺失路径筛选胶囊、计数、复制路径、外链与横向滚动；Arsenal 分段固定该库、去掉库选择胶囊，保留主题详情和旧深链。动态按日期倒序分组、领域多选、折叠小节，每次加载更早30天；空窗口仍能继续，切换筛选重新建立分页状态。
+
+网页搜索显式请求 personalos/arsenal/ideas，界面再过滤旧个人库；组顺序沿用v1的相关性顺序，PersonalOS展示领域标签和领域/文件/小节标题链，宽窄屏都可阅读与定位。相对状态链接按路由表领域解析。
+
+索引版本升为2，增加domain/route_terms和源文件路由上下文；路由别名和关键词参与候选召回及排序。KnowledgeIndex的includePersonalOs默认false，只有网页服务显式启用；共享SQLite保留未激活库的数据，搜索/route/stats/chunkText按调用方范围过滤。未修改CLI、MCP或dsh代码。server/src/app.ts只改知识搜索索引工厂及其imports，api-types.ts只增搜索结果可选domain字段，符合“只为搜索分组和类型”的范围。无其他范围偏离、无新依赖。
+
+### 验收
+
+1. **verified**：fixture环境下执行 `npm run build && npm run check && npm test`，退出0。15个PR检查器单测 + 418个workspace单测，合计433项全部通过。各包为core57、knowledge79、cli18、dsh73、importer4、mcp5、server102、skills24、web56。构建产物494.32kB（gzip159.62kB），无构建或类型失败。
+2. **verified**：`npm run test -w @bluemanta/server -- test/knowledge-api.test.ts`，13/13通过；新增3项覆盖PersonalOS元信息/no-store、Arsenal/灵感/旧个人库显式范围、别名排序。
+3. **verified**：fixture + 内存SQLite执行 `node --input-type=module`，构造 `new KnowledgeIndex({env:defaultKnowledgeEnv({home:process.cwd()+'/packages/knowledge/fixtures/home'}),dbPath:':memory:',includePersonalOs:true})`，逐词调用 `index.search(query,{libraries:['personalos','arsenal'],includeIdeas:false,limit:50})` 后close。实际结果如下。
+
+| 查询词 | 结果与加权 |
+|---|---|
+| 雾灯便签 | 17个片段，全部PersonalOS；首条领域/工作/状态.md，domain=工作，小节现状 › 社区图书交换试点，score=7。该词也是工作路由关键词，因此会召回工作领域相关片段。 |
+| 消耗出口 | 1条，全部Arsenal；01_业务主题/会员体系/Topic_Knowledge.md，核心观点，score=1。 |
+| 纸舟实验 | 7个片段，全部PersonalOS；前5条为副业状态文件不同片段，score=6；我/状态.md的字面提及score=1；AGENTS.md路由表score=0.27。别名所属领域领先入口路由文档。 |
+
+4. **verified**：knowledge测试79/79（search28/28）。新增7项覆盖默认agent不启用POS、别名召回与提权、同一SQLite交替refresh不删POS且默认工具范围不扩大、候选400条上限前按范围过滤、隐藏文件/iCloud/CLAUDE/越界软链排除、增改删及路由元数据变化、schema重建与缺库降级。
+5. **verified**：全仓测试内MCP 5/5、dsh 73/73、CLI知识工具9/9均通过；这些包源文件无修改。
+6. **verified（只收集）**：`npm run walkthrough -w @bluemanta/web -- --list`，165 tests in 11 files；P4新增12条行为/尺寸用例及2条截图测试。`tsc -p packages/web/tsconfig.tools.json --noEmit`和`git diff --check`通过。
+7. **not-run**：P4浏览器走查。再次执行Node `existsSync(chromium.executablePath())`，结果仍false（Chromium1248，同P3缺失路径）。没有再次尝试运行浏览器，没有下载或升级。
+8. **not-run**：1440深浅色资料/动态/搜索截图，未生成文件。脚本约定输出到`packages/web/screenshots/`：`personalos-resources-missing-path-1440x900-{light|dark}.png`、`personalos-activity-expanded-1440x900-{light|dark}.png`、`personalos-search-groups-1440x900-{light|dark}.png`。搜索三组同屏截图用明确的虚构HTTP响应；上表三词排序另由真实fixture索引验证。
+9. **verified（静态）**：Python核对18个P4改动文件均在允许路径；三份PersonalOS CSS引用的变量均在tokens.css/既有local.css中，没有原始颜色或字号。资料表溢出、动态吸顶/分页等实际视觉仍not-run。
+
+### 已知问题与交接边界
+
+没有剩余构建、类型或单元测试失败。P3曾有一次走查启动命令failed（缺浏览器），P3/P4页面交互、截图、200%文字放大与真实dsh嵌入均not-run；需要可用的匹配版本浏览器后复核。真实PersonalOS/Knowledge/Shuyun未读取或写入，真实库整体验收保留给任务说明书指定的Claude Code与用户，不属于本轮执行。
+
+四个任务按顺序各做一次本地实现提交；未push、未开PR、未合并、未改写提交。为保持每任务一笔提交，P4完成后的SHA补记只追加在当前结果文件，不再创建第五笔提交，也不amend；交接时该SHA补记是唯一未提交改动。
+
+提交 SHA：提交完成后补记于下方。

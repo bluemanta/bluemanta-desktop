@@ -26,8 +26,8 @@ import {
 } from '@bluemanta/core';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { defaultSkillEnv, type SkillEnv } from '@bluemanta/skills';
-import { openKnowledgeIndex } from '@bluemanta/cli/knowledge-tools';
-import { defaultKnowledgeEnv, type KnowledgeEnv, type KnowledgeIndex } from '@bluemanta/knowledge';
+import { ideaDocsFrom, KNOWLEDGE_INDEX_FILE } from '@bluemanta/cli/knowledge-tools';
+import { defaultKnowledgeEnv, KnowledgeIndex, type KnowledgeEnv } from '@bluemanta/knowledge';
 import {
   API_VERSION,
   type ApiErrorCode,
@@ -249,7 +249,12 @@ export function createApp(options: CreateAppOptions): Hono {
     '/api/v1',
     createKnowledgeApi({
       env: knowledgeEnv,
-      index: () => (knowledgeIndex ??= openKnowledgeIndex({ dataDir: core.dataDir, core, env: knowledgeEnv })),
+      index: () => (knowledgeIndex ??= new KnowledgeIndex({
+        env: knowledgeEnv,
+        dbPath: join(core.dataDir, KNOWLEDGE_INDEX_FILE),
+        ideas: () => ideaDocsFrom(core),
+        includePersonalOs: true,
+      })),
     }),
   );
 

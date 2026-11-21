@@ -376,6 +376,8 @@ export type KnowledgeFileResponse = {
 export type KnowledgeInboxResponse = { ok: true; library: KnowledgeLibrary; files: KnowledgeFileEntry[] };
 
 export type KnowledgeSearchHit = {
+  /** Present only for PersonalOS hits; null for root documents outside a domain. */
+  domain?: string | null;
   source: 'library' | 'idea';
   library: string | null;
   path: string | null;

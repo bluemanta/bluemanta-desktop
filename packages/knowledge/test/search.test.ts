@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   KnowledgeIndex,
+  INDEX_SCHEMA_VERSION,
   bigrams,
   chunkMarkdown,
   defaultKnowledgeEnv,
@@ -49,11 +50,12 @@ const IDEAS: IdeaDoc[] = [
   },
 ];
 
-function open(options: { home?: string; ideas?: IdeaDoc[]; dbPath?: string; now?: () => number } = {}): KnowledgeIndex {
+function open(options: { home?: string; ideas?: IdeaDoc[]; dbPath?: string; now?: () => number; includePersonalOs?: boolean } = {}): KnowledgeIndex {
   const index = new KnowledgeIndex({
     env: defaultKnowledgeEnv({ home: options.home ?? FIXTURE_HOME }),
     dbPath: options.dbPath ?? ':memory:',
     ideas: () => options.ideas ?? IDEAS,
+    includePersonalOs: options.includePersonalOs,
     ...(options.now ? { now: options.now } : {}),
   });
   indexes.push(index);
@@ -263,5 +265,138 @@ describe('真实问题评测', () => {
     expect(report.results.map((result) => result.found)).toEqual([true, true, true, false]);
     expect(report.results[1]?.queries).toEqual(['去年说的会员分层那个想法', '会员分层']);
     expect(report.results[0]?.top.length).toBeLessThanOrEqual(5);
+  });
+});
+
+
+describe('PersonalOS 搜索（显式启用）', () => {
+  const scope = { libraries: ['personalos', 'arsenal'], includeIdeas: false };
+
+  it('默认仍只索引旧两库；显式启用检索领域正文、根文档与标题链', () => {
+    const legacy = open();
+    expect(legacy.search('雾灯便签').hits).toEqual([]);
+    expect(legacy.search('雾灯便签', { libraries: ['personalos'], includeIdeas: false }).hits).toEqual([]);
+    expect(legacy.stats().libraries.map((item) => item.id)).toEqual(['personal', 'arsenal']);
+    const index = open({ includePersonalOs: true });
+    const hits = index.search('雾灯便签', scope).hits;
+    expect(hits[0]).toMatchObject({ library: 'personalos', domain: '工作', path: '领域/工作/状态.md', topicPath: '领域/工作', headings: ['现状', '社区图书交换试点'] });
+    expect(hits[0]?.excerpt).toContain('雾灯便签');
+    expect(index.search('消耗出口', scope).hits[0]).toMatchObject({ library: 'arsenal' });
+    expect(index.search('消耗出口', scope).hits[0]).not.toHaveProperty('domain');
+    expect(index.search('评分项', scope).hits.some((hit) => hit.library === 'personal')).toBe(false);
+    expect(index.search('阅读约定', scope).hits.find((hit) => hit.path === 'AGENTS.md')).toMatchObject({ domain: null });
+    expect(index.search('园艺', scope).hits.some((hit) => hit.domain === '园艺')).toBe(true);
+  });
+
+  it('领域正文不含别名时也能召回，并排在路由表前面', () => {
+    const index = open({ includePersonalOs: true });
+    const hits = index.search('纸舟实验', scope).hits;
+    const body = hits.findIndex((hit) => hit.domain === '副业' && hit.path !== 'AGENTS.md');
+    const router = hits.findIndex((hit) => hit.path === 'AGENTS.md');
+    expect(body).toBe(0);
+    expect(router).toBeGreaterThan(body);
+    expect(index.chunkText(hits[body]!.chunkId)).not.toContain('纸舟实验');
+    expect(index.route('纸舟实验', { libraries: ['personalos'] })[0]).toMatchObject({ library: 'personalos', name: '副业', topicPath: '领域/副业', matched: ['纸舟实验'], readOrder: ['领域/副业/状态.md', '领域/副业/资料登记.md'] });
+  });
+
+  it('共享 SQLite 交替刷新保留未激活库，search/route/stats/chunkText 不越出默认范围', () => {
+    const dbPath = join(tempDir(), 'knowledge-index.sqlite');
+    const web = open({ dbPath, includePersonalOs: true });
+    const first = web.search('纸舟实验', scope).hits[0]!;
+    const initial = web.stats().libraries.find((item) => item.id === 'personalos');
+    const agent = open({ dbPath });
+    for (let round = 0; round < 2; round += 1) {
+      expect(agent.refresh(true)?.removed).toBe(0);
+      expect(agent.stats().libraries.map((item) => item.id)).toEqual(['personal', 'arsenal']);
+      expect(agent.search('纸舟实验', { libraries: ['personalos'], includeIdeas: false }).hits).toEqual([]);
+      expect(agent.route('纸舟实验', { libraries: ['personalos'] })).toEqual([]);
+      expect(agent.chunkText(first.chunkId)).toBeNull();
+      expect(web.stats().libraries.find((item) => item.id === 'personalos')).toEqual(initial);
+      expect(web.search('纸舟实验', scope).hits[0]?.chunkId).toBe(first.chunkId);
+      expect(web.refresh(true)).toMatchObject({ added: 0, updated: 0, removed: 0 });
+    }
+    expect(agent.search('评分项').hits[0]?.library).toBe('personal');
+  });
+
+  it('候选上限前就过滤库范围，已有的大量 PersonalOS 结果不挤掉旧库命中', () => {
+    const home = tempDir();
+    cpSync(FIXTURE_HOME, home, { recursive: true });
+    writeFileSync(join(home, 'Documents/PersonalOS/领域/工作/大量.md'), `# 大量片段\n${Array.from({ length: 450 }, (_, n) => `## 节 ${n}\n候选隔离标志\n`).join('')}`);
+    writeFileSync(join(home, 'Documents/Knowledge/候选.md'), '# 旧库候选\n候选隔离标志');
+    const dbPath = join(tempDir(), 'knowledge-index.sqlite');
+    const web = open({ home, dbPath, includePersonalOs: true });
+    web.refresh(true);
+    const agent = open({ home, dbPath });
+    expect(agent.search('候选隔离标志', { includeIdeas: false }).hits).toHaveLength(1);
+    expect(agent.search('候选隔离标志', { includeIdeas: false }).hits[0]).toMatchObject({ library: 'personal', path: '候选.md' });
+    expect(web.search('候选隔离标志', { libraries: ['personal'], includeIdeas: false }).hits).toHaveLength(1);
+  });
+
+  it('隐藏文件、iCloud 占位、CLAUDE 跳转和越界/隐藏软链不进索引', () => {
+    const home = tempDir();
+    cpSync(FIXTURE_HOME, home, { recursive: true });
+    const root = join(home, 'Documents/PersonalOS');
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(join(root, '.claude/私有.md'), '暗处独占标记');
+    writeFileSync(join(root, '.隐藏.md'), '暗处独占标记');
+    writeFileSync(join(root, '.等待.md.icloud'), '云端占位标记');
+    writeFileSync(join(root, 'CLAUDE.md'), '跳转独占标记');
+    const outside = join(home, '外部.md');
+    writeFileSync(outside, '外部独占标记');
+    symlinkSync(outside, join(root, '领域/工作/外链.md'));
+    symlinkSync(join(root, '.claude'), join(root, '领域/工作/可见链接'));
+    const index = open({ home, includePersonalOs: true });
+    for (const query of ['暗处独占标记', '云端占位标记', '跳转独占标记', '外部独占标记']) expect(index.search(query, scope).hits).toEqual([]);
+    writeFileSync(join(root, '等待.md'), '# 下载后\n云端实文标记');
+    index.refresh(true);
+    expect(index.search('云端实文标记', scope).hits[0]?.path).toBe('等待.md');
+    expect(index.search('云端占位标记', scope).hits).toEqual([]);
+  });
+
+  it('文件增改删、改成越界软链和路由别名改动都会刷新搜索', () => {
+    const home = tempDir();
+    cpSync(FIXTURE_HOME, home, { recursive: true });
+    const root = join(home, 'Documents/PersonalOS');
+    const file = join(root, '领域/副业/检索.md');
+    writeFileSync(file, '# 独立检索\noriginalOnlySentinel');
+    const index = open({ home, includePersonalOs: true });
+    index.refresh(true);
+    writeFileSync(file, '# 独立检索\nreplacementOnlySentinel');
+    utimesSync(file, new Date(), new Date(Date.now() + 5000));
+    writeFileSync(join(root, '领域/副业/新增.md'), '# 增补\nadditionOnlySentinel');
+    const agents = join(root, 'AGENTS.md');
+    writeFileSync(agents, readFileSync(agents, 'utf8').replace('纸舟实验', '晨星作坊'));
+    index.refresh(true);
+    expect(index.search('originalOnlySentinel', scope).hits).toEqual([]);
+    expect(index.search('replacementOnlySentinel', scope).hits[0]?.path).toBe('领域/副业/检索.md');
+    expect(index.search('additionOnlySentinel', scope).hits[0]?.path).toBe('领域/副业/新增.md');
+    expect(index.search('纸舟实验', scope).hits.some((hit) => hit.domain === '副业')).toBe(false);
+    expect(index.search('晨星作坊', scope).hits[0]?.domain).toBe('副业');
+    unlinkSync(file);
+    unlinkSync(join(root, '领域/副业/新增.md'));
+    symlinkSync(join(home, 'Documents/Knowledge/Knowledge_Index.md'), file);
+    index.refresh(true);
+    expect(index.search('replacementOnlySentinel', scope).hits).toEqual([]);
+    expect(index.search('additionOnlySentinel', scope).hits).toEqual([]);
+  });
+
+  it('PersonalOS 根目录不存在时保留其他库搜索；旧 schema 自动重建', () => {
+    const home = tempDir();
+    cpSync(FIXTURE_HOME, home, { recursive: true });
+    const dbPath = join(tempDir(), 'knowledge-index.sqlite');
+    const old = open({ home, dbPath, includePersonalOs: true });
+    old.refresh(true);
+    old.close(); indexes.splice(indexes.indexOf(old), 1);
+    const raw = new DatabaseSync(dbPath);
+    raw.prepare("UPDATE meta SET value = '1' WHERE key = 'schema'").run();
+    raw.close();
+    const rebuilt = open({ home, dbPath, includePersonalOs: true });
+    expect(INDEX_SCHEMA_VERSION).toBeGreaterThan(1);
+    expect(rebuilt.stats().libraries.every((library) => library.files === 0)).toBe(true);
+    expect(rebuilt.search('雾灯便签', scope).hits[0]?.library).toBe('personalos');
+    rmSync(join(home, 'Documents/PersonalOS'), { recursive: true });
+    rebuilt.refresh(true);
+    expect(rebuilt.search('雾灯便签', scope).hits).toEqual([]);
+    expect(rebuilt.search('消耗出口', scope).hits[0]?.library).toBe('arsenal');
   });
 });

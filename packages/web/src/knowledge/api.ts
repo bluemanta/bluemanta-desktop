@@ -4,6 +4,8 @@ import type {
   PersonalOsTodayResponse,
   PersonalOsDomainResponse,
   PersonalOsFileResponse,
+  PersonalOsRegistryResponse,
+  PersonalOsLogResponse,
   KnowledgeInboxResponse,
   KnowledgeIndexResponse,
   KnowledgeLibrariesResponse,
@@ -81,7 +83,7 @@ export function useKnowledgeSearch(query: string) {
   const trimmed = query.trim();
   return useQuery({
     queryKey: knowledgeKeys.search(trimmed),
-    queryFn: ({ signal }) => apiJson<KnowledgeSearchResponse>(`/api/v1/knowledge/search?q=${encodeURIComponent(trimmed)}&limit=50`, { signal }),
+    queryFn: ({ signal }) => apiJson<KnowledgeSearchResponse>(`/api/v1/knowledge/search?q=${encodeURIComponent(trimmed)}&limit=50&library=personalos&library=arsenal&ideas=1`, { signal }),
     enabled: trimmed !== '',
     staleTime: 10_000,
     placeholderData: keepPreviousData,
@@ -93,6 +95,8 @@ export const personalOsKeys = {
   overview: ['personalos', 'overview'] as const,
   today: ['personalos', 'today'] as const,
   domain: (id: string) => ['personalos', 'domain', id] as const,
+  registry: ['personalos', 'registry'] as const,
+  log: (domains: readonly string[], before: string | null) => ['personalos', 'log', [...domains].sort(), before] as const,
 };
 
 export function usePersonalOsOverview() {
@@ -133,4 +137,23 @@ export function usePersonalOsDueCount(): number | undefined {
   const data = usePersonalOsToday().data;
   const count = data ? data.overdue.length + data.dueToday.length : undefined;
   return count === 0 ? undefined : count;
+}
+
+export function usePersonalOsRegistry() {
+  return useQuery({
+    queryKey: personalOsKeys.registry,
+    queryFn: ({ signal }) => apiJson<PersonalOsRegistryResponse>('/api/v1/personalos/registry', { signal }),
+    staleTime: STALE_MS,
+  });
+}
+
+export function usePersonalOsLog(domains: readonly string[], before?: string | null) {
+  const params = new URLSearchParams({ days: '30' });
+  for (const domain of [...domains].sort()) params.append('domain', domain);
+  if (before) params.set('before', before);
+  return useQuery({
+    queryKey: personalOsKeys.log(domains, before ?? null),
+    queryFn: ({ signal }) => apiJson<PersonalOsLogResponse>(`/api/v1/personalos/log?${params}`, { signal }),
+    staleTime: STALE_MS,
+  });
 }

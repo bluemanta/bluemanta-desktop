@@ -149,6 +149,48 @@ describe('知识台接口', () => {
     expect(noIdeas.hits.every((hit) => hit.library === 'arsenal')).toBe(true);
   });
 
+  it('网页搜索 PersonalOS 独有词：领域标签、标题、小节、只读路径与 no-store', async () => {
+    const { call } = fixture();
+    const response = await call(`/api/v1/knowledge/search?q=${encodeURIComponent('雾灯便签')}&library=personalos&library=arsenal&ideas=1`);
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    const body = await response.json() as KnowledgeSearchResponse;
+    expect(body.hits.length).toBeGreaterThan(0);
+    expect(body.hits.every((hit) => hit.library === 'personalos')).toBe(true);
+    const work = body.hits.find((hit) => hit.path === '领域/工作/状态.md');
+    expect(work).toMatchObject({ domain: '工作', title: '工作 · 状态' });
+    expect(work?.headings).toContain('现状');
+    expect(JSON.stringify(body)).not.toContain(FIXTURE_HOME);
+    expect(body.hits.every((hit) => !hit.path?.split('/').some((segment) => segment.startsWith('.')))).toBe(true);
+    expect(body.hits.every((hit) => !hit.path?.endsWith('.icloud'))).toBe(true);
+    expect(body.hits.every((hit) => !('chunkId' in hit))).toBe(true);
+  });
+
+  it('网页范围保留 Arsenal 和灵感，旧个人库只在明确请求时可搜', async () => {
+    const { call, core } = fixture();
+    const created = core.card.create({ requestId: 'pos-search-idea', source: { kind: 'human', name: 'test' }, cardType: 'idea', title: '纸质书签观察', body: '虚构灵感查询标识：晨露灯塔' });
+    expect(created.ok).toBe(true);
+    const search = async (word: string, scope = '&library=personalos&library=arsenal') => (await (await call(`/api/v1/knowledge/search?q=${encodeURIComponent(word)}${scope}`)).json()) as KnowledgeSearchResponse;
+    const arsenal = await search('消耗出口');
+    expect(arsenal.hits.length).toBeGreaterThan(0);
+    expect(arsenal.hits.every((hit) => hit.library === 'arsenal')).toBe(true);
+    expect(arsenal.hits.every((hit) => !('domain' in hit))).toBe(true);
+    const ideas = await search('晨露灯塔');
+    expect(ideas.hits).toHaveLength(1);
+    expect(ideas.hits[0]?.source).toBe('idea');
+    const old = await search('客户研究清单', '&library=personal&ideas=0');
+    expect(old.hits.some((hit) => hit.library === 'personal')).toBe(true);
+    expect((await search('客户研究清单')).hits.some((hit) => hit.library === 'personal')).toBe(false);
+  });
+
+  it('路由表别名将对应 PersonalOS 领域排在入口路由文档前', async () => {
+    const { call } = fixture();
+    const body = await (await call(`/api/v1/knowledge/search?q=${encodeURIComponent('纸舟实验')}&library=personalos&library=arsenal&ideas=0`)).json() as KnowledgeSearchResponse;
+    expect(body.hits.length).toBeGreaterThan(0);
+    expect(body.hits[0]).toMatchObject({ library: 'personalos', domain: '副业' });
+    expect(body.hits[0]?.path).toMatch(/^领域\/副业\//);
+  });
+
   it('搜索参数校验', async () => {
     const { call } = fixture();
     expect((await call('/api/v1/knowledge/search')).status).toBe(400);

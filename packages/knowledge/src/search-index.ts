@@ -3,11 +3,14 @@ import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import { readLibraryIndex, walkLibrary } from './library.js';
+import { PersonalOsReader } from './personalos/reader.js';
+import { readPersonalOsFile, walkPersonalOsFiles } from './personalos/files.js';
+import type { Route } from './personalos/types.js';
 import { bigrams, chunkMarkdown, countOccurrences, excerptAround, extractKeywords, plainText, queryKeywords } from './text.js';
-import type { FileArea, KnowledgeEnv } from './types.js';
+import type { FileArea, KnowledgeEnv, LibraryInput, WalkedFile } from './types.js';
 
 /** Bump when the stored shape changes; a mismatch drops and rebuilds the index (it is derived data). */
-export const INDEX_SCHEMA_VERSION = 1;
+export const INDEX_SCHEMA_VERSION = 2;
 export const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 export const DEFAULT_SEARCH_LIMIT = 20;
 const CANDIDATE_LIMIT = 400;
@@ -36,6 +39,8 @@ export interface SearchHit {
   /** File title (first H1 or file name) or idea title. */
   title: string;
   headings: string[];
+  /** Present only on PersonalOS hits; null for root/protocol/log documents outside a domain. */
+  domain?: string | null;
   excerpt: string;
   area: FileArea | null;
   topicPath: string | null;
@@ -93,6 +98,8 @@ export interface KnowledgeIndexOptions {
   dbPath: string;
   /** Current ideas; omitted means ideas are not indexed. */
   ideas?: () => readonly IdeaDoc[];
+  /** Web opt-in. Agent tools keep the legacy scope even when the SQLite file already contains PersonalOS. */
+  includePersonalOs?: boolean;
   refreshIntervalMs?: number;
   now?: () => number;
 }
@@ -108,6 +115,8 @@ interface ChunkRow {
   body: string;
   area: string | null;
   topic_path: string | null;
+  domain: string | null;
+  route_terms: string;
   updated_at: string;
 }
 
@@ -145,7 +154,9 @@ function usesFts(keyword: string): boolean {
  */
 export class KnowledgeIndex {
   private readonly db: DatabaseSync;
+  /** Keep all configured libraries for shared-database cleanup, independently of this caller’s scope. */
   private readonly env: KnowledgeEnv;
+  private readonly activeLibraries: readonly LibraryInput[];
   private readonly ideas: (() => readonly IdeaDoc[]) | undefined;
   private readonly interval: number;
   private readonly now: () => number;
@@ -155,7 +166,8 @@ export class KnowledgeIndex {
 
   constructor(options: KnowledgeIndexOptions) {
     // Until iteration 4, agent callers retain their original Arsenal-style scope.
-    this.env = { ...options.env, libraries: options.env.libraries.filter((library) => library.kind !== 'personalos') };
+    this.env = options.env;
+    this.activeLibraries = options.env.libraries.filter((library) => options.includePersonalOs || library.kind !== 'personalos');
     this.ideas = options.ideas;
     this.interval = options.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
     this.now = options.now ?? Date.now;
@@ -165,10 +177,10 @@ export class KnowledgeIndex {
     this.db.exec('PRAGMA journal_mode = WAL');
     this.migrate();
     this.insertChunk = this.db.prepare(
-      `INSERT INTO chunks (source, library, path, idea_id, ord, title, headings, body, area, topic_path, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO chunks (source, library, path, idea_id, ord, title, headings, body, area, topic_path, domain, route_terms, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
-    this.insertFts = this.db.prepare('INSERT INTO chunks_fts (rowid, title, headings, body) VALUES (?, ?, ?, ?)');
+    this.insertFts = this.db.prepare('INSERT INTO chunks_fts (rowid, title, headings, body, route_terms) VALUES (?, ?, ?, ?, ?)');
   }
 
   private migrate(): void {
@@ -185,6 +197,7 @@ export class KnowledgeIndex {
         path TEXT NOT NULL,
         size INTEGER NOT NULL,
         mtime REAL NOT NULL,
+        context TEXT NOT NULL DEFAULT '',
         PRIMARY KEY (library, path)
       );
       CREATE TABLE chunks (
@@ -199,11 +212,13 @@ export class KnowledgeIndex {
         body TEXT NOT NULL,
         area TEXT,
         topic_path TEXT,
+        domain TEXT,
+        route_terms TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL
       );
       CREATE INDEX chunks_by_file ON chunks (library, path);
       CREATE INDEX chunks_by_idea ON chunks (idea_id);
-      CREATE VIRTUAL TABLE chunks_fts USING fts5 (title, headings, body, tokenize = 'trigram');
+      CREATE VIRTUAL TABLE chunks_fts USING fts5 (title, headings, body, route_terms, tokenize = 'trigram');
       CREATE TABLE topics (
         library TEXT NOT NULL,
         path TEXT NOT NULL,
@@ -238,6 +253,8 @@ export class KnowledgeIndex {
     body: string;
     area: string | null;
     topicPath: string | null;
+    domain?: string | null;
+    routeTerms?: string;
     updatedAt: string;
   }): void {
     const headings = values.headings.join('\n');
@@ -252,9 +269,11 @@ export class KnowledgeIndex {
       values.body,
       values.area,
       values.topicPath,
+      values.domain ?? null,
+      values.routeTerms ?? '',
       values.updatedAt,
     );
-    this.insertFts.run(Number(result.lastInsertRowid), values.title, headings, values.body);
+    this.insertFts.run(Number(result.lastInsertRowid), values.title, headings, values.body, values.routeTerms ?? '');
   }
 
   /** Re-reads changed sources. Throttled to once per interval unless `force` is set. */
@@ -265,7 +284,7 @@ export class KnowledgeIndex {
     const stats: RefreshStats = { files: 0, added: 0, updated: 0, removed: 0, ideas: 0, refreshedAt: new Date(now).toISOString() };
     this.db.exec('BEGIN');
     try {
-      for (const library of this.env.libraries) this.refreshLibrary(library.id, stats);
+      for (const library of this.activeLibraries) this.refreshLibrary(library.id, stats);
       const configured = new Set(this.env.libraries.map((library) => library.id));
       for (const { library } of this.db.prepare('SELECT DISTINCT library FROM sources').all() as Array<{ library: string }>) {
         if (library === IDEAS || configured.has(library)) continue;
@@ -286,31 +305,53 @@ export class KnowledgeIndex {
   private refreshLibrary(libraryId: string, stats: RefreshStats): void {
     const library = this.env.libraries.find((item) => item.id === libraryId);
     if (!library) return;
-    const files = walkLibrary(this.env, libraryId);
+    const personalOs = library.kind === 'personalos';
+    let routes: Route[] = [];
+    if (personalOs) {
+      try { routes = new PersonalOsReader({ home: this.env.home, root: library.root }).routing().domains; } catch { /* Other libraries remain searchable when this root cannot be read. */ }
+    }
+    const files: Array<WalkedFile & { domain?: string; routeTerms?: string }> = personalOs
+      ? walkPersonalOsFiles(library.root).filter((file) => file.availability === 'available').map((file) => {
+        const domain = routes.find((route) => file.path.startsWith(`${route.path}/`));
+        return { path: file.path, size: file.size, modifiedMs: Date.parse(file.modifiedAt ?? '') || 0, area: domain ? 'topic' : file.path === '收件箱.md' ? 'inbox' : 'root', topicPath: domain?.path ?? null,
+          ...(domain ? { domain: domain.name, routeTerms: [domain.name, ...domain.aliases, ...domain.keywords, ...domain.typicalQuestions].join('\n') } : {}) };
+      })
+      : walkLibrary(this.env, libraryId);
     stats.files += files.length;
     const known = new Map(
-      (this.db.prepare('SELECT path, size, mtime FROM sources WHERE library = ?').all(libraryId) as Array<{ path: string; size: number; mtime: number }>).map(
+      (this.db.prepare('SELECT path, size, mtime, context FROM sources WHERE library = ?').all(libraryId) as Array<{ path: string; size: number; mtime: number; context: string }>).map(
         (row) => [row.path, row],
       ),
     );
-    const index = readLibraryIndex(this.env, libraryId);
     this.db.prepare('DELETE FROM topics WHERE library = ?').run(libraryId);
     const insertTopic = this.db.prepare('INSERT INTO topics (library, path, name, category, terms) VALUES (?, ?, ?, ?, ?)');
-    for (const category of index.categories) {
+    for (const domain of routes) insertTopic.run(libraryId, domain.path, domain.name, domain.path === '我' ? '我' : '领域', [domain.name, ...domain.aliases, ...domain.keywords, ...domain.typicalQuestions].join('\n'));
+    for (const category of personalOs ? [] : readLibraryIndex(this.env, libraryId).categories) {
       for (const topic of category.topics) {
         const terms = [topic.name, ...topic.aliases, ...topic.keywords, ...topic.typicalQuestions].join('\n');
         insertTopic.run(libraryId, topic.path, topic.name, category.id, terms);
       }
     }
-    const upsertSource = this.db.prepare('INSERT OR REPLACE INTO sources (library, path, size, mtime) VALUES (?, ?, ?, ?)');
+    const upsertSource = this.db.prepare('INSERT OR REPLACE INTO sources (library, path, size, mtime, context) VALUES (?, ?, ?, ?, ?)');
     for (const file of files) {
       const previous = known.get(file.path);
       known.delete(file.path);
-      if (previous && previous.size === file.size && previous.mtime === file.modifiedMs) continue;
+      const context = personalOs ? JSON.stringify([file.topicPath, file.domain, file.routeTerms]) : '';
+      if (previous && previous.size === file.size && previous.mtime === file.modifiedMs && previous.context === context) continue;
       let markdown: string;
       try {
-        markdown = readFileSync(join(library.root, ...file.path.split('/')), 'utf8');
+        if (personalOs) {
+          const content = readPersonalOsFile(library.root, file.path);
+          if (content.availability !== 'available' || content.content === undefined) throw new Error('Unavailable file');
+          markdown = content.content;
+        } else markdown = readFileSync(join(library.root, ...file.path.split('/')), 'utf8');
       } catch {
+        // Do not retain searchable text for a file that became unreadable or an unsafe link.
+        if (personalOs && previous) {
+          this.deleteChunks('library = ? AND path = ?', libraryId, file.path);
+          this.db.prepare('DELETE FROM sources WHERE library = ? AND path = ?').run(libraryId, file.path);
+          stats.removed += 1;
+        }
         continue;
       }
       this.deleteChunks('library = ? AND path = ?', libraryId, file.path);
@@ -329,10 +370,12 @@ export class KnowledgeIndex {
           body: chunk.body,
           area: file.area,
           topicPath: file.topicPath,
+          domain: file.domain,
+          routeTerms: file.routeTerms,
           updatedAt,
         });
       });
-      upsertSource.run(libraryId, file.path, file.size, file.modifiedMs);
+      upsertSource.run(libraryId, file.path, file.size, file.modifiedMs, context);
       if (previous) stats.updated += 1;
       else stats.added += 1;
     }
@@ -386,7 +429,7 @@ export class KnowledgeIndex {
     const ideas = (this.db.prepare("SELECT COUNT(*) AS n FROM chunks WHERE source = 'idea'").get() as { n: number }).n;
     const refreshed = this.db.prepare("SELECT value FROM meta WHERE key = 'refreshedAt'").get() as { value: string } | undefined;
     return {
-      libraries: this.env.libraries.map((library) => {
+      libraries: this.activeLibraries.map((library) => {
         const row = rows.find((item) => item.library === library.id);
         return { id: library.id, files: row?.files ?? 0, chunks: row?.chunks ?? 0 };
       }),
@@ -406,7 +449,8 @@ export class KnowledgeIndex {
     const rows = this.db.prepare('SELECT library, path, name, category, terms FROM topics').all() as unknown as TopicRow[];
     const candidates: RouteCandidate[] = [];
     for (const row of rows) {
-      if (options.libraries && !options.libraries.includes(row.library)) continue;
+      const library = this.activeLibraries.find((item) => item.id === row.library);
+      if (!library || (options.libraries && !options.libraries.includes(row.library))) continue;
       const terms = row.terms.split('\n').filter((term) => term.trim() !== '');
       const matched = new Set<string>();
       let score = 0;
@@ -425,7 +469,7 @@ export class KnowledgeIndex {
         category: row.category,
         matched: [...matched],
         score,
-        readOrder: ['README.md', 'Asset_Index.md', 'Topic_Knowledge.md', 'Topic_Log.md'].map((file) => `${row.path}/${file}`),
+        readOrder: (library.kind === 'personalos' ? ['状态.md', '资料登记.md'] : ['README.md', 'Asset_Index.md', 'Topic_Knowledge.md', 'Topic_Log.md']).map((file) => `${row.path}/${file}`),
       });
     }
     return candidates.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'zh-Hans-CN')).slice(0, options.limit ?? 5);
@@ -440,7 +484,7 @@ export class KnowledgeIndex {
     const keywords = queryKeywords(query);
     const limit = options.limit ?? DEFAULT_SEARCH_LIMIT;
     if (keywords.length === 0) return { query, keywords, hits: [] };
-    const routed = new Map(this.route(query, { limit: 10 }).map((candidate) => [`${candidate.library}\n${candidate.topicPath}`, candidate.score]));
+    const routed = new Map(this.route(query, { libraries: options.libraries, limit: 10 }).map((candidate) => [`${candidate.library}\n${candidate.topicPath}`, candidate.score]));
     const topicNames = new Map(
       (this.db.prepare('SELECT library, path, name FROM topics').all() as Array<{ library: string; path: string; name: string }>).map((row) => [
         `${row.library}\n${row.path}`,
@@ -462,50 +506,52 @@ export class KnowledgeIndex {
         hits.push(hit);
       }
     };
-    collect(this.candidates(keywords, 'all'), 'all', keywords);
-    if (hits.length < limit && keywords.length > 1) collect(this.candidates(keywords, 'any'), 'any', keywords);
+    collect(this.candidates(keywords, 'all', options), 'all', keywords);
+    if (hits.length < limit && keywords.length > 1) collect(this.candidates(keywords, 'any', options), 'any', keywords);
     if (hits.length < limit) {
       const pieces = [...new Set(keywords.flatMap(bigrams))];
-      if (pieces.length > 0) collect(this.candidates(pieces, 'any'), 'fuzzy', pieces, 0.6);
+      if (pieces.length > 0) collect(this.candidates(pieces, 'any', options), 'fuzzy', pieces, 0.6);
     }
     return { query, keywords, hits: hits.slice(0, limit) };
   }
 
-  private allowed(row: ChunkRow, options: SearchOptions): boolean {
+  private allowed(row: Pick<ChunkRow, 'source' | 'library'>, options: SearchOptions): boolean {
     if (row.source === 'idea') return options.includeIdeas !== false;
-    if (!options.libraries) return true;
-    return row.library !== null && options.libraries.includes(row.library);
+    return row.library !== null && this.activeLibraries.some((library) => library.id === row.library) && (!options.libraries || options.libraries.includes(row.library));
   }
 
-  private candidates(terms: readonly string[], mode: 'all' | 'any'): ChunkRow[] {
+  private candidates(terms: readonly string[], mode: 'all' | 'any', options: SearchOptions): ChunkRow[] {
+    // Restrict before LIMIT: inactive shared-cache rows must not crowd out this caller’s candidates.
+    const libraries = this.activeLibraries.filter((library) => !options.libraries || options.libraries.includes(library.id)).map((library) => library.id);
+    const scope = `((${libraries.length ? `c.library IN (${libraries.map(() => '?').join(',')})` : '0'})${options.includeIdeas === false ? '' : " OR c.source = 'idea'"})`;
     const ftsTerms = terms.filter(usesFts);
     const likeTerms = terms.filter((term) => !usesFts(term));
-    const text = "lower(c.title || ' ' || c.headings || ' ' || c.body)";
-    const columns = 'c.id, c.source, c.library, c.path, c.idea_id, c.title, c.headings, c.body, c.area, c.topic_path, c.updated_at';
+    const text = "lower(c.title || ' ' || c.headings || ' ' || c.body || ' ' || c.route_terms)";
+    const columns = 'c.id, c.source, c.library, c.path, c.idea_id, c.title, c.headings, c.body, c.area, c.topic_path, c.domain, c.route_terms, c.updated_at';
     if (mode === 'all') {
       const where = likeTerms.map(() => `instr(${text}, ?) > 0`);
       if (ftsTerms.length > 0) {
         return this.db
           .prepare(
-            `SELECT ${columns} FROM chunks_fts f JOIN chunks c ON c.id = f.rowid WHERE chunks_fts MATCH ?${where.map((clause) => ` AND ${clause}`).join('')} LIMIT ${CANDIDATE_LIMIT}`,
+            `SELECT ${columns} FROM chunks_fts f JOIN chunks c ON c.id = f.rowid WHERE ${scope} AND chunks_fts MATCH ?${where.map((clause) => ` AND ${clause}`).join('')} LIMIT ${CANDIDATE_LIMIT}`,
           )
-          .all(ftsTerms.map(escapeFts).join(' AND '), ...likeTerms) as unknown as ChunkRow[];
+          .all(...libraries, ftsTerms.map(escapeFts).join(' AND '), ...likeTerms) as unknown as ChunkRow[];
       }
       return this.db
-        .prepare(`SELECT ${columns} FROM chunks c WHERE ${where.join(' AND ')} LIMIT ${CANDIDATE_LIMIT}`)
-        .all(...likeTerms) as unknown as ChunkRow[];
+        .prepare(`SELECT ${columns} FROM chunks c WHERE ${scope} AND ${where.join(' AND ')} LIMIT ${CANDIDATE_LIMIT}`)
+        .all(...libraries, ...likeTerms) as unknown as ChunkRow[];
     }
     const rows = new Map<number, ChunkRow>();
     if (ftsTerms.length > 0) {
       const found = this.db
-        .prepare(`SELECT ${columns} FROM chunks_fts f JOIN chunks c ON c.id = f.rowid WHERE chunks_fts MATCH ? LIMIT ${CANDIDATE_LIMIT}`)
-        .all(ftsTerms.map(escapeFts).join(' OR ')) as unknown as ChunkRow[];
+        .prepare(`SELECT ${columns} FROM chunks_fts f JOIN chunks c ON c.id = f.rowid WHERE ${scope} AND chunks_fts MATCH ? LIMIT ${CANDIDATE_LIMIT}`)
+        .all(...libraries, ftsTerms.map(escapeFts).join(' OR ')) as unknown as ChunkRow[];
       for (const row of found) rows.set(row.id, row);
     }
     if (likeTerms.length > 0) {
       const found = this.db
-        .prepare(`SELECT ${columns} FROM chunks c WHERE ${likeTerms.map(() => `instr(${text}, ?) > 0`).join(' OR ')} LIMIT ${CANDIDATE_LIMIT}`)
-        .all(...likeTerms) as unknown as ChunkRow[];
+        .prepare(`SELECT ${columns} FROM chunks c WHERE ${scope} AND (${likeTerms.map(() => `instr(${text}, ?) > 0`).join(' OR ')}) LIMIT ${CANDIDATE_LIMIT}`)
+        .all(...libraries, ...likeTerms) as unknown as ChunkRow[];
       for (const row of found) rows.set(row.id, row);
     }
     return [...rows.values()];
@@ -522,14 +568,16 @@ export class KnowledgeIndex {
     const title = row.title.toLowerCase();
     const headings = row.headings.toLowerCase();
     const body = row.body.toLowerCase();
+    const routeTerms = row.route_terms.toLowerCase();
     let score = 0;
     let matchedTerms = 0;
     for (const term of terms) {
       const inTitle = countOccurrences(title, term);
       const inHeadings = countOccurrences(headings, term);
       const inBody = countOccurrences(body, term);
-      if (inTitle + inHeadings + inBody > 0) matchedTerms += 1;
-      score += Math.min(inBody, 5) + 3 * Math.min(inHeadings, 2) + 4 * Math.min(inTitle, 1);
+      const inRoute = countOccurrences(routeTerms, term);
+      if (inTitle + inHeadings + inBody + inRoute > 0) matchedTerms += 1;
+      score += Math.min(inBody, 5) + 3 * Math.min(inHeadings, 2) + 4 * Math.min(inTitle, 1) + 2 * Math.min(inRoute, 1);
     }
     if (matchedTerms === 0) return null;
     if (minFraction > 0 && matchedTerms / terms.length < minFraction) return null;
@@ -540,7 +588,7 @@ export class KnowledgeIndex {
     const area = (row.area as FileArea | null) ?? null;
     if (area) score *= AREA_WEIGHT[area];
     // 根目录的总索引 `*_Index.md` 是一整张路由表，交给 route() 用；搜索里降权，免得表格行压过正文。
-    if (area === 'root' && row.path !== null && /_Index\.md$/i.test(row.path)) score *= 0.3;
+    if (area === 'root' && row.path !== null && (/_Index\.md$/i.test(row.path) || (row.path === 'AGENTS.md' && this.activeLibraries.some((library) => library.id === row.library && library.kind === 'personalos')))) score *= 0.3;
     if (mode === 'any') score *= 0.6;
     if (mode === 'fuzzy') score *= 0.4;
     const plain = plainText(row.body);
@@ -551,6 +599,7 @@ export class KnowledgeIndex {
       ideaId: row.idea_id,
       title: row.title,
       headings: row.headings === '' ? [] : row.headings.split('\n'),
+      ...(this.activeLibraries.some((library) => library.id === row.library && library.kind === 'personalos') ? { domain: row.domain } : {}),
       excerpt: excerptAround(plain === '' ? row.title : plain, terms),
       area,
       topicPath: row.topic_path,
@@ -564,7 +613,7 @@ export class KnowledgeIndex {
 
   /** Full body of a chunk, for evaluation and agents that need the matched section verbatim. */
   chunkText(chunkId: number): string | null {
-    const row = this.db.prepare('SELECT body FROM chunks WHERE id = ?').get(chunkId) as { body: string } | undefined;
-    return row?.body ?? null;
+    const row = this.db.prepare('SELECT source, library, body FROM chunks WHERE id = ?').get(chunkId) as Pick<ChunkRow, 'source' | 'library' | 'body'> | undefined;
+    return row && this.allowed(row, {}) ? row.body : null;
   }
 }
