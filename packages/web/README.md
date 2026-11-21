@@ -62,6 +62,7 @@ npm test -w @bluemanta/web        # vitest：时间与分组、筛选、高亮�
 npm run build
 npm run walkthrough -w @bluemanta/web -- --list # 仅收集用例，不运行浏览器
 npm run walkthrough                           # 需要本机已有匹配的 Chromium
+BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough # 使用本机已安装的 Google Chrome，不下载浏览器
 ```
 
 走查用构建产物：`e2e/global-setup.ts` 在 `.dev-data/` 下生成四份虚构库（只读完整、空库、写操作、截图），各起一个本地服务（空闲端口）托管 `dist`。写操作不碰只读库。知识库统一指向 `packages/knowledge/fixtures/home`，PersonalOS 日期固定为 `2026-11-21`；Skill home 和 agent 目录也固定到该 fixture home 下。不存在的库和读取失败由请求 mock 模拟。
@@ -83,7 +84,7 @@ npm run walkthrough                           # 需要本机已有匹配的 Chro
 npm run walkthrough -w @bluemanta/web -- personalos.spec.ts personalos-screenshots.spec.ts --list
 ```
 
-**浏览器条件与验收边界：** 本轮（2026-11-21）本机没有当前 Playwright 所需的 Chromium 1248，浏览器走查与截图为 `not-run`。不下载或升级浏览器，也不把 `--list` 收集成功写成走查通过。上面的截图路径是脚本的输出约定，只有实际运行后才代表产物存在；这不是已生成截图清单。
+**浏览器条件与验收边界：** 未设置 `BLUEMANTA_PW_CHANNEL` 时仍使用 Playwright 默认浏览器；缓存版本不匹配时，可设置 `BLUEMANTA_PW_CHANNEL=chrome` 使用本机已经安装的 Google Chrome。此配置只选择浏览器，不负责安装或升级。不把 `--list` 收集成功写成走查通过；实际命令、通过数与未执行项记录在任务结果文件中。上面的截图路径是输出约定，只有实际运行后才代表产物存在。
 
 ## 目录
 

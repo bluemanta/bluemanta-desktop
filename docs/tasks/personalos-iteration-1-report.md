@@ -202,3 +202,28 @@ R1 提交 SHA：`bbb7748ed49d84eec0f0c0d4d6451e9294251afc`。
 偏离：无。已知问题：浏览器结论待R3执行，不能用构建通过替代。
 
 R2提交SHA：提交完成后补记。
+
+R2 提交 SHA：`cb527f8b433beeb5a39c693c791e5b01e12c4b60`。
+
+### R3 本机 Chrome 走查
+
+实现：Playwright 配置仅在 `BLUEMANTA_PW_CHANNEL` 有值时传入 `use.channel`，README 增加本机 Chrome 命令及默认行为说明。未安装依赖，未下载或升级浏览器。偏离：无。已知问题：本次返工范围内没有剩余失败。
+
+| 验收项 | 状态、命令与结果 |
+|---|---|
+| 1 环境变量与默认行为 | verified：`node --input-type=module` 分别清除环境变量及设置为chrome后动态导入配置，assert验证默认channel为undefined、指定后为chrome，其余use字段deepEqual；输出 `verified: unset channel preserves defaults; chrome sets only use.channel`，退出0。 |
+| 2 README用法 | verified：`git diff -- packages/web/e2e/playwright.config.ts packages/web/README.md`核对新增命令为 `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，说明使用已安装Chrome、不负责安装升级，未设置时保留默认浏览器。 |
+| 3 全量浏览器走查 | verified：`BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，166 passed (29.5s)，退出0，无失败或跳过；`packages/web/test-results/.last-run.json`为passed且failedTests为空。 |
+| R1界面复验 | verified：同一全量命令中 `personalos-p4.spec.ts` 的“追加条目独立显示，普通标签为灰色；未归领域包含条目与小节且可和领域多选”通过，核对9条总数、4条未归领域、并集6条、正文去重和实际计算颜色。R1的浏览器not-run已在此补验。 |
+| R2原两处失败复验 | verified：同一命令中“资料领域多选、位置类型和缺失路径筛选可组合，并有空态”及“动态支持领域多选并加载早于默认30天窗口的日志”均通过。R2的浏览器not-run已在此补验。 |
+| 构建、类型与单测 | verified：R1相同fixture环境下执行 `npm run build && npm run check && npm test && BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，前置构建/检查/单测成功后进入走查。R1/R2已记录的全仓单测为422项workspace+15项PR检查器测试，本项未改产品代码或单测。该次终端汇总未完整保留，已检查passed结果文件，并单独重跑上一行全量走查取得准确通过数。 |
+| 截图产物 | verified：同一全量走查的10条PersonalOS截图测试通过；`python3`遍历 `packages/web/screenshots/personalos-*.png`得到30张，修改时间全部为2026-11-21 10:33:36–10:33:38，本轮已重新生成。截图留在忽略目录，不提交。 |
+| 范围与空白检查 | verified：`git diff --check`退出0；`git status --short`只有R3允许的配置、README和结果报告三项，未更改其他文件。 |
+
+### 返工后的剩余验收边界
+
+R1–R3要求的实现、单测和全量浏览器走查均verified，没有剩余failed或not-run。原P3/P4因缺Chromium产生的浏览器阻塞，已由本机Chrome全量走查解除；之前的失败记录保留为过程证据。
+
+仍为not-run的原迭代范围外/人工验收项：真实PersonalOS只读试跑（按返工单第3节留给Claude Code，经用户同意后进行）；真实dsh Desktop嵌入验收；PersonalOS专门的200%文字放大检查。本轮通过的200%用例覆盖原灵感台，不能据此声称PersonalOS放大验收通过。没有为这些项目执行真实数据访问或用户环境修改。
+
+R3提交SHA：提交完成后补记；为保持每项一笔提交，最后SHA补记仍单独留在工作区，不amend、不额外提交。
