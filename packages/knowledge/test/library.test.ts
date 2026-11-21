@@ -43,13 +43,16 @@ function codeOf(fn: () => unknown): string | undefined {
 }
 
 describe('环境', () => {
-  it('默认两个库，都在 home 下，都按只读处理', () => {
+  it('默认三个库，旧输入兼容 Arsenal，全部只读', () => {
     expect(env.libraries.map((library) => [library.id, library.writable])).toEqual([
+      ['personalos', false],
       ['personal', false],
       ['arsenal', false],
     ]);
-    expect(env.libraries[0]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Knowledge'));
-    expect(env.libraries[1]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'));
+    expect(env.libraries[0]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'PersonalOS'));
+    expect(env.libraries.map((library) => library.kind)).toEqual(['personalos', 'arsenal', 'arsenal']);
+    expect(env.libraries[1]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Knowledge'));
+    expect(env.libraries[2]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'));
   });
 
   it('BLUEMANTA_KNOWLEDGE_HOME 覆盖 home', () => {

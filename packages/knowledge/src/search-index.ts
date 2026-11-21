@@ -154,7 +154,8 @@ export class KnowledgeIndex {
   private readonly insertFts: StatementSync;
 
   constructor(options: KnowledgeIndexOptions) {
-    this.env = options.env;
+    // Until iteration 4, agent callers retain their original Arsenal-style scope.
+    this.env = { ...options.env, libraries: options.env.libraries.filter((library) => library.kind !== 'personalos') };
     this.ideas = options.ideas;
     this.interval = options.refreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
     this.now = options.now ?? Date.now;
