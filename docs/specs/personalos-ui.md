@@ -258,6 +258,13 @@ Playwright 走查用 fixture 和 `BLUEMANTA_TODAY=2026-11-21`，覆盖：今天�
 - 每次调用固定带：`-c core.quotepath=false -c core.fsmonitor=false -c color.ui=false --no-pager`；`log`、`show` 再加 `--no-ext-diff --no-textconv`。环境变量：`GIT_OPTIONAL_LOCKS=0`（`status` 不改写索引）、`GIT_TERMINAL_PROMPT=0`、`GIT_LITERAL_PATHSPECS=1`。超时 5 秒，输出上限 8 MB。
 - 解析机器格式（`-z`、`%x00`、`%x1e` 分隔），不解析给人看的输出。
 - **隐藏路径**：路径里任一段以 `.` 开头的文件（如 `.claude/…`、`.gitignore`）从文件列表、差异、未存档改动里一律去掉。一笔提交只改了这类文件时提交照常列出，文件列表为空，注明「只改了隐藏文件」。
+- **跨隐藏边界的改名**（2026-11-21 答复 Codex P5a 停工问题）：一律按可见的一端处理，界面和接口里都不出现隐藏路径。
+  - 隐藏 → 可见：当作新增 `A`，路径取新路径，差异是新文件的全部内容（全为新增行）；
+  - 可见 → 隐藏：当作删除 `D`，路径取旧路径，差异是旧文件的全部内容（全为删除行）；
+  - 两端都可见：保留 `R`；两端都隐藏：整条去掉；
+  - 文件数、增删行数、`domains` 归属都按处理后的结果计算；
+  - 未存档改动（12.4）用同样的规则；
+  - 实现提示：`-M` 下 git 会把这类改名合成一条 `R`，差异头里带着隐藏路径。可以对这几个文件再用 `show --no-renames` 加可见路径限定取一次，得到普通的新增或删除差异。
 - **失败**：git 命令不存在、仓库不可用、超时或退出码非 0 时，Git 部分返回 `available: false` 和 `reason`（`no_repo` / `git_missing` / `git_error`），页面其他部分照常。返回里不带 git 的原始错误文本，因为里面可能有绝对路径。
 
 ### 12.2 提交与领域

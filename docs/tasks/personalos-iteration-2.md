@@ -5,6 +5,7 @@
 - 关联：[ADR 0011](../decisions/0011-personalos-desk.md)、[界面规格](../specs/personalos-ui.md)（本轮看**第 12 节**）、[迭代方案](../personalos-desk-plan.md)、[迭代 1 验收记录](personalos-iteration-1-acceptance.md)
 - 目标：看板「跟得上」。能看到 PersonalOS 的 Git 提交和差异；文件或提交变了，打开的页面几秒内自动更新。全程只读。
 - 本轮不经 Linear（ADR 0011 决定 9）。本文件代替 issue 描述。
+- 2026-11-21 答复：P5a 的停工问题（文件在隐藏目录和可见目录之间改名）已写进规格 12.1「跨隐藏边界的改名」，按 Codex 的建议执行。
 
 ## 交付方式（三个任务共用）
 
