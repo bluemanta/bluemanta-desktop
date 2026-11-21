@@ -425,3 +425,6 @@ export type PersonalOsFileResponse = {
   /** Display-only path, with the injected home directory abbreviated to ~. */
   displayPath: string;
 };
+
+export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommits>>;
+export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;

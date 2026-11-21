@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { KnowledgeError, PersonalOsReader, abbreviateHome, type KnowledgeEnv } from '@bluemanta/knowledge';
+import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, abbreviateHome, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
@@ -85,6 +85,32 @@ export function createPersonalOsApi(env: KnowledgeEnv): Hono {
     } catch (error) { return readFailure(c, error); }
   });
 
+  app.get('/personalos/git/commits', async c => {
+    try {
+      const overview = reader.overview();
+      if (!overview.exists) return failure(c,404,'library_missing','没有找到 PersonalOS');
+      const params = new URL(c.req.url).searchParams;
+      const domains = (params.get('domain') || '').split(',').filter(Boolean);
+      const skip = Number(params.get('skip') ?? 0);
+      const limit = Number(params.get('limit') ?? 30);
+      const unassigned = params.get('unassigned') ?? '0';
+      if (!Number.isSafeInteger(skip) || skip < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100 ||
+          !['0','1'].includes(unassigned) || domains.some(d => !overview.domains.some(r => r.name === d))) {
+        return failure(c,400,'invalid_input','提交筛选或分页参数无效');
+      }
+      const result = await gitCommits(reader.root,overview.domains,{domains,skip,limit,unassigned:unassigned === '1'});
+      return c.json({ok:true,...result},200,NO_STORE);
+    } catch (error) { return readFailure(c,error); }
+  });
+  app.get('/personalos/git/commits/:sha', async c => {
+    try {
+      const overview = reader.overview();
+      if (!overview.exists) return failure(c,404,'library_missing','没有找到 PersonalOS');
+      const result = await gitCommit(reader.root,overview.domains,c.req.param('sha'));
+      return c.json({ok:true,...result},200,NO_STORE);
+    } catch (error) { return readFailure(c,error); }
+  });
+
   app.get('/personalos/files/*', (c) => {
     const path = tailPath(c, '/personalos/files/');
     if (path === null || path === '') return failure(c, 400, 'invalid_path', '文件路径或编码不合法');
@@ -100,7 +126,7 @@ export function createPersonalOsApi(env: KnowledgeEnv): Hono {
     } catch (error) { return readFailure(c, error); }
   });
 
-  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*']) {
+  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha']) {
     app.all(path, (c) => failure(c, 405, 'method_not_allowed', `不支持 ${c.req.method}`));
   }
   return app;

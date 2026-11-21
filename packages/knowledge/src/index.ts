@@ -36,3 +36,4 @@ export { EXCERPT_CHARS, bigrams, chunkMarkdown, excerptAround, extractKeywords, 
 
 export { PersonalOsReader, parseRouter, parseStatus, parseTodos, parseRegistry, parseInbox, parseLog, groupTodos, currentDate, normalizePersonalOsPath, walkPersonalOsFiles } from './personalos/index.js';
 export type { Overview as PersonalOsOverview, TodayResult as PersonalOsToday, DomainSummary as PersonalOsDomainSummary, DomainDetail as PersonalOsDomain, Todo as PersonalOsTodo, RegistryRow as PersonalOsRegistryRow, LogResult as PersonalOsLog, FileContent as PersonalOsFile, DocumentFile as PersonalOsDocument, LogOptions as PersonalOsLogOptions } from './personalos/types.js';
+export { gitCommit, gitCommits, type GitFile, type GitCommit, type GitListOptions } from './personalos/git.js';

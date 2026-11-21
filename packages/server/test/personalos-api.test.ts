@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import { chmodSync, cpSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -371,4 +374,43 @@ describe('PersonalOS 只读接口', () => {
     const { call } = fixture();
     for (const query of ['days=0', 'days=abc', 'days=1.5', 'before=2026-02-30', 'unassigned=yes', 'unassigned=1&unassigned=0']) await expectFailure(await call(`${BASE}/log?${query}`), 400, 'invalid_input');
   });
+});
+
+it('Git 接口鉴权、缺库、无仓库、分页筛选、隐藏路径与逐文件只读', async () => {
+  const base = BASE+'/git/commits';
+  const home = tempDir();
+  const root = join(home,'Documents/PersonalOS');
+  const { call } = fixture(defaultKnowledgeEnv({home}));
+  await expectFailure(await call(base),404,'library_missing');
+  execFileSync(process.execPath,[fileURLToPath(new URL('../../knowledge/scripts/git-fixture.mjs',import.meta.url)),root]);
+  const snapshot = () => {
+    const dir = join(root,'.gitdata.nosync');
+    return Object.fromEntries(readdirSync(dir,{recursive:true,encoding:'utf8'}).sort()
+      .filter(p=>statSync(join(dir,p)).isFile()).map(p=>[p,createHash('sha256').update(readFileSync(join(dir,p))).digest('hex')]));
+  };
+  const before = snapshot();
+  for (const p of [base,base+'/1234567']) {
+    await expectFailure(await call(p,{token:null}),401,'unauthorized');
+    expect(await (await fixture().call(p)).json()).toEqual({ok:true,available:false,reason:'no_repo'});
+  }
+  await expectFailure(await call(base+'/--all'),400,'invalid_path');
+  await expectFailure(await call(base+'/abcdefabcd'),404,'not_found');
+  for (const q of ['domain=陌生','limit=101','skip=-1','unassigned=yes']) await expectFailure(await call(base+'?'+q),400,'invalid_input');
+  const page=async(q:string)=>{
+    const res=await call(base+q);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const data=await json<import('../src/api-types.js').GitCommitsResponse>(res);
+    if(!data.available) throw new Error(data.reason);
+    expect(JSON.stringify(data)).not.toContain('.claude/');
+    return data;
+  };
+  const first=await page('?limit=1'), second=await page('?limit=1&skip=1');
+  expect(first.hasMore).toBe(true);
+  expect(first.commits[0]?.sha).not.toBe(second.commits[0]?.sha);
+  expect((await page('?unassigned=1')).commits.every(c=>!c.domains.length)).toBe(true);
+  expect((await page('?domain=技术,工作')).commits.every(c=>c.domains.some(d=>['技术','工作'].includes(d)))).toBe(true);
+  const detail=await call(base+'/'+first.commits[0]!.sha);
+  expect(detail.status).toBe(200);
+  expect(await detail.text()).not.toContain('.claude/');
+  expect(snapshot()).toEqual(before);
 });
