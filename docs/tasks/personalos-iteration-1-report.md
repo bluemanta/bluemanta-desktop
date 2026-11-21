@@ -87,3 +87,39 @@ knowledge/src 两处小改均为接口所需：旧 getLibrary 拒绝 PersonalOS�
 已知问题：没有剩余单元测试或类型失败；真实库与Desktop运行验收未执行，属于用户保留的后续验收范围。
 
 提交 SHA：提交完成后补记于下方。
+
+P2 提交 SHA：`bf79f88c8148029e7947b9e3d840234bdf012ad0`。
+
+## P3 网页外壳、今天页、领域页
+
+### 实现与偏离
+
+五段导航、侧栏到期计数、命令面板与旧路径重定向已接入。今天页显示重点、六组事项、过期领域与收件箱；领域页提供网格、键盘移动、状态/资料/事项/知识/文件详情，复用现有详情宽度、列表样式、Banner、EmptyState 和 Markdown 阅读器。状态正文保留未知 Markdown；挂接卡片、缺口词高亮、相对链接、锚点、文件列表和 iCloud 提示已实现。资料与动态按本任务要求为占位。
+
+开发和走查固定 fixture home 与 2026-11-21；Skill/DSH 的沙盒环境也指向 fixture，避免继承父 shell 的个人目录配置。新增行为与截图用例，改写已移除的旧个人库页面用例。没有改允许范围外文件，没有新增依赖。新增 CSS 复用 tokens.css 与既有 local.css 的边框/表格尺寸变量，没有新增全局变量。
+
+实现期间发现显式文件列表与正文状态链接需要区分：文件列表直达阅读器，正文状态链接进入领域详情。首次全量 check 在两组件 onReadFile 参数尚未接齐时失败；补齐后已通过。随后补齐今天行内纯锚点跳转回退，并单独重验网页包。
+
+### 验收
+
+1. **verified**：与 P1 相同 fixture 环境运行 `npm run build && npm run check && npm test`，最终退出0。15个 PR 检查器单测 + 408个 workspace 单测，共423项通过；web 56项（新增路由3项、Markdown/详情/阅读器5项）。行内锚点最后修正后再执行 `npm run build -w @bluemanta/web && npm run check -w @bluemanta/web && npm run test -w @bluemanta/web`，三项通过、web56项通过。
+2. **verified（只收集）**：`npm run walkthrough -w @bluemanta/web -- --list`，退出0，151 tests in 10 files。包含20条PersonalOS行为测试和8条截图测试。
+3. **failed（命令启动） / not-run（浏览器验收）**：误用根命令 `npm run walkthrough -- --list` 时，根 npm 脚本没有继续转发参数，实际启动完整走查并退出1；浏览器启动报所需 Chromium 1248 可执行文件不存在，页面断言未执行。未下载、升级或替代浏览器。后续仅执行上一项正确的收集命令。缺失路径为 `~/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`（existsSync=false）。
+4. **not-run**：今天页、领域网格、含挂接卡片领域详情的1440/720深浅色截图，以及1280/1024扩展截图。没有生成截图，不能提供已生成路径；脚本实际运行后约定输出 `packages/web/screenshots/personalos-{today|domains|domain-detail}-{宽}x{高}-{light|dark}.png`，24张，不提交。
+5. **verified（静态/单测） / not-run（走查）**：灵感台源文件未修改，既有灵感与外壳单测通过；灵感/嵌入/模块切换走查仍在151条收集结果中，但浏览器未执行。仓库本身没有Skill网页走查，不能声称其视觉回归通过。
+6. **verified**：`git diff --check`，无空白错误。新增路径/组件及脚本均在允许范围。
+
+### 设计规范第10节逐项自查
+
+| 项 | 状态与证据 |
+|---|---|
+| 1 变量、颜色、字号 | verified（静态）：Python正则扫描新增两份PersonalOS CSS，没有原始颜色或字号；所用变量均可在tokens.css或既有local.css查到。未改tokens.css或local.css。 |
+| 2 数据状态 | verified（单测）：SSR验证未知原文、多个标签、挂接卡片、高亮与HTML转义、iCloud无正文；not-run（浏览器）：正常、空库、读取失败缓存、长标题/正文、筛选无结果等交互。原文重复、legacy原文、未保存修改属于灵感功能，现有用例保留但未运行。 |
+| 3 尺寸/主题/嵌入 | not-run：四档尺寸、深浅色、main/sidebar用例已编写并收集，未启动浏览器，未在真实dsh中验收。 |
+| 4 键盘与焦点 | verified（静态/路由单测）：命令与路由配置、J/K/H/L逻辑和详情定位已实现；not-run：实际快捷键、Tab顺序、焦点可见性与返回焦点。 |
+| 5 200%文字放大 | not-run：无浏览器视觉验收。 |
+| 6 结果与截图基线 | verified：本节逐项记录；没有截图或用户认可，不登记基线。 |
+
+已知问题：浏览器验收、截图与200%文字放大待匹配版本浏览器可用后执行；没有剩余构建、类型或单元测试失败。P3的资料/动态占位与旧搜索保留由P4继续替换。
+
+提交 SHA：提交完成后补记于下方。

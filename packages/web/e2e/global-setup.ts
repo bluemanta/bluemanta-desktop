@@ -21,8 +21,13 @@ async function serve(name: string, mode: SeedMode): Promise<{ server: RunningSer
 }
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
-  // 知识台走查用虚构库（packages/knowledge/fixtures），服务在创建时读这个环境变量。
-  process.env.BLUEMANTA_KNOWLEDGE_HOME = join(WEB_DIST, '..', '..', 'knowledge', 'fixtures', 'home');
+  // 服务只读取虚构 home，覆盖父 shell 的知识库和 Skill/agent 目录配置。
+  const fixtureHome = join(WEB_DIST, '..', '..', 'knowledge', 'fixtures', 'home');
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
+  process.env.BLUEMANTA_SKILL_HOME = fixtureHome;
+  process.env.DSH_HOME = join(fixtureHome, '.dsh');
+  process.env.DSH_AGENTS_HOME = join(fixtureHome, '.agents');
+  process.env.BLUEMANTA_TODAY = '2026-11-21';
   if (!existsSync(join(WEB_DIST, 'index.html'))) {
     throw new Error('网页还没构建：先运行 npm run build（走查用构建产物，由本地服务托管）');
   }

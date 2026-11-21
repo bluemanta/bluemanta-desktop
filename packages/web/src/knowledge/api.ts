@@ -1,5 +1,9 @@
 import type {
   KnowledgeFileResponse,
+  PersonalOsOverviewResponse,
+  PersonalOsTodayResponse,
+  PersonalOsDomainResponse,
+  PersonalOsFileResponse,
   KnowledgeInboxResponse,
   KnowledgeIndexResponse,
   KnowledgeLibrariesResponse,
@@ -59,7 +63,7 @@ export function useKnowledgeTopic(library: string, path: string | null) {
 export function useKnowledgeFile(library: string, path: string | null) {
   return useQuery({
     queryKey: knowledgeKeys.file(library, path ?? ''),
-    queryFn: ({ signal }) => apiJson<KnowledgeFileResponse>(`${lib(library)}/files/${encodePath(path ?? '')}`, { signal }),
+    queryFn: ({ signal }) => apiJson<KnowledgeFileResponse | PersonalOsFileResponse>(library === 'personalos' ? `/api/v1/personalos/files/${encodePath(path ?? '')}` : `${lib(library)}/files/${encodePath(path ?? '')}`, { signal }),
     enabled: path !== null && path !== '',
     staleTime: STALE_MS,
   });
@@ -82,4 +86,51 @@ export function useKnowledgeSearch(query: string) {
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   });
+}
+
+
+export const personalOsKeys = {
+  overview: ['personalos', 'overview'] as const,
+  today: ['personalos', 'today'] as const,
+  domain: (id: string) => ['personalos', 'domain', id] as const,
+};
+
+export function usePersonalOsOverview() {
+  return useQuery({
+    queryKey: personalOsKeys.overview,
+    queryFn: ({ signal }) => apiJson<PersonalOsOverviewResponse>('/api/v1/personalos', { signal }),
+    staleTime: STALE_MS,
+  });
+}
+
+export function usePersonalOsToday() {
+  return useQuery({
+    queryKey: personalOsKeys.today,
+    queryFn: ({ signal }) => apiJson<PersonalOsTodayResponse>('/api/v1/personalos/today', { signal }),
+    staleTime: STALE_MS,
+  });
+}
+
+export function usePersonalOsDomain(id: string | null) {
+  return useQuery({
+    queryKey: personalOsKeys.domain(id ?? ''),
+    queryFn: ({ signal }) => apiJson<PersonalOsDomainResponse>(`/api/v1/personalos/domains/${encodeURIComponent(id ?? '')}`, { signal }),
+    enabled: id !== null && id !== '',
+    staleTime: STALE_MS,
+  });
+}
+
+export function usePersonalOsFile(path: string | null) {
+  return useQuery({
+    queryKey: knowledgeKeys.file('personalos', path ?? ''),
+    queryFn: ({ signal }) => apiJson<PersonalOsFileResponse>(`/api/v1/personalos/files/${encodePath(path ?? '')}`, { signal }),
+    enabled: path !== null && path !== '',
+    staleTime: STALE_MS,
+  });
+}
+
+export function usePersonalOsDueCount(): number | undefined {
+  const data = usePersonalOsToday().data;
+  const count = data ? data.overdue.length + data.dueToday.length : undefined;
+  return count === 0 ? undefined : count;
 }

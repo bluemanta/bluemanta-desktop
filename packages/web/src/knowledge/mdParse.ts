@@ -280,6 +280,7 @@ export function parseMarkdown(source: string): Block[] {
 /** Where a link in a library file points. */
 export type LinkTarget =
   | { kind: 'external'; href: string }
+  | { kind: 'anchor'; anchor: string }
   | { kind: 'library'; path: string; anchor: string | null }
   | { kind: 'none' };
 
@@ -291,12 +292,14 @@ export function resolveLink(href: string, fromPath: string): LinkTarget {
   if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith('//')) return { kind: 'none' };
   const [rawPath, rawAnchor] = trimmed.split('#', 2);
   let decoded: string;
+  let anchor: string | null;
   try {
     decoded = decodeURIComponent(rawPath ?? '');
+    anchor = rawAnchor ? decodeURIComponent(rawAnchor) : null;
   } catch {
-    decoded = rawPath ?? '';
+    return { kind: 'none' };
   }
-  if (decoded === '') return { kind: 'none' };
+  if (decoded === '') return anchor ? { kind: 'anchor', anchor } : { kind: 'none' };
   if (decoded.startsWith('~') || decoded.startsWith('/')) return { kind: 'none' };
   const base = fromPath.split('/').slice(0, -1);
   for (const part of decoded.split('/')) {
@@ -308,5 +311,5 @@ export function resolveLink(href: string, fromPath: string): LinkTarget {
       base.push(part);
     }
   }
-  return { kind: 'library', path: base.join('/').replace(/\/$/, ''), anchor: rawAnchor ? rawAnchor : null };
+  return { kind: 'library', path: base.join('/').replace(/\/$/, ''), anchor };
 }

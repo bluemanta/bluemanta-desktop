@@ -9,6 +9,14 @@ import { join } from 'node:path';
 import { freePort, resetSandbox, sandboxDir, WEB_ROOT } from './sandbox.ts';
 import { seedIdeas } from './seed.ts';
 
+// Development uses only the fictional home, overriding ambient library and Skill/agent directories.
+const fixtureHome = join(WEB_ROOT, '..', 'knowledge', 'fixtures', 'home');
+process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
+process.env.BLUEMANTA_SKILL_HOME = fixtureHome;
+process.env.DSH_HOME = join(fixtureHome, '.dsh');
+process.env.DSH_AGENTS_HOME = join(fixtureHome, '.agents');
+process.env.BLUEMANTA_TODAY = '2026-11-21';
+
 const empty = process.argv.includes('--empty');
 const dataDir = sandboxDir(empty ? 'dev-empty' : 'dev');
 resetSandbox(dataDir);

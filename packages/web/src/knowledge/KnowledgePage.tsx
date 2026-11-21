@@ -1,26 +1,25 @@
 import type { KnowledgeSearchHit, KnowledgeTopic } from '@bluemanta/server/api-types';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'wouter';
 import { describeError } from '../api/client';
 import { useAppNavigate, useLaunch, useViewport } from '../app/context';
 import { Highlight } from '../ideas/Highlight';
-import { useDetailWidth } from '../ideas/detail/detailWidth';
-import { Resizer } from '../ideas/detail/Resizer';
-import panelStyles from '../ideas/detail/DetailPanel.module.css';
 import listStyles from '../ideas/IdeaList.module.css';
 import { Shell } from '../shell/Shell';
 import { Banner } from '../ui/Banner';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
-import { Icon } from '../ui/Icon';
-import { useKnowledgeIndex, useKnowledgeInbox, useKnowledgeLibraries, useKnowledgeSearch } from './api';
+import { useKnowledgeIndex, useKnowledgeLibraries, useKnowledgeSearch } from './api';
 import { FileReader } from './FileReader';
 import { KnowledgeHeader, type KnowledgeSection } from './KnowledgeHeader';
 import { KNOWLEDGE_MODULE } from './module';
-import { DEFAULT_LIBRARY, filePath, inboxPath, parseKnowledgePath, topicPath, topicsPath, type KnowledgeRoute } from './paths';
-import { formatDate, formatSize, statusLabel, statusTone, useOpenInLibrary } from './shared';
+import { DEFAULT_LIBRARY, filePath, topicPath, topicsPath, type KnowledgeRoute } from './paths';
+import { statusLabel, statusTone, useOpenInLibrary } from './shared';
 import { TopicDetail } from './TopicDetail';
 import styles from './Knowledge.module.css';
+import { DetailArea } from './DetailArea';
+import { PersonalOsPage } from './PersonalOsPage';
+import { parsePersonalOsPath } from './personalos-paths';
 
 type StatusFilter = 'all' | 'active' | 'seed' | 'needs_review' | 'unregistered';
 
@@ -41,34 +40,6 @@ function matchesStatus(topic: KnowledgeTopic, filter: StatusFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'unregistered') return !topic.registered;
   return topic.status === filter;
-}
-
-/** Right-hand detail card, or a full page on narrow screens and in the dsh right sidebar. */
-function DetailArea({ full, onClose, children }: { full: boolean; onClose: () => void; children: ReactNode }) {
-  const [width, setWidth] = useDetailWidth();
-  const panel = useRef<HTMLElement>(null);
-  const { embed } = useLaunch();
-  if (full) {
-    return (
-      <div className={styles.full}>
-        {embed === 'sidebar' ? null : (
-          <Button variant="ghost" size="sm" className={styles.back} onClick={onClose}>
-            <Icon name="back" /> 返回
-          </Button>
-        )}
-        {children}
-      </div>
-    );
-  }
-  const style = width === null ? undefined : ({ '--detail-width': `${width}px` } as CSSProperties);
-  return (
-    <>
-      <Resizer width={width} measure={() => panel.current?.getBoundingClientRect().width ?? 420} onChange={setWidth} />
-      <aside ref={panel} className={panelStyles.panel} style={style} aria-label="详情">
-        <div className={panelStyles.scroll}>{children}</div>
-      </aside>
-    </>
-  );
 }
 
 /** Esc closes the detail; J / K move through list rows; ↵ opens the focused row. */
@@ -98,7 +69,7 @@ function useListKeys(listLabel: string, onClose: (() => void) | null): void {
   }, [listLabel, onClose]);
 }
 
-function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: 'topics' }> }) {
+export function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: 'topics' }> }) {
   const navigate = useAppNavigate();
   const viewport = useViewport();
   const { embed } = useLaunch();
@@ -207,7 +178,7 @@ function TopicsView({ route }: { route: Extract<KnowledgeRoute, { view: 'topics'
     <Shell module={KNOWLEDGE_MODULE} section="topics" header={false}>
       <KnowledgeHeader section="topics" />
       <div className={styles.bar} role="toolbar" aria-label="筛选">
-        {(libraries.data?.libraries ?? []).map((item) => (
+        {(libraries.data?.libraries ?? []).filter((item) => item.id === 'arsenal').map((item) => (
           <button
             key={item.id}
             type="button"
@@ -250,7 +221,7 @@ function groupOf(hit: KnowledgeSearchHit): string {
   return hit.source === 'idea' ? 'idea' : (hit.library ?? 'other');
 }
 
-function SearchView({ query }: { query: string }) {
+export function SearchView({ query }: { query: string }) {
   const navigate = useAppNavigate();
   const viewport = useViewport();
   const libraries = useKnowledgeLibraries();
@@ -260,7 +231,7 @@ function SearchView({ query }: { query: string }) {
   useEffect(() => setOpened(null), [query]);
   useListKeys('搜索结果', opened ? () => setOpened(null) : null);
 
-  const names = new Map((libraries.data?.libraries ?? []).map((item) => [item.id, item.name]));
+  const names = new Map((libraries.data?.libraries ?? []).filter((item) => item.id === 'arsenal').map((item) => [item.id, item.name]));
   // 分组顺序跟着最相关的那条走：哪组里有排名最靠前的结果，哪组排前面。
   const ranked = [...new Set((search.data?.hits ?? []).map(groupOf))];
   const known = new Map(SOURCE_GROUPS.map((group) => [group.id, group.label]));
@@ -373,75 +344,7 @@ function SearchView({ query }: { query: string }) {
   );
 }
 
-function InboxView({ file }: { file: string | null }) {
-  const navigate = useAppNavigate();
-  const viewport = useViewport();
-  const inbox = useKnowledgeInbox(DEFAULT_LIBRARY);
-  const open = useOpenInLibrary(DEFAULT_LIBRARY);
-  const full = file !== null && viewport === 'narrow';
-  useListKeys('收件箱', file !== null ? () => navigate(inboxPath()) : null);
-  const reader = file !== null ? <FileReader key={file} library={DEFAULT_LIBRARY} path={file} onOpen={open} onTopic={(path) => navigate(topicPath(DEFAULT_LIBRARY, path))} /> : null;
-
-  if (full) {
-    return (
-      <Shell module={KNOWLEDGE_MODULE} section="inbox" header={false}>
-        <DetailArea full onClose={() => navigate(inboxPath())}>
-          {reader}
-        </DetailArea>
-      </Shell>
-    );
-  }
-
-  let list: ReactNode;
-  if (inbox.isPending) list = <p className={styles.intro}>正在读取…</p>;
-  else if (inbox.isError) {
-    list = (
-      <div className={styles.banner}>
-        <Banner onRetry={() => void inbox.refetch()} retrying={inbox.isFetching}>
-          读不到收件箱：{describeError(inbox.error)}
-        </Banner>
-      </div>
-    );
-  } else if (inbox.data.files.length === 0) {
-    list = <EmptyState icon="folder" title="收件箱是空的">新材料先放进个人库的 _Inbox 文件夹，确认归属后再入库。</EmptyState>;
-  } else {
-    list = (
-      <div className={listStyles.list} role="listbox" aria-label="收件箱">
-        {inbox.data.files.map((entry) => (
-          <div
-            key={entry.path}
-            role="option"
-            tabIndex={0}
-            aria-selected={file === entry.path}
-            className={listStyles.row}
-            onClick={() => (entry.kind === 'markdown' ? navigate(inboxPath(entry.path)) : undefined)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && entry.kind === 'markdown') navigate(inboxPath(entry.path));
-            }}
-          >
-            <span className={styles.rowName}>{entry.name}</span>
-            <span className={styles.aliases} />
-            <span className={listStyles.time}>{formatSize(entry.size)}</span>
-            <span className={listStyles.time}>{formatDate(entry.modifiedAt)}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <Shell module={KNOWLEDGE_MODULE} section="inbox" header={false}>
-      <KnowledgeHeader section="inbox" />
-      <p className={styles.intro}>个人库 _Inbox 里的新材料。入库功能在下一版；现在可以先看内容，再手动整理到主题。</p>
-      <div className={styles.body}>
-        {list}
-        {reader ? <DetailArea full={false} onClose={() => navigate(inboxPath())}>{reader}</DetailArea> : null}
-      </div>
-    </Shell>
-  );
-}
-
-/** `/knowledge/*`：按路径分到主题、搜索、收件箱三页。 */
+/** Knowledge desk routing: PersonalOS pages plus compatible Arsenal and search views. */
 export function KnowledgePage() {
   const [location] = useLocation();
   useEffect(() => {
@@ -451,10 +354,10 @@ export function KnowledgePage() {
       document.title = previous;
     };
   }, []);
-  const route = parseKnowledgePath(location);
+  const route = parsePersonalOsPath(location);
   if (route.view === 'search') return <SearchView query={route.query} />;
-  if (route.view === 'inbox') return <InboxView file={route.file} />;
-  return <TopicsView route={route} />;
+  if (route.view === 'arsenal') return <TopicsView route={{ view: 'topics', library: 'arsenal', topic: route.topic, file: route.file }} />;
+  return <PersonalOsPage route={route} />;
 }
 
 export type { KnowledgeSection };
