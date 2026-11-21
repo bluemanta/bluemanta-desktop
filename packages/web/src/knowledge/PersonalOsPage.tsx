@@ -12,6 +12,7 @@ import { KnowledgeHeader, type KnowledgeSection } from './KnowledgeHeader';
 import { InlineMarkdown } from './Markdown';
 import { KNOWLEDGE_MODULE } from './module';
 import { PersonalOsDomainDetail } from './PersonalOsDomainDetail';
+import { CommitView } from './PersonalOsGit';
 import { PersonalOsActivity, PersonalOsResources } from './PersonalOsCollections';
 import { PersonalOsMissing as Missing, PersonalOsReadWarning as ReadWarning } from './PersonalOsReadState';
 import { DOMAINS_PATH, domainPath, personalOsFilePath, personalOsTarget, type PersonalOsRoute } from './personalos-paths';
@@ -51,7 +52,7 @@ export function gridMoveIndex(points: readonly { top: number; left: number }[], 
   return best;
 }
 
-function useNavigationKeys(root: RefObject<HTMLDivElement | null>, grid: boolean, onClose: (() => void) | null) {
+export function useNavigationKeys(root: RefObject<HTMLDivElement | null>, grid: boolean, onClose: (() => void) | null) {
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       const target = event.target;
@@ -74,7 +75,7 @@ function useNavigationKeys(root: RefObject<HTMLDivElement | null>, grid: boolean
   }, [root, grid, onClose]);
 }
 
-function PageFrame({ section, detail, onClose, children, sidebarFallback }: { section: KnowledgeSection; detail?: ReactNode; onClose: () => void; children: ReactNode; sidebarFallback?: ReactNode }) {
+export function PageFrame({ section, detail, onClose, children, sidebarFallback }: { section: KnowledgeSection; detail?: ReactNode; onClose: () => void; children: ReactNode; sidebarFallback?: ReactNode }) {
   const viewport = useViewport(); const { embed } = useLaunch();
   const full = Boolean(detail) && (viewport === 'narrow' || embed === 'sidebar');
   if (full) return <Shell module={KNOWLEDGE_MODULE} section={section} header={false}><DetailArea full onClose={onClose}>{detail}</DetailArea></Shell>;
@@ -192,6 +193,7 @@ function Redirect({ to }: { to: string }) {
 
 export function PersonalOsPage({ route }: { route: PageRoute }) {
   if (route.view === 'redirect') return <Redirect to={route.to} />;
+  if (route.view === 'commits') return <CommitView sha={route.sha} />;
   if (route.view === 'today') return <TodayView />;
   if (route.view === 'domains' || route.view === 'file') return <DomainsView route={route} />;
   return <PageFrame section={route.view} onClose={() => {}}>{route.view === 'resources' ? <PersonalOsResources /> : <PersonalOsActivity />}</PageFrame>;

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 /**
  * 走查前：在 .dev-data/ 下生成虚构库，各起一个本地服务托管构建好的网页。
  * 完整库和空库只读；写操作和截图各用一份，避免并行用例互相改数据。
@@ -35,6 +36,14 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const empty = await serve('empty', 'empty');
   const writes = await serve('writes', 'full');
   const shots = await serve('shots', 'full');
+  const home = sandboxDir('git-home');
+  resetSandbox(home);
+  execFileSync(process.execPath,[join(WEB_DIST,'../../knowledge/scripts/git-fixture.mjs'),join(home,'Documents/PersonalOS')]);
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = home;
+  const git = await serve('git','empty');
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
+  process.env.BM_E2E_GIT_URL=git.url;
+  process.env.BM_E2E_GIT_TOKEN=git.token;
   process.env.BM_E2E_URL = full.url;
   process.env.BM_E2E_TOKEN = full.token;
   process.env.BM_E2E_EMPTY_URL = empty.url;
@@ -44,6 +53,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.BM_E2E_SHOT_URL = shots.url;
   process.env.BM_E2E_SHOT_TOKEN = shots.token;
   return async () => {
+    await git.server.close();
     await full.server.close();
     await empty.server.close();
     await writes.server.close();

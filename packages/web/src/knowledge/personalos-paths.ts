@@ -4,6 +4,7 @@ export type PersonalOsRoute =
   | { view: 'redirect'; to: string }
   | { view: 'today' }
   | { view: 'domains'; domain: string | null }
+  | { view: 'commits'; sha: string | null }
   | { view: 'file'; file: string }
   | { view: 'resources' | 'activity' }
   | { view: 'arsenal'; topic: string | null; file: string | null }
@@ -36,6 +37,10 @@ export function parsePersonalOsPath(pathname: string): PersonalOsRoute {
   if (page === 'search') return { view: 'search', query: decode(rest) ?? '' };
   if (page === 'resources' && rest.length === 0) return { view: 'resources' };
   if (page === 'resources' && rest[0] === 'arsenal' && rest.length === 1) return { view: 'arsenal', topic: null, file: null };
+  if (page === 'activity' && rest[0] === 'commits') {
+    if (rest.length === 1) return {view:'commits',sha:null};
+    if (rest.length === 2 && /^[0-9a-f]{7,40}$/.test(rest[1]!)) return {view:'commits',sha:rest[1]!};
+  }
   if (page === 'activity' && rest.length === 0) return { view: 'activity' };
   if (page === 'lib' && decode(rest.slice(0, 1)) === 'arsenal') {
     const path = decode(rest.slice(2));

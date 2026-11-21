@@ -32,7 +32,7 @@ function domainOptions(domains: readonly Domain[], extra: readonly string[] = []
   return [...domains.map(({ id, name }) => ({ id, name })), ...[...new Set(extra)].filter((id) => !domains.some((domain) => domain.id === id)).map((id) => ({ id, name: id }))];
 }
 
-function DomainFilters({ options, selected, onChange, unassigned }: { options: Array<{ id: string; name: string }>; selected: readonly string[]; onChange: (ids: string[]) => void; unassigned?: { selected: boolean; onChange: (value: boolean) => void } }) {
+export function DomainFilters({ options, selected, onChange, unassigned }: { options: Array<{ id: string; name: string }>; selected: readonly string[]; onChange: (ids: string[]) => void; unassigned?: { selected: boolean; onChange: (value: boolean) => void } }) {
   return <div role="group" aria-label="领域" className={styles.filterGroup}>
     <span className={styles.filterLabel}>领域</span>
     <button type="button" className={common.chip} aria-pressed={selected.length === 0 && !unassigned?.selected} onClick={() => { onChange([]); unassigned?.onChange(false); }}>全部</button>
@@ -73,7 +73,7 @@ function shiftDate(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
-function dateLabel(date: string): string {
+export function dateLabel(date: string): string {
   if (date.length !== 10) return date;
   return `${date.slice(5)} ${['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date(`${date}T00:00:00Z`).getUTCDay()]}`;
 }
@@ -114,11 +114,17 @@ function ActivityTimeline({ domains, includeUnassigned, today, onOpen }: { domai
   </>;
 }
 
+export function ActivityTabs({ commits = false }: { commits?: boolean }) {
+  const navigate=useAppNavigate();
+  return <nav aria-label="动态视图" className={common.tabs}>{['日志','提交'].map((label,index)=><button key={label} className={common.tab} aria-pressed={commits===Boolean(index)} onClick={()=>navigate(index?'/knowledge/activity/commits':'/knowledge/activity')}>{label}</button>)}</nav>;
+}
+
 export function PersonalOsActivity() {
   const overview = usePersonalOsOverview(); const navigate = useAppNavigate(); const [domains, setDomains] = useState<string[]>([]);
   const [includeUnassigned, setIncludeUnassigned] = useState(false);
   const open: MarkdownProps['onOpen'] = (path, anchor) => navigate(personalOsTarget(path, overview.data?.domains), { state: anchor ? { knowledgeHeading: anchor } : undefined });
   return <div className={styles.page} data-testid="personalos-activity">
+    <ActivityTabs />
     {overview.isError ? <PersonalOsReadWarning message={`概览读取失败：${describeError(overview.error)}`} updatedAt={overview.dataUpdatedAt} onRetry={() => void overview.refetch()} retrying={overview.isFetching} /> : null}
     {overview.isPending ? <p className={common.none}>正在读取动态…</p> : null}
     {overview.data ? overview.data.exists ? <>

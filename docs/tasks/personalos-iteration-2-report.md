@@ -34,3 +34,22 @@ P5b、P6 未开始，无任务提交。迭代 2 的 Chrome 全量走查 not-run�
 | 接口与只读 | verified。同一全仓命令中 server 的「Git 接口鉴权、缺库、无仓库、分页筛选、隐藏路径与逐文件只读」通过。比较临时 Git 目录内全部文件的 SHA-256 及路径。 |
 | curl 实测 | verified。用 createGitFixture 在临时 home 建库，startServer 使用另一临时 dataDir，`curl -fsS -H 'Authorization: Bearer …' …/api/v1/personalos/git/commits` 返回 30 笔、hasMore=true、未存档 2 个。再调同路径 /:sha，返回「[技术] 导入七组观测」、7 个文件、差异共 3000 行。 |
 | 产品 Git 调用 | verified。`git grep --untracked -nE "type Command|run\\('|sha \\? 'show'" -- packages/knowledge/src/personalos/git.ts` 核对唯一执行入口的命令类型及调用点，仅有 rev-parse、log、show、status。 |
+
+P5a 提交 SHA：`ae7cb60f2b38627b69e215ff160e55916b42094b`。
+
+## P5b · 网页提交视图
+
+动态页增加日志/提交分段、日期分页、领域筛选、未存档行，支持键盘选择。详情卡片可复制提交号、展开文件差异、打开当前版本。领域页签列最近十笔，可跳转完整列表。走查单独使用 .dev-data/git-home，原有服务继续用无 Git 的 fixture。偏离：无。Vite 对大于 500 kB 的网页包给出体积提示，构建成功。
+
+1. verified：fixture 环境 `npm run build && npm run check && npm test && BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough` 通过（427 项 workspace + 15 项 PR 检查器，首轮走查 173 项）。补充嵌入、放大、错误状态用例及差异块滚动后，网页构建、类型检查与同一全量走查再次通过，最终 **175 passed (29.9s)**。
+2. verified：全量走查生成 `packages/web/screenshots/personalos-git-{list,detail,domain}-{1440,720}-{light,dark}.png` 共 12 张。抽看 720 深色详情，新增行及 500 行截断说明可见。
+3. 设计规范 §10 自查如下。
+
+| 项 | 验证 |
+|---|---|
+| 1 颜色、字体 | verified，检查 PersonalOsGit.module.css 和 tokens.css，使用既有颜色、行高与等宽字体变量。 |
+| 2 数据状态 | verified，Chrome 走查覆盖跨领域、无记录、无命令、读取失败重试、空筛选、长差异和多标签。写操作与 legacy 原文沿用灵感台原有走查；未专测超长提交标题。 |
+| 3 尺寸、主题与嵌入 | verified，上述 Chrome 全量走查覆盖四档宽度、深浅色、main/sidebar 模拟嵌入；真实 Desktop not-run。 |
+| 4 键盘 | verified，J/Enter 选择并打开提交及全仓原有快捷键走查通过；全页面逐控件人工焦点走查 not-run。 |
+| 5 放大 | verified，提交视图 200% 放大下检查无整页横向溢出并键盘或点击打开详情。 |
+| 6 结果及截图 | verified，检查上述本地产物，未登记视觉基线。 |

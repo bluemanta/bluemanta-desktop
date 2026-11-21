@@ -15,7 +15,8 @@ type Todo = Domain['todos'][number];
 type Section = Domain['sections'][number];
 type FileEntry = Domain['files'][number];
 type OpenFile = MarkdownProps['onOpen'];
-type Tab = 'status' | 'registry' | 'matters' | 'knowledge' | 'files';
+import { DomainCommits, useDomainCommits } from './PersonalOsGit';
+type Tab = 'status' | 'registry' | 'matters' | 'knowledge' | 'files' | 'commits';
 export const PERSONAL_OS_GAP_TERMS = ['待补充', '（推断）', '未核验'] as const;
 
 type PersonalOsDomainDetailProps = { id: string; todoId?: string | null; heading?: string | null; onOpen: OpenFile; onReadFile?: (path: string) => void };
@@ -119,6 +120,7 @@ export function PersonalOsRegistryTable({ rows, onOpen }: { rows: Domain['regist
 
 export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOpen, onReadFile = onOpen }: PersonalOsDomainDetailProps) {
   const query = usePersonalOsDomain(id);
+  const commits = useDomainCommits(id);
   const overview = usePersonalOsOverview();
   const copyPath = useCopyPath();
   const root = useRef<HTMLDivElement>(null);
@@ -147,6 +149,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
   if (data.matters.some((matter) => matter.files.length > 0 || matter.entry)) tabs.push({ id: 'matters', label: '事项' });
   if (data.knowledge.length > 0) tabs.push({ id: 'knowledge', label: '知识' });
   tabs.push({ id: 'files', label: '文件' });
+  if (commits.data?.available) tabs.push({id:'commits',label:'提交'});
   const current = tabs.find((item) => item.id === tab) ?? tabs[0]!;
   const onAnchor = (anchor: string) => { scrollToHeading(root.current, anchor); };
   const markdown = (source: string, key?: string) => <Markdown key={key} source={source} basePath={data.file} onOpen={onOpen} onAnchor={onAnchor} highlightTerms={PERSONAL_OS_GAP_TERMS} />;
@@ -179,6 +182,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
         {data.availability !== 'available' ? <p className={common.notice}>{!data.exists ? '这个领域的目录不存在。' : data.availability === 'icloud' ? '状态文件尚未从 iCloud 下载。请在访达中下载后重试。' : data.availability === 'missing' ? '这个领域还没有状态.md。' : '状态文件暂时无法读取，请检查文件后重试。'} <button type="button" className={common.linkButton} onClick={() => void query.refetch()}>重试</button></p> : null}
         {data.sections.map((section, index) => <section key={`${section.line}:${index}`} className={styles.section}>{section.title ? <h3 className={styles.sectionTitle} data-heading={section.title}><InlineMarkdown source={section.title} basePath={data.file} onOpen={onOpen} onAnchor={onAnchor} highlightTerms={PERSONAL_OS_GAP_TERMS} /></h3> : null}{renderSection(section, index)}</section>)}
       </> : null}
+      {current.id === 'commits' && commits.data?.available ? <DomainCommits domain={id} commits={commits.data.commits} /> : null}
       {current.id === 'registry' ? <PersonalOsRegistryTable rows={data.registry} onOpen={onOpen} /> : null}
       {current.id === 'matters' ? data.matters.map((matter) => <section key={matter.path} className={styles.section}><h3 className={styles.sectionTitle}>{matter.name}</h3><Files files={matter.files} domainPath={data.path} onOpen={onReadFile} /></section>) : null}
       {current.id === 'knowledge' ? <Files files={data.knowledge} domainPath={data.path} onOpen={onReadFile} /> : null}
