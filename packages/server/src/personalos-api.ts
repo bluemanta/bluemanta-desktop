@@ -157,7 +157,7 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
       const file = reader.file(path);
       const body: PersonalOsFileResponse = {
         ok: true,
-        library: { id: 'personalos', name: 'PersonalOS', root: abbreviateHome(reader.root, env.home), writable: false, exists: true, indexFile: 'AGENTS.md', topicCount: 0, inboxCount: reader.inbox().length },
+        library: { id: 'personalos', name: 'PersonalOS', root: abbreviateHome(reader.root, env.home), writable: false, exists: true, indexFile: reader.routing().file, topicCount: 0, inboxCount: reader.inbox().length },
         file,
         displayPath: abbreviateHome(join(reader.root, ...file.path.split('/')), env.home),
       };

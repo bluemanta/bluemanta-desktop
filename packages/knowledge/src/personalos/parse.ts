@@ -70,16 +70,16 @@ function sections(markdown: string): Array<{ title: string; markdown: string; li
   push(lines.length); return result;
 }
 const splitTerms = (text: string): string[] => text.split(/[、；;，,]/).map((term) => term.trim()).filter(Boolean);
-export function parseRouter(markdown: string): Router {
+export function parseRouter(markdown: string, file: 'README.md' | 'AGENTS.md' = 'AGENTS.md'): Router {
   const table = tables(markdown).find((item) => item.headers.includes('领域') && item.headers.includes('路径'));
-  const result: Router = { about: sections(markdown).find((section) => section.title === '关于我')?.markdown ?? '', domains: [], warnings: [] };
-  if (!table) { result.warnings.push({ code: 'router_missing', message: '没有找到领域路由表', file: 'AGENTS.md' }); return result; }
+  const result: Router = { about: sections(markdown).find((section) => section.title === '关于我')?.markdown ?? '', domains: [], warnings: [], file };
+  if (!table) { result.warnings.push({ code: 'router_missing', message: '没有找到领域路由表', file }); return result; }
   const names = new Set<string>();
   for (const row of table.rows) {
     const value = (key: string): string => (row[table.headers.indexOf(key)] ?? '').trim();
     const name = value('领域').replace(/`/g, '').trim(); const path = value('路径').replace(/`/g, '').replace(/\/+$/, '').trim();
-    if (!name || !path) { result.warnings.push({ code: 'router_row', message: '路由表有缺少领域或路径的行', file: 'AGENTS.md' }); continue; }
-    if (names.has(name)) { result.warnings.push({ code: 'router_duplicate', message: `路由表重复登记了领域「${name}」`, file: 'AGENTS.md' }); continue; }
+    if (!name || !path) { result.warnings.push({ code: 'router_row', message: '路由表有缺少领域或路径的行', file }); continue; }
+    if (names.has(name)) { result.warnings.push({ code: 'router_duplicate', message: `路由表重复登记了领域「${name}」`, file }); continue; }
     names.add(name);
     const terms = splitTerms(value('别名与关键词'));
     result.domains.push({ id: name, name, path, aliases: terms, keywords: terms, typicalQuestions: splitTerms(value('典型问题')), registered: true });

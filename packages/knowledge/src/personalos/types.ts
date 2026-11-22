@@ -13,7 +13,8 @@ export interface Todo {
   raw: string; hash: string;
 }
 export interface Route { id: string; name: string; path: string; aliases: string[]; keywords: string[]; typicalQuestions: string[]; registered: boolean }
-export interface Router { about: string; domains: Route[]; warnings: Warning[] }
+/** `file` is where the routing table was found: README.md from PersonalOS v0.4, AGENTS.md before (spec 1.2). */
+export interface Router { about: string; domains: Route[]; warnings: Warning[]; file: 'README.md' | 'AGENTS.md' }
 export interface ParsedStatus {
   updatedAt: string | null; sections: Section[]; todos: Todo[]; changes: Change[];
   links: string; mounts: Mount[]; focus: string[]; gapCount: number; warnings: Warning[]; markdown: string;
@@ -41,7 +42,7 @@ export interface DomainDetail extends DomainSummary {
   registry: RegistryRow[]; matters: Matter[]; knowledge: DocumentFile[]; files: DocumentFile[]; markdown: string;
 }
 export interface Overview {
-  root: string; exists: boolean; today: string; about: string; focus: string[];
+  root: string; exists: boolean; today: string; about: string; focus: string[]; routerFile: 'README.md' | 'AGENTS.md';
   domains: DomainSummary[]; inbox: number; warnings: Warning[];
 }
 export interface TodayGroups {
