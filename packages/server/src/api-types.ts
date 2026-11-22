@@ -254,6 +254,8 @@ export type ApiErrorCode =
   | 'library_missing'
   | 'invalid_path'
   | 'read_error'
+  | 'conflict'
+  | 'write_error'
   | 'internal';
 
 export type ApiFailure = {
@@ -428,4 +430,6 @@ export type PersonalOsFileResponse = {
 
 export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommits>>;
 export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
+export type PersonalOsQuickNoteResponse = { ok: true } & import('@bluemanta/knowledge').QuickNoteResult;
+export type PersonalOsCompleteResponse = { ok: true } & import('@bluemanta/knowledge').CompleteTodoResult;
 export type PersonalOsVersionResponse = {ok:true} & ReturnType<import('@bluemanta/knowledge').PersonalOsVersion['current']>;

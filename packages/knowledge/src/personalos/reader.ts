@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { KnowledgeError } from '../types.js';
@@ -5,6 +6,8 @@ import { abbreviateHome } from '../env.js';
 import { addDays, currentDate, dateDistance, groupTodos, parseInbox, parseLog, parseRegistry, parseRouter, parseStatus, todoBucket, validDate } from './parse.js';
 import { isPersonalOsDirectory, listPersonalOsFiles, normalizePersonalOsPath, personalOsExists, readPersonalOsFile, walkPersonalOsFiles } from './files.js';
 import type { Availability, DocumentFile, DomainDetail, InboxEntry, LogOptions, LogResult, Matter, Overview, PersonalOsReaderOptions, RegistryRow, Route, Router, StatFunction, TodayResult, Warning } from './types.js';
+
+export function contentHash(content: string): string { return createHash('sha256').update(content, 'utf8').digest('hex'); }
 
 export class PersonalOsReader {
   readonly home: string;
@@ -66,7 +69,8 @@ export class PersonalOsReader {
     const input = exists ? this.markdown(file, warnings) : { content: '', availability: 'missing' as const };
     if (!exists) warnings.push({ code: 'domain_missing', message: '目录不存在' });
     const parsed = parseStatus(input.content, { domain: route.id, file }); warnings.push(...parsed.warnings);
-    const todos = parsed.todos.map((todo) => ({ ...todo, bucket: todoBucket(todo, today) }));
+    const hash = contentHash(input.content); const lines = input.content.split(/\r?\n/);
+    const todos = parsed.todos.map((todo) => ({ ...todo, bucket: todoBucket(todo, today), raw: lines[todo.line - 1] ?? todo.raw, hash }));
     const staleDays = parsed.updatedAt ? dateDistance(parsed.updatedAt, today) : null;
     const files = exists ? walkPersonalOsFiles(this.root, route.path, warnings) : [];
     const children = exists ? listPersonalOsFiles(this.root, route.path, warnings) : [];

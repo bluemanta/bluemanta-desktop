@@ -25,7 +25,9 @@ export type KnowledgeErrorCode =
   | 'invalid_path'
   | 'not_found'
   | 'not_a_topic'
-  | 'read_error';
+  | 'read_error'
+  | 'invalid_input'
+  | 'conflict';
 
 export class KnowledgeError extends Error {
   readonly code: KnowledgeErrorCode;

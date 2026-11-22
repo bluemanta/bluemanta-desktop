@@ -108,7 +108,7 @@ export function parseTodos(markdown: string, options: { domain: string; file: st
       const completed = /(?:^|\s)(\d{4}-\d{2}-\d{2})\s*$/.exec(text);
       if (completed && validDate(completed[1]!)) { doneAt = completed[1]!; text = text.slice(0, completed.index).trim(); }
     }
-    result.push({ id: `${options.file}:${line}`, domain: options.domain, file: options.file, line, text, done, doneAt, due, wait, every, tags, bucket: done ? 'done' : 'undated', warnings });
+    result.push({ id: `${options.file}:${line}`, domain: options.domain, file: options.file, line, text, done, doneAt, due, wait, every, tags, bucket: done ? 'done' : 'undated', warnings, raw: row.text, hash: '' });
   }
   return result;
 }

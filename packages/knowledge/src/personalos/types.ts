@@ -9,6 +9,8 @@ export interface Todo {
   id: string; domain: string; file: string; line: number; text: string; done: boolean;
   doneAt: string | null; due: string | null; wait: string | null; every: string | null;
   tags: string[]; bucket: TodoBucket; warnings: Warning[];
+  /** The line exactly as written and the SHA-256 of its 状态.md; completing a todo sends both back (spec 13.3). */
+  raw: string; hash: string;
 }
 export interface Route { id: string; name: string; path: string; aliases: string[]; keywords: string[]; typicalQuestions: string[]; registered: boolean }
 export interface Router { about: string; domains: Route[]; warnings: Warning[] }

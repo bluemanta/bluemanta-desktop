@@ -147,7 +147,7 @@ describe('PersonalOS 的 Markdown 显示', () => {
         { title: '去哪查', kind: 'references', line: 10, markdown: '[跳到事项](#未结事项)\n### 外部资料\n未核验', empty: false },
         { title: '空节', kind: 'other', line: 14, markdown: '暂无', empty: true },
       ],
-      todos: [{ id: `${file}:4`, domain: '演示', file, line: 4, text: '检查待补充', done: false, doneAt: null, due: null, wait: '协作者', every: '1w', tags: ['@custom(x)'], bucket: 'waiting', warnings: [] }],
+      todos: [{ id: `${file}:4`, domain: '演示', file, line: 4, text: '检查待补充', done: false, doneAt: null, due: null, wait: '协作者', every: '1w', tags: ['@custom(x)'], bucket: 'waiting', warnings: [], raw: '- [ ] 检查待补充 @wait(协作者) @every(1w) @custom(x)', hash: '' }],
       changes: [{ date: '2026-11-20', text: '一个变化', line: 8 }], links: '[跳到事项](#未结事项)', mounts: [{ title: '外部资料', markdown: '未核验' }], registry: [], matters: [], knowledge: [], files: [],
     };
     const client = new QueryClient();

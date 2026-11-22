@@ -1,9 +1,9 @@
 import { join } from 'node:path';
-import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, abbreviateHome, type PersonalOsVersion, type KnowledgeEnv } from '@bluemanta/knowledge';
+import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, PersonalOsWriter, abbreviateHome, type PersonalOsVersion, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
-  PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse,
+  PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse, PersonalOsQuickNoteResponse, PersonalOsCompleteResponse,
 } from './api-types.js';
 
 const NO_STORE = { 'cache-control': 'no-store' };
@@ -15,6 +15,8 @@ function readFailure(c: Context, error: unknown): Response {
   if (error instanceof KnowledgeError) {
     switch (error.code) {
       case 'library_missing': return failure(c, 404, 'library_missing', '没有找到 PersonalOS');
+      case 'conflict': return failure(c, 409, 'conflict', '文件刚被改过，已刷新，请再试一次');
+      case 'invalid_input': return failure(c, 400, 'invalid_input', error.message);
       case 'invalid_path': return failure(c, 400, 'invalid_path', '路径不能越界或包含隐藏内容');
       case 'library_not_found':
       case 'not_found': return failure(c, 404, 'not_found', '没有找到这个领域或文件');
@@ -25,6 +27,20 @@ function readFailure(c: Context, error: unknown): Response {
   return failure(c, 500, 'read_error', 'PersonalOS 读取失败，请重试');
 }
 /** Decode exactly once; validate the resulting logical path in the data layer. */
+const BODY_LIMIT = 16 * 1024;
+async function readBody(c: Context): Promise<Record<string, unknown> | null> {
+  try {
+    const text = await c.req.text();
+    if (Buffer.byteLength(text, 'utf8') > BODY_LIMIT) return null;
+    const value: unknown = JSON.parse(text);
+    return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  } catch { return null; }
+}
+/** Writes that fail after validation: never echo filesystem messages, they can hold absolute paths. */
+function writeFailure(c: Context, error: unknown): Response {
+  if (error instanceof KnowledgeError) return readFailure(c, error);
+  return failure(c, 500, 'write_error', 'PersonalOS 写入失败，文件没有改动或只改了一部分，请刷新后查看');
+}
 function tailPath(c: Context, marker: string): string | null {
   const pathname = new URL(c.req.url).pathname;
   const start = pathname.indexOf(marker);
@@ -42,6 +58,7 @@ function validDate(value: string): boolean {
 export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersion): Hono {
   const root = env.libraries.find((library) => library.kind === 'personalos' || library.id === 'personalos')?.root;
   const reader = new PersonalOsReader({ home: env.home, ...(root === undefined ? {} : { root }) });
+  const writer = new PersonalOsWriter({ home: env.home, ...(root === undefined ? {} : { root }) });
   const app = new Hono();
   app.use('/personalos/*', async (_c,next) => { monitor.current(); await next(); });
   app.get('/personalos/version',c=>c.json({ok:true,...monitor.current()},200,NO_STORE));
@@ -114,6 +131,25 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c,error); }
   });
 
+  app.post('/personalos/inbox', async (c) => {
+    const body = await readBody(c);
+    if (!body || typeof body.text !== 'string') return failure(c, 400, 'invalid_input', '请求体需要 { text }');
+    try { const result = await writer.quickNote(body.text); return c.json({ ok: true, ...result } satisfies PersonalOsQuickNoteResponse, 200, NO_STORE); }
+    catch (error) { return writeFailure(c, error); }
+  });
+
+  app.post('/personalos/todos/complete', async (c) => {
+    const body = await readBody(c);
+    if (!body || typeof body.domain !== 'string' || !Number.isSafeInteger(body.line) || typeof body.raw !== 'string'
+      || typeof body.hash !== 'string' || !/^[0-9a-f]{64}$/.test(body.hash) || typeof body.dryRun !== 'boolean') {
+      return failure(c, 400, 'invalid_input', '请求体需要 { domain, line, raw, hash, dryRun }');
+    }
+    try {
+      const result = await writer.completeTodo({ domain: body.domain, line: body.line as number, raw: body.raw, hash: body.hash, dryRun: body.dryRun });
+      return c.json({ ok: true, ...result } satisfies PersonalOsCompleteResponse, 200, NO_STORE);
+    } catch (error) { return writeFailure(c, error); }
+  });
+
   app.get('/personalos/files/*', (c) => {
     const path = tailPath(c, '/personalos/files/');
     if (path === null || path === '') return failure(c, 400, 'invalid_path', '文件路径或编码不合法');
@@ -129,7 +165,7 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c, error); }
   });
 
-  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha']) {
+  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/inbox', '/personalos/todos/complete']) {
     app.all(path, (c) => failure(c, 405, 'method_not_allowed', `不支持 ${c.req.method}`));
   }
   return app;

@@ -8,7 +8,7 @@ import { openCore, type Core } from '@bluemanta/core';
 import { defaultKnowledgeEnv, KnowledgeError, PersonalOsReader, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
-  ApiFailure, PersonalOsVersionResponse, KnowledgeSearchResponse,
+  ApiFailure, PersonalOsVersionResponse, KnowledgeSearchResponse, PersonalOsCompleteResponse, PersonalOsQuickNoteResponse,
   PersonalOsDomainResponse,
   PersonalOsFileResponse,
   PersonalOsLogResponse,
@@ -431,4 +431,47 @@ it('版本接口需口令且 no-store，下一次搜索立即刷新 PersonalOS',
   writeFileSync(join(root,'我/弧面纸塔.md'),'# 弧面纸塔\n虚构的纸塔观测');
   await vi.waitFor(async()=>expect((await json<PersonalOsVersionResponse>(await call(path))).version).not.toBe(initial.version),{timeout:3000});
   expect((await json<KnowledgeSearchResponse>(await search())).hits.some(h=>h.path==='我/弧面纸塔.md')).toBe(true);
+});
+
+describe('PersonalOS 写入接口（迭代 3）', () => {
+  function writable() {
+    const home = tempDir('bluemanta-personalos-write-');
+    const root = join(home, 'Documents', 'PersonalOS');
+    cpSync(FIXTURE_ROOT, root, { recursive: true });
+    const core = openCore({ dataDir: tempDir() }); cores.push(core);
+    const app = createApp({ core, token: TOKEN, port: PORT, webDir: null, knowledgeEnv: defaultKnowledgeEnv({ home }) }); apps.push(app);
+    const post = (path: string, body: unknown, token: string | null = TOKEN) => app.request(`http://${HOST}${BASE}${path}`, {
+      method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body),
+      headers: { host: HOST, 'content-type': 'application/json', ...(token === null ? {} : { authorization: `Bearer ${token}` }) },
+    });
+    const todo = () => new PersonalOsReader({ home }).domain('工作').todos.find((t) => t.text === '整理试点访谈问题卡')!;
+    return { root, post, todo };
+  }
+
+  it('速记：口令、请求体校验、追加成功、GET 不允许', async () => {
+    const { root, post } = writable();
+    await expectFailure(await post('/inbox', { text: '一句' }, null), 401, 'unauthorized');
+    await expectFailure(await post('/inbox', 'not json'), 400, 'invalid_input');
+    await expectFailure(await post('/inbox', { text: '两行\n文字' }), 400, 'invalid_input');
+    const ok = await post('/inbox', { text: '记下灯泡型号' });
+    expect(ok.status).toBe(200);
+    expect(ok.headers.get('cache-control')).toBe('no-store');
+    expect(await json<PersonalOsQuickNoteResponse>(ok)).toMatchObject({ ok: true, line: '- 2026-11-21 记下灯泡型号' });
+    expect(readFileSync(join(root, '收件箱.md'), 'utf8').endsWith('- 2026-11-21 记下灯泡型号\n')).toBe(true);
+  });
+
+  it('完成待办：dry-run 不写；正式写入；旧 hash 得到 409；参数不全 400', async () => {
+    const { root, post, todo } = writable();
+    const t = todo(); const statusPath = join(root, '领域/工作/状态.md');
+    const before = readFileSync(statusPath, 'utf8');
+    await expectFailure(await post('/todos/complete', { domain: '工作', line: t.line }), 400, 'invalid_input');
+    await expectFailure(await post('/todos/complete', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: true }, null), 401, 'unauthorized');
+    const preview = await json<PersonalOsCompleteResponse>(await post('/todos/complete', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: true }));
+    expect(preview).toMatchObject({ ok: true, dryRun: true, message: '[工作] 完成：整理试点访谈问题卡' });
+    expect(readFileSync(statusPath, 'utf8')).toBe(before);
+    const done = await json<PersonalOsCompleteResponse>(await post('/todos/complete', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: false }));
+    expect(done).toMatchObject({ ok: true, dryRun: false, committed: false, reason: 'no_repo' });
+    expect(readFileSync(statusPath, 'utf8')).toContain('- [x] 整理试点访谈问题卡');
+    await expectFailure(await post('/todos/complete', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: false }), 409, 'conflict');
+  });
 });

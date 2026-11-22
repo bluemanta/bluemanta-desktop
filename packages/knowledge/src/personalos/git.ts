@@ -28,20 +28,28 @@ function visibleChange(status: GitFile['status'], path: string, oldPath?: string
   return oldPath ? { status, path, oldPath } : { status, path };
 }
 
+/** The PersonalOS repository's work tree and git directory, both inside root; null when there is none. */
+export function locateRepository(root: string): {cwd:string;dir:string}|null {
+  const cwd = realpathSync(root);
+  const separate = join(cwd,'.gitdata.nosync');
+  let dir = statSync(separate,{throwIfNoEntry:false})?.isDirectory() ? separate : join(cwd,'.git');
+  if (!existsSync(dir)) return null;
+  if (!realpathSync(dir).startsWith(cwd+sep)) return null;
+  if (statSync(dir).isFile()) {
+    const pointer = /^gitdir: (.+)$/.exec(readFileSync(dir,'utf8').trimEnd());
+    if (!pointer) return null;
+    dir = resolve(cwd,pointer[1]!);
+  }
+  if (!existsSync(dir) || !realpathSync(dir).startsWith(cwd+sep)) return null;
+  return {cwd,dir};
+}
+
 async function withRepository<T>(root: string, executable: string, read: (run: Run) => Promise<T>): Promise<({ available: true } & T) | Unavailable> {
   if (!existsSync(root)) throw new KnowledgeError('library_missing','PersonalOS');
   try {
-    const cwd = realpathSync(root);
-    const separate = join(cwd,'.gitdata.nosync');
-    let dir = statSync(separate,{throwIfNoEntry:false})?.isDirectory() ? separate : join(cwd,'.git');
-    if (!existsSync(dir)) return {available:false,reason:'no_repo'};
-    if (!realpathSync(dir).startsWith(cwd+sep)) return {available:false,reason:'no_repo'};
-    if (statSync(dir).isFile()) {
-      const pointer = /^gitdir: (.+)$/.exec(readFileSync(dir,'utf8').trimEnd());
-      if (!pointer) return {available:false,reason:'no_repo'};
-      dir = resolve(cwd,pointer[1]!);
-    }
-    if (!realpathSync(dir).startsWith(cwd+sep)) return {available:false,reason:'no_repo'};
+    const repository = locateRepository(root);
+    if (!repository) return {available:false,reason:'no_repo'};
+    const {cwd,dir} = repository;
     const run: Run = async (command,...args) => (await exec(executable,[
       '-c','core.quotepath=false','-c','core.fsmonitor=false','-c','color.ui=false','--no-pager',command,
       ...(['log','show'].includes(command) ? ['--no-ext-diff','--no-textconv'] : []), ...args
