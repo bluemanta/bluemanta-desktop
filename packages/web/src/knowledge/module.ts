@@ -19,6 +19,7 @@ export const KNOWLEDGE_MODULE: WorkbenchModule = {
   commands: [
     { id: 'knowledge-today', label: '知识台：今天', path: '/knowledge/today' },
     { id: 'knowledge-domains', label: '知识台：领域', path: '/knowledge/domains' },
+    { id: 'knowledge-quick-note', label: '知识台：速记', path: '/knowledge/today?note=1' },
     { id: 'knowledge-search', label: '搜索知识', path: '/knowledge/search' },
   ],
 };

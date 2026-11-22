@@ -48,6 +48,15 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const refresh=await serve('refresh','empty');
   process.env.BM_E2E_REFRESH_URL=refresh.url;
   process.env.BM_E2E_REFRESH_TOKEN=refresh.token;
+  // 迭代 3 写入走查：独立的可写副本；提交用虚构身份，不用本机的 git 配置。
+  const writeHome = sandboxDir('pos-write-home');
+  resetSandbox(writeHome);
+  execFileSync(process.execPath,[join(WEB_DIST,'../../knowledge/scripts/git-fixture.mjs'),join(writeHome,'Documents/PersonalOS')]);
+  Object.assign(process.env,{GIT_AUTHOR_NAME:'纸星',GIT_AUTHOR_EMAIL:'paper@example.invalid',GIT_COMMITTER_NAME:'纸星',GIT_COMMITTER_EMAIL:'paper@example.invalid',GIT_CONFIG_GLOBAL:'/dev/null',GIT_CONFIG_NOSYSTEM:'1'});
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = writeHome;
+  const posWrite = await serve('pos-write','empty');
+  process.env.BM_E2E_POS_WRITE_URL = posWrite.url;
+  process.env.BM_E2E_POS_WRITE_TOKEN = posWrite.token;
   process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
   process.env.BM_E2E_GIT_URL=git.url;
   process.env.BM_E2E_GIT_TOKEN=git.token;
@@ -60,6 +69,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.BM_E2E_SHOT_URL = shots.url;
   process.env.BM_E2E_SHOT_TOKEN = shots.token;
   return async () => {
+    await posWrite.server.close();
     await refresh.server.close();
     await git.server.close();
     await full.server.close();

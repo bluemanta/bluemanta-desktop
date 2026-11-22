@@ -18,7 +18,7 @@ async function openPersonalOs(page: Page, path = '/knowledge/today', search = ''
 test.describe('PersonalOS 今天与领域', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('入口、五个分段、侧栏到期计数与只读今天六组', async ({ page }) => {
+  test('入口、五个分段、侧栏到期计数与今天六组', async ({ page }) => {
     await openPersonalOs(page, '/ideas');
     const entry = page.getByRole('navigation', { name: '模块' }).getByRole('button', { name: '知识台', exact: true });
     await entry.click();
@@ -41,7 +41,8 @@ test.describe('PersonalOS 今天与领域', () => {
     await later.locator('summary').click();
     await expect(later.getByRole('option')).toHaveCount(1);
     await expect(later).toContainText('1m');
-    await expect(today(page).getByRole('checkbox')).toHaveCount(0);
+    // 迭代 3 起每件未完成事项有一个「完成」复选框；点了只打开预览，不直接写入。
+    await expect(today(page).getByRole('checkbox', { name: /^完成：/ })).toHaveCount(10);
     await expect(today(page)).toContainText('晨间简报时由 agent 分拣');
     await expect(today(page)).toContainText('书签的失败样品');
     await expect(today(page)).not.toContainText('完成安静时间观察记录');
