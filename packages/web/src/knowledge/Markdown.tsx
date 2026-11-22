@@ -1,13 +1,17 @@
-import { Fragment, useMemo, type ReactNode } from 'react';
-import { inlineText, parseMarkdown, resolveLink, type Block, type Inline } from './mdParse';
+import { Fragment, useId, useMemo, useRef, type ReactNode } from 'react';
+import { inlineText, parseInline, parseMarkdown, resolveLink, type Block, type Inline } from './mdParse';
 import styles from './Markdown.module.css';
 
-type MarkdownProps = {
+export type MarkdownProps = {
   source: string;
   /** Library-relative path of the file being shown; relative links resolve against it. */
   basePath: string;
   /** Opens a library-relative path (file or topic folder). */
-  onOpen: (path: string) => void;
+  onOpen: (path: string, anchor?: string) => void;
+  /** Highlight only prose, never code or link destinations. */
+  highlightTerms?: readonly string[];
+  /** A container may handle anchors across several Markdown sections. */
+  onAnchor?: (anchor: string) => void;
   /** Topic documents start with `# <主题名> …`, which repeats the card title; drop that first H1. */
   skipLeadingTitle?: boolean;
 };
@@ -17,57 +21,73 @@ export function headingId(index: number): string {
   return `kb-h-${index}`;
 }
 
-function InlineNodes({ nodes, basePath, onOpen }: { nodes: readonly Inline[]; basePath: string; onOpen: (path: string) => void }) {
-  return (
-    <>
-      {nodes.map((node, index) => {
-        if (node.type === 'text') return <Fragment key={index}>{node.text}</Fragment>;
-        if (node.type === 'code') return <code key={index}>{node.text}</code>;
-        if (node.type === 'strong') return <strong key={index}><InlineNodes nodes={node.children} basePath={basePath} onOpen={onOpen} /></strong>;
-        if (node.type === 'em') return <em key={index}><InlineNodes nodes={node.children} basePath={basePath} onOpen={onOpen} /></em>;
-        const target = resolveLink(node.href, basePath);
-        const label = <InlineNodes nodes={node.children} basePath={basePath} onOpen={onOpen} />;
-        if (target.kind === 'external') {
-          return (
-            <a key={index} href={target.href} target="_blank" rel="noreferrer noopener">
-              {label}
-            </a>
-          );
-        }
-        if (target.kind === 'library') {
-          return (
-            <a
-              key={index}
-              href="#"
-              onClick={(event) => {
-                event.preventDefault();
-                onOpen(target.path);
-              }}
-            >
-              {label}
-            </a>
-          );
-        }
-        return (
-          <span key={index} className={styles.deadLink} title={node.href}>
-            {label}
-          </span>
-        );
-      })}
-    </>
-  );
+/** GitHub-style heading text, also accepting the original Chinese title. */
+export function headingAnchor(text: string): string {
+  return text.trim().toLowerCase().replace(/[^\p{L}\p{N}_\-\s]/gu, '').replace(/\s/g, '-');
 }
 
-function Blocks({ blocks, basePath, onOpen, counter }: { blocks: readonly Block[]; basePath: string; onOpen: (path: string) => void; counter: { value: number } }): ReactNode {
+export function scrollToHeading(root: HTMLElement | null, anchor: string): boolean {
+  if (!root) return false;
+  const normalized = headingAnchor(anchor);
+  const target = [...root.querySelectorAll<HTMLElement>('[data-heading]')].find((element) =>
+    element.dataset.heading === anchor || element.id === anchor || element.dataset.outlineId === anchor || headingAnchor(element.dataset.heading ?? '') === normalized,
+  );
+  if (!target) return false;
+  target.scrollIntoView({ block: 'start' });
+  target.dataset.flash = 'true';
+  window.setTimeout(() => delete target.dataset.flash, 1600);
+  return true;
+}
+
+function HighlightedText({ text, terms }: { text: string; terms: readonly string[] }) {
+  const matches = terms.filter(Boolean).sort((a, b) => b.length - a.length);
+  if (matches.length === 0) return <>{text}</>;
+  const pattern = new RegExp(`(${matches.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
+  return <>{text.split(pattern).map((part, index) => matches.includes(part) ? <mark key={index}>{part}</mark> : <Fragment key={index}>{part}</Fragment>)}</>;
+}
+
+type InlineProps = Pick<MarkdownProps, 'basePath' | 'onOpen' | 'highlightTerms' | 'onAnchor'>;
+
+function InlineNodes({ nodes, ...props }: InlineProps & { nodes: readonly Inline[] }) {
+  const { basePath, onOpen, onAnchor, highlightTerms = [] } = props;
+  return <>{nodes.map((node, index) => {
+    if (node.type === 'text') return <HighlightedText key={index} text={node.text} terms={highlightTerms} />;
+    if (node.type === 'code') return <code key={index}>{node.text}</code>;
+    if (node.type === 'strong') return <strong key={index}><InlineNodes nodes={node.children} {...props} /></strong>;
+    if (node.type === 'em') return <em key={index}><InlineNodes nodes={node.children} {...props} /></em>;
+    const target = resolveLink(node.href, basePath);
+    const label = <InlineNodes nodes={node.children} {...props} />;
+    if (target.kind === 'external') return <a key={index} href={target.href} target="_blank" rel="noreferrer noopener" onClick={(event) => event.stopPropagation()}>{label}</a>;
+    if (target.kind === 'library' || target.kind === 'anchor') {
+      return <a key={index} href={target.kind === 'anchor' ? `#${encodeURIComponent(target.anchor)}` : '#'} onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (target.kind === 'anchor') {
+          if (onAnchor) onAnchor(target.anchor);
+          else onOpen(basePath, target.anchor);
+        } else if (target.path === basePath && target.anchor && onAnchor) onAnchor(target.anchor);
+        else onOpen(target.path, target.anchor ?? undefined);
+      }}>{label}</a>;
+    }
+    return <span key={index} className={styles.deadLink} title={node.href}>{label}</span>;
+  })}</>;
+}
+
+/** Safe inline Markdown for compact read-only rows. */
+export function InlineMarkdown({ source, ...props }: Omit<MarkdownProps, 'skipLeadingTitle'>) {
+  return <span className={`${styles.markdown} ${styles.inline}`}><InlineNodes nodes={parseInline(source)} {...props} /></span>;
+}
+
+function Blocks({ blocks, counter, prefix, ...props }: InlineProps & { blocks: readonly Block[]; counter: { value: number }; prefix: string }): ReactNode {
   return blocks.map((block, index) => {
-    const inline = (nodes: readonly Inline[]) => <InlineNodes nodes={nodes} basePath={basePath} onOpen={onOpen} />;
+    const inline = (nodes: readonly Inline[]) => <InlineNodes nodes={nodes} {...props} />;
     switch (block.type) {
       case 'heading': {
         const id = headingId(counter.value);
         counter.value += 1;
         const Tag = `h${Math.min(block.level + 1, 6)}` as 'h2';
         return (
-          <Tag key={index} id={id} data-heading={block.text} className={styles.heading} data-level={block.level}>
+          <Tag key={index} id={`${prefix}-${id}`} data-outline-id={id} data-heading={block.text} className={styles.heading} data-level={block.level}>
             {inline(block.children)}
           </Tag>
         );
@@ -85,7 +105,7 @@ function Blocks({ blocks, basePath, onOpen, counter }: { blocks: readonly Block[
       case 'quote':
         return (
           <blockquote key={index}>
-            <Blocks blocks={block.children} basePath={basePath} onOpen={onOpen} counter={counter} />
+            <Blocks blocks={block.children} {...props} counter={counter} prefix={prefix} />
           </blockquote>
         );
       case 'list': {
@@ -93,7 +113,7 @@ function Blocks({ blocks, basePath, onOpen, counter }: { blocks: readonly Block[
           <li key={itemIndex} data-task={item.checked === null ? undefined : item.checked ? 'done' : 'todo'}>
             {item.checked === null ? null : <span className={styles.check} aria-label={item.checked ? '已完成' : '未完成'}>{item.checked ? '☑' : '☐'}</span>}
             {inline(item.children)}
-            {item.nested.length > 0 ? <Blocks blocks={item.nested} basePath={basePath} onOpen={onOpen} counter={counter} /> : null}
+            {item.nested.length > 0 ? <Blocks blocks={item.nested} {...props} counter={counter} prefix={prefix} /> : null}
           </li>
         ));
         return block.ordered ? <ol key={index}>{items}</ol> : <ul key={index}>{items}</ul>;
@@ -130,15 +150,17 @@ function Blocks({ blocks, basePath, onOpen, counter }: { blocks: readonly Block[
 }
 
 /** Renders a library Markdown file. Raw HTML in the source is shown as text, never injected. */
-export function Markdown({ source, basePath, onOpen, skipLeadingTitle = false }: MarkdownProps) {
+export function Markdown({ source, basePath, onOpen, highlightTerms, onAnchor, skipLeadingTitle = false }: MarkdownProps) {
+  const root = useRef<HTMLDivElement>(null);
+  const prefix = useId();
   const blocks = useMemo(() => {
     const parsed = parseMarkdown(source);
     const first = parsed[0];
     return skipLeadingTitle && first?.type === 'heading' && first.level === 1 ? parsed.slice(1) : parsed;
   }, [source, skipLeadingTitle]);
   return (
-    <div className={styles.markdown}>
-      <Blocks blocks={blocks} basePath={basePath} onOpen={onOpen} counter={{ value: 0 }} />
+    <div ref={root} className={styles.markdown}>
+      <Blocks blocks={blocks} basePath={basePath} onOpen={onOpen} highlightTerms={highlightTerms} onAnchor={onAnchor ?? ((anchor) => { scrollToHeading(root.current, anchor); })} counter={{ value: 0 }} prefix={prefix} />
     </div>
   );
 }

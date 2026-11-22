@@ -1,3 +1,13 @@
+import type {
+  PersonalOsDocument,
+  PersonalOsDomain,
+  PersonalOsFile,
+  PersonalOsLog,
+  PersonalOsOverview,
+  PersonalOsRegistryRow,
+  PersonalOsToday,
+} from '@bluemanta/knowledge';
+
 /**
  * `/api/v1` 返回给网页的数据形状。网页（packages/web）直接引用这些类型。
  * 灵感接口不含本机路径、数据目录和口令。Skill 台是本机模块，路径仅用于显示且 home 缩写为 `~`。
@@ -241,6 +251,11 @@ export type ApiErrorCode =
   | 'knowledge_library_missing'
   | 'knowledge_invalid_path'
   | 'knowledge_read_error'
+  | 'library_missing'
+  | 'invalid_path'
+  | 'read_error'
+  | 'conflict'
+  | 'write_error'
   | 'internal';
 
 export type ApiFailure = {
@@ -363,6 +378,8 @@ export type KnowledgeFileResponse = {
 export type KnowledgeInboxResponse = { ok: true; library: KnowledgeLibrary; files: KnowledgeFileEntry[] };
 
 export type KnowledgeSearchHit = {
+  /** Present only for PersonalOS hits; null for root documents outside a domain. */
+  domain?: string | null;
   source: 'library' | 'idea';
   library: string | null;
   path: string | null;
@@ -391,3 +408,28 @@ export type KnowledgeRouteCandidate = {
 };
 
 export type KnowledgeRouteResponse = { ok: true; query: string; candidates: KnowledgeRouteCandidate[] };
+
+
+/** PersonalOS is a local read-only library; all source content stays in its Markdown files. */
+export type PersonalOsOverviewResponse = { ok: true; documents: PersonalOsDocument[] } & PersonalOsOverview;
+export type PersonalOsTodayResponse = { ok: true } & PersonalOsToday;
+export type PersonalOsDomainResponse = { ok: true } & PersonalOsDomain;
+export type PersonalOsRegistryResponse = { ok: true; items: PersonalOsRegistryRow[] };
+export type PersonalOsLogEntry = PersonalOsLog['items'][number] & {
+  /** Original bracket label that does not match a registered domain. */
+  tag?: string;
+};
+export type PersonalOsLogResponse = { ok: true; items: PersonalOsLogEntry[] } & Omit<PersonalOsLog, 'items'>;
+export type PersonalOsFileResponse = {
+  ok: true;
+  library: KnowledgeLibrary;
+  file: PersonalOsFile;
+  /** Display-only path, with the injected home directory abbreviated to ~. */
+  displayPath: string;
+};
+
+export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommits>>;
+export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
+export type PersonalOsQuickNoteResponse = { ok: true } & import('@bluemanta/knowledge').QuickNoteResult;
+export type PersonalOsCompleteResponse = { ok: true } & import('@bluemanta/knowledge').CompleteTodoResult;
+export type PersonalOsVersionResponse = {ok:true} & ReturnType<import('@bluemanta/knowledge').PersonalOsVersion['current']>;

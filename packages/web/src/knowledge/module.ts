@@ -1,21 +1,25 @@
 import type { WorkbenchModule } from '../shell/modules';
-import { useKnowledgeInboxCount } from './api';
+import { usePersonalOsDueCount } from './api';
 
-/** 知识台（ADR 0009）：主题、搜索、收件箱。侧栏计数是个人库收件箱里的文件数。 */
+/** PersonalOS dashboard (ADR 0011); module identity and URL prefix stay stable. */
 export const KNOWLEDGE_MODULE: WorkbenchModule = {
   id: 'knowledge',
   name: '知识台',
   icon: 'book',
   pathPrefix: '/knowledge',
-  rootPath: '/knowledge',
-  useCount: useKnowledgeInboxCount,
+  rootPath: '/knowledge/today',
+  useCount: usePersonalOsDueCount,
   sections: [
-    { id: 'topics', label: '主题', path: '/knowledge' },
+    { id: 'today', label: '今天', path: '/knowledge/today' },
+    { id: 'domains', label: '领域', path: '/knowledge/domains' },
+    { id: 'resources', label: '资料', path: '/knowledge/resources' },
+    { id: 'activity', label: '动态', path: '/knowledge/activity' },
     { id: 'search', label: '搜索', path: '/knowledge/search' },
-    { id: 'inbox', label: '收件箱', path: '/knowledge/inbox' },
   ],
   commands: [
+    { id: 'knowledge-today', label: '知识台：今天', path: '/knowledge/today' },
+    { id: 'knowledge-domains', label: '知识台：领域', path: '/knowledge/domains' },
+    { id: 'knowledge-quick-note', label: '知识台：速记', path: '/knowledge/today?note=1' },
     { id: 'knowledge-search', label: '搜索知识', path: '/knowledge/search' },
-    { id: 'knowledge-inbox', label: '打开知识收件箱', path: '/knowledge/inbox' },
   ],
 };

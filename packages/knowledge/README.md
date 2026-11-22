@@ -1,11 +1,12 @@
 # @bluemanta/knowledge
 
-知识台的数据与规则（[ADR 0009](../../docs/decisions/0009-knowledge-desk.md)）。读取按 SalesOS Arsenal 体系组织的本机 Markdown 库，只读。
+知识台的数据与规则（[ADR 0009](../../docs/decisions/0009-knowledge-desk.md)）。读取 Arsenal 结构的 Markdown 库与 PersonalOS（ADR 0011），正本文件只读。
 
 ## 库
 
 | id | 默认位置 | 说明 |
 |---|---|---|
+| `personalos` | `~/Documents/PersonalOS` | PersonalOS 状态与待办正本 |
 | `personal` | `~/Documents/Knowledge` | 个人库，按人生领域分类 |
 | `arsenal` | `~/Documents/Shuyun/SalesOS/Arsenal` | SalesOS 的售前主题库，始终只读 |
 
@@ -26,8 +27,8 @@ BLUEMANTA_KNOWLEDGE_HOME=packages/knowledge/fixtures/home node packages/server/d
 
 | 函数 | 作用 |
 |---|---|
-| `defaultKnowledgeEnv()` | 默认两个库 |
-| `listLibraries(env)` | 每个库是否存在、总索引文件、主题数、收件箱文件数 |
+| `defaultKnowledgeEnv()` | 默认三个库；旧配置输入缺省 kind 时按 arsenal 兼容 |
+| `listLibraries(env)` | 旧浏览入口只列 Arsenal 结构的库；每个库是否存在、总索引文件、主题数、收件箱文件数 |
 | `readLibraryIndex(env, lib)` | 分类与主题（含路由信息、四个默认文件是否存在）和警告 |
 | `readTopic(env, lib, topicPath)` | 主题四个文件的正文、其他文件（目录在前）、`_Archive` 里的文件 |
 | `readLibraryFile(env, lib, path)` | Markdown 返回正文（超过 1 MB 截断），其他文件只返回元信息 |
@@ -70,3 +71,13 @@ npm run knowledge -- eval            # 默认读 <数据目录>/knowledge-eval.j
 ```json
 [{ "question": "去年说的会员分层那个想法", "expect": ["会员分层"] }]
 ```
+
+## PersonalOS（迭代 1 / P1）
+
+`PersonalOsReader` 每次调用现读文件，提供概览、今天分组、领域详情、资料登记、日志与安全的文件读取。路由来自 AGENTS.md 第一张含「领域 / 路径」的表；格式偏离时保留原文和警告。资料位置只检查 stat，不读取引用文件。待办保持文件路径与行号，不写入 core Task。
+
+- `BLUEMANTA_TODAY=2026-11-21` 固定日期；没有时取服务所在时区的当天。
+- PersonalOS 路径拒绝绝对路径、越界、点开头路径段、库外软链；iCloud 占位以逻辑文件名和 availability 表达，隐藏项不会变成可读入口。
+- 新配置含必填 kind；`KnowledgeEnv` 的历史输入允许省略并按 Arsenal 解释，避免迫使其它包同步修改。
+- 旧库列表与默认全文索引在迁移期间仍只处理 personal / arsenal。PersonalOS 的网页检索在 P4 单独启用，agent 工具迭代 4 再切换。
+- fixture 全部原创虚构，位于 `fixtures/home/Documents/PersonalOS`。只读分组验收使用该 fixture，禁止指向真实个人目录。

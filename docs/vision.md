@@ -43,6 +43,7 @@
 | 2026-10-18 | dsh 锁定版本升到 0.2.1-rc.2，参考源码改为上游提交 `d1b9c04067`（[ADR 0007](decisions/0007-dsh-0-2-1-rc-2.md)） |
 | 2026-10-22 | 新增工作台第二个模块「Skill 台」：在网页里看清本机 skill 装在哪些工具里、是否正常、dsh 能否用到。早先的 skill-board 原型不原样嵌入，重写进本仓库，与灵感台同一套外壳和设计规范；skill 正本仍是 AgentSkillRepos 与 manifest.yaml；先只读。相关任务由 Codex 实现（[ADR 0008](decisions/0008-skill-desk.md)） |
 | 2026-10-26 | 启动阶段 3「知识台」：照 SalesOS Arsenal 的体系组织本机知识库，资料不搬家、统一搜索。个人库新建在 `~/Documents/Knowledge`（按人生领域分类）；Arsenal 只读挂载；Obsidian 等已有资料先在主题里登记引用、以后经 `_Inbox` 逐步入库；第一版只做本机全文检索；验收用用户出的 10 个真实问题。长期知识的正本是 Markdown 库，Desktop 只建可重建的索引；灵感仍是卡片。阶段 3 由 Claude Code 自己规划和开发（[ADR 0009](decisions/0009-knowledge-desk.md)，[计划](phase-3.md)） |
+| 2026-11-21 | 知识台改为 PersonalOS 的可视化看板（今天、领域、资料、动态、搜索）：PersonalOS 取代 `~/Documents/Knowledge` 成为个人知识正本，个人待办的正本也是 PersonalOS；先只读，之后只做照 PersonalOS 协议的速记和勾选待办两类写入；Arsenal 保留只读。实现者改为 Codex，本轮说明书放在仓库本地、不经 Linear（[ADR 0011](decisions/0011-personalos-desk.md)，[方案](personalos-desk-plan.md)） |
 | 2026-11-10 | dsh 分开「API 参考版本」和「允许运行的版本范围」：参考版本升到 0.2.2-rc.1（上游提交 `2f97f60455`），插件用 `engines.dsh` 声明运行范围 `>=0.2.1-rc.2 <0.3.0-0`，0.2.x 内的自动升级不再拒载；升级后用 `npm run dsh:smoke` 自检（[ADR 0010](decisions/0010-dsh-version-range.md)） |
 
 ## 架构
@@ -62,7 +63,7 @@
 
 | 数据 | 当前正本 | 状态 | 去向 |
 |---|---|---|---|
-| 长期知识（个人） | 个人库 `~/Documents/Knowledge`（Markdown，Arsenal 结构） | 2026-10-26 新建；Desktop 只建索引 | 已有资料经 `_Inbox` 逐步入库（入库即搬家） |
+| 个人上下文、长期知识（个人）、个人待办 | PersonalOS `~/Documents/PersonalOS`（Markdown，按生活领域组织，本地 Git） | 2026-11-12 起由 agent 维护；知识台改为它的看板，Desktop 只建索引（[ADR 0011](decisions/0011-personalos-desk.md)） | 旧个人库 `~/Documents/Knowledge` 原样保留，知识台切换完成后由用户归档 |
 | 售前主题知识 | `~/Documents/Shuyun/SalesOS/Arsenal` | 活跃，由 SalesOS 维护 | Desktop 只读挂载、索引 |
 | 灵感 | Desktop（`~/Library/Application Support/BluemantaDesktop/`） | 活跃；2026-10-11 起 Grok Bot 直接写入 Desktop，workbench 中的旧灵感已导入，workbench 只读 | — |
 | 内容线的账号、选题、产出 | workbench `store.json` 中的灵感台模块数据 | 冻结，只读 | 阶段 2 导入 Desktop |
@@ -82,7 +83,7 @@
 | 0 | 本仓库的规划文档；技术验证 S1（dsh 面板扩展点，已通过）；确认正本归属表；对象模型草案，先定公共对象（任务、项目、人、卡片），再定各模块对象（参照 Notion 两个库和灵感台 schema 6） | 文档定稿；S1 结论为 verified 或 failed |
 | 1 | Desktop core（项目、任务、卡片、写入规则、存储）；灵感清单面板；agent 读写灵感的工具；导入 workbench 冻结数据中的灵感和档案（内容线数据留到阶段 2） | 日常记录和回看灵感都在 Desktop 里完成，不再打开 workbench |
 | 2（暂缓） | 内容线：场景卡、选题、产出、发布台、内容台账面板，对齐 Notion ContentHub；Grok Bot 改为写入 Desktop；侧栏品牌换成 bluemanta（T9，IFM-281） | 连续 2 周内容生产全部在 Desktop 完成，每周发布 N 篇（N 由用户定） |
-| 3（进行中） | 知识台：按 Arsenal 体系的本机 Markdown 库（个人库 + Arsenal 只读），统一全文检索，agent 按路由读；原计划的「导入 ContentHub 和 Obsidian」改为登记引用（[ADR 0009](decisions/0009-knowledge-desk.md)） | 随口问一个半年前的想法，能找回来：用户出的 10 个真实问题，前 5 条里命中 8 个以上 |
+| 3（进行中） | 知识台：第一版按 Arsenal 体系做了本机 Markdown 库的浏览和全文检索（[ADR 0009](decisions/0009-knowledge-desk.md)）；2026-11-21 起改为 PersonalOS 看板，分四轮迭代（[ADR 0011](decisions/0011-personalos-desk.md)，[方案](personalos-desk-plan.md)） | 「今天」页与晨间简报一致；随口问一个半年前的想法能找回来：用户出的 10 个真实问题，前 5 条里命中 8 个以上 |
 | 4 起 | 交付（SalesOS 只读索引、飞书纪要）、开发项目、家庭 | 按领域分别定义 |
 
 ## 待决问题

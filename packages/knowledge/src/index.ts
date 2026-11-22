@@ -33,3 +33,9 @@ export {
 } from './search-index.js';
 export { evaluate, type EvalCase, type EvalCaseResult, type EvalReport } from './eval.js';
 export { EXCERPT_CHARS, bigrams, chunkMarkdown, excerptAround, extractKeywords, plainText, queryKeywords, type MarkdownChunk, type ParsedMarkdown } from './text.js';
+
+export { PersonalOsReader, parseRouter, parseStatus, parseTodos, parseRegistry, parseInbox, parseLog, groupTodos, currentDate, normalizePersonalOsPath, walkPersonalOsFiles } from './personalos/index.js';
+export type { Overview as PersonalOsOverview, TodayResult as PersonalOsToday, DomainSummary as PersonalOsDomainSummary, DomainDetail as PersonalOsDomain, Todo as PersonalOsTodo, RegistryRow as PersonalOsRegistryRow, LogResult as PersonalOsLog, FileContent as PersonalOsFile, DocumentFile as PersonalOsDocument, LogOptions as PersonalOsLogOptions } from './personalos/types.js';
+export { gitCommit, gitCommits, type GitFile, type GitCommit, type GitListOptions } from './personalos/git.js';
+export { PersonalOsVersion, type VersionMode, type WatchRoot } from './personalos/version.js';
+export { PersonalOsWriter, addPeriod, nextDue, type CompleteTodoInput, type CompleteTodoResult, type QuickNoteResult, type WriteFileChange } from './personalos/write.js';

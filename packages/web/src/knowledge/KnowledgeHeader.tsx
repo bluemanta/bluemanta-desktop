@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppNavigate } from '../app/context';
+import { ReadTime } from './PersonalOsRefresh';
 import { Header } from '../shell/Header';
 import { Icon } from '../ui/Icon';
 import headerStyles from '../shell/Header.module.css';
 import { KNOWLEDGE_MODULE } from './module';
 import { searchPath } from './paths';
 
-export type KnowledgeSection = 'topics' | 'search' | 'inbox';
+export type KnowledgeSection = 'today' | 'domains' | 'resources' | 'activity' | 'search' | 'topics' | 'inbox';
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -34,12 +35,13 @@ export function KnowledgeHeader({ section, query = '' }: { section: KnowledgeSec
   return (
     <Header
       module={KNOWLEDGE_MODULE}
-      section={section}
+      section={section === 'topics' ? 'resources' : section === 'inbox' ? 'today' : section}
       onSection={(id) => {
         const target = KNOWLEDGE_MODULE.sections.find((item) => item.id === id);
         if (target) navigate(target.path);
       }}
     >
+      <ReadTime />
       <form
         className={headerStyles.search}
         role="search"
@@ -53,8 +55,8 @@ export function KnowledgeHeader({ section, query = '' }: { section: KnowledgeSec
           ref={input}
           type="search"
           value={value}
-          placeholder="搜索知识和灵感"
-          aria-label="搜索知识和灵感"
+          placeholder="搜索 PersonalOS、Arsenal 和灵感"
+          aria-label="搜索 PersonalOS、Arsenal 和灵感"
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {
             if (event.key !== 'Escape') return;

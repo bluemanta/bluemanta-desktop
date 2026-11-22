@@ -119,7 +119,7 @@ export async function startServer(options: StartOptions): Promise<StartOutcome> 
         closing ??= new Promise<void>((resolve) => {
           server.close(() => resolve());
           server.closeAllConnections();
-        }).then(() => core.close());
+        }).then(() => {app.close();core.close();});
         return closing;
       },
     },

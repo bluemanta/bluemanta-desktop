@@ -1,12 +1,18 @@
 import type {
   KnowledgeFileResponse,
+  PersonalOsOverviewResponse,
+  PersonalOsTodayResponse,
+  PersonalOsDomainResponse,
+  PersonalOsFileResponse,
+  PersonalOsRegistryResponse,
+  PersonalOsLogResponse,
   KnowledgeInboxResponse,
   KnowledgeIndexResponse,
   KnowledgeLibrariesResponse,
   KnowledgeSearchResponse,
   KnowledgeTopicResponse,
 } from '@bluemanta/server/api-types';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
 import { apiJson } from '../api/client';
 import { DEFAULT_LIBRARY, encodePath } from './paths';
 
@@ -59,7 +65,8 @@ export function useKnowledgeTopic(library: string, path: string | null) {
 export function useKnowledgeFile(library: string, path: string | null) {
   return useQuery({
     queryKey: knowledgeKeys.file(library, path ?? ''),
-    queryFn: ({ signal }) => apiJson<KnowledgeFileResponse>(`${lib(library)}/files/${encodePath(path ?? '')}`, { signal }),
+    refetchInterval: library==='personalos'?STALE_MS:false,
+    queryFn: ({ signal }) => apiJson<KnowledgeFileResponse | PersonalOsFileResponse>(library === 'personalos' ? `/api/v1/personalos/files/${encodePath(path ?? '')}` : `${lib(library)}/files/${encodePath(path ?? '')}`, { signal }),
     enabled: path !== null && path !== '',
     staleTime: STALE_MS,
   });
@@ -77,9 +84,76 @@ export function useKnowledgeSearch(query: string) {
   const trimmed = query.trim();
   return useQuery({
     queryKey: knowledgeKeys.search(trimmed),
-    queryFn: ({ signal }) => apiJson<KnowledgeSearchResponse>(`/api/v1/knowledge/search?q=${encodeURIComponent(trimmed)}&limit=50`, { signal }),
+    queryFn: ({ signal }) => apiJson<KnowledgeSearchResponse>(`/api/v1/knowledge/search?q=${encodeURIComponent(trimmed)}&limit=50&library=personalos&library=arsenal&ideas=1`, { signal }),
     enabled: trimmed !== '',
     staleTime: 10_000,
     placeholderData: keepPreviousData,
   });
+}
+
+
+export const personalOsKeys = {
+  overview: ['personalos', 'overview'] as const,
+  today: ['personalos', 'today'] as const,
+  domain: (id: string) => ['personalos', 'domain', id] as const,
+  registry: ['personalos', 'registry'] as const,
+  log: (domains: readonly string[], before: string | null, includeUnassigned = false) => ['personalos', 'log', [...domains].sort(), before, includeUnassigned] as const,
+};
+
+export function usePersonalOsOverview() {
+  return useQuery({
+    queryKey: personalOsKeys.overview,
+    queryFn: ({ signal }) => apiJson<PersonalOsOverviewResponse>('/api/v1/personalos', { signal }),
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
+}
+
+export function usePersonalOsToday() {
+  return useQuery({
+    queryKey: personalOsKeys.today,
+    queryFn: ({ signal }) => apiJson<PersonalOsTodayResponse>('/api/v1/personalos/today', { signal }),
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
+}
+
+export function usePersonalOsDomain(id: string | null) {
+  return useQuery({
+    queryKey: personalOsKeys.domain(id ?? ''),
+    queryFn: ({ signal }) => apiJson<PersonalOsDomainResponse>(`/api/v1/personalos/domains/${encodeURIComponent(id ?? '')}`, { signal }),
+    enabled: id !== null && id !== '',
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
+}
+
+export function usePersonalOsFile(path: string | null) {
+  return useQuery({
+    queryKey: knowledgeKeys.file('personalos', path ?? ''),
+    queryFn: ({ signal }) => apiJson<PersonalOsFileResponse>(`/api/v1/personalos/files/${encodePath(path ?? '')}`, { signal }),
+    enabled: path !== null && path !== '',
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
+}
+
+export function usePersonalOsDueCount(): number | undefined {
+  const data = usePersonalOsToday().data;
+  const count = data ? data.overdue.length + data.dueToday.length : undefined;
+  return count === 0 ? undefined : count;
+}
+
+export function usePersonalOsRegistry() {
+  return useQuery({
+    queryKey: personalOsKeys.registry,
+    queryFn: ({ signal }) => apiJson<PersonalOsRegistryResponse>('/api/v1/personalos/registry', { signal }),
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
+}
+
+export function usePersonalOsLogPages(domains:readonly string[], cursors:readonly string[], unassigned:boolean) {
+  return useQueries({queries:cursors.map(before=>{
+    const params=new URLSearchParams({days:'30',before});
+    for(const domain of [...domains].sort()) params.append('domain',domain);
+    if(unassigned) params.set('unassigned','1');
+    return {queryKey:personalOsKeys.log(domains,before,unassigned),staleTime:STALE_MS,refetchInterval:STALE_MS,
+      queryFn:({signal}:{signal:AbortSignal})=>apiJson<PersonalOsLogResponse>(`/api/v1/personalos/log?${params}`,{signal})};
+  })});
 }

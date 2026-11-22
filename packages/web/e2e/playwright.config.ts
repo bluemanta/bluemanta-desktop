@@ -12,6 +12,7 @@ export default defineConfig({
   expect: { timeout: 7_000 },
   use: {
     ...devices['Desktop Chrome'],
+    ...(process.env.BLUEMANTA_PW_CHANNEL ? { channel: process.env.BLUEMANTA_PW_CHANNEL } : {}),
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
     trace: 'retain-on-failure',

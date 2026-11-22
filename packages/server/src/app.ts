@@ -26,8 +26,8 @@ import {
 } from '@bluemanta/core';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { defaultSkillEnv, type SkillEnv } from '@bluemanta/skills';
-import { openKnowledgeIndex } from '@bluemanta/cli/knowledge-tools';
-import { defaultKnowledgeEnv, type KnowledgeEnv, type KnowledgeIndex } from '@bluemanta/knowledge';
+import { ideaDocsFrom, KNOWLEDGE_INDEX_FILE } from '@bluemanta/cli/knowledge-tools';
+import { PersonalOsVersion, defaultKnowledgeEnv, KnowledgeIndex, type KnowledgeEnv } from '@bluemanta/knowledge';
 import {
   API_VERSION,
   type ApiErrorCode,
@@ -44,6 +44,7 @@ import { isEditedHistory, sortIdeas, toAttachmentMeta, toIdeaRecord } from './re
 import { SERVER_VERSION } from './version.js';
 import { createSkillsApi } from './skills-api.js';
 import { createKnowledgeApi } from './knowledge-api.js';
+import { createPersonalOsApi } from './personalos-api.js';
 
 /** 服务只用到 core 的这些方法，测试可以换成同形状的对象。 */
 export type ServerCore = Pick<
@@ -148,7 +149,7 @@ function errorKind(error: unknown): string {
   return typeof error;
 }
 
-export function createApp(options: CreateAppOptions): Hono {
+export function createApp(options: CreateAppOptions) {
   const { core, port } = options;
   const expectedToken = tokenDigest(options.token);
   const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
@@ -242,12 +243,21 @@ export function createApp(options: CreateAppOptions): Hono {
   app.route('/api/v1', createSkillsApi(options.skillEnv ?? defaultSkillEnv()));
 
   const knowledgeEnv = options.knowledgeEnv ?? defaultKnowledgeEnv();
+  const root = knowledgeEnv.libraries.find(lib => lib.kind === 'personalos' || lib.id === 'personalos')?.root ?? join(knowledgeEnv.home,'Documents','PersonalOS');
+  const monitor = new PersonalOsVersion(root);
+  app.route('/api/v1', createPersonalOsApi(knowledgeEnv,monitor));
   let knowledgeIndex = options.knowledgeIndex;
   app.route(
     '/api/v1',
     createKnowledgeApi({
       env: knowledgeEnv,
-      index: () => (knowledgeIndex ??= openKnowledgeIndex({ dataDir: core.dataDir, core, env: knowledgeEnv })),
+      personalOsVersion: () => monitor.current().version,
+      index: () => (knowledgeIndex ??= new KnowledgeIndex({
+        env: knowledgeEnv,
+        dbPath: join(core.dataDir, KNOWLEDGE_INDEX_FILE),
+        ideas: () => ideaDocsFrom(core),
+        includePersonalOs: true,
+      })),
     }),
   );
 
@@ -493,5 +503,5 @@ export function createApp(options: CreateAppOptions): Hono {
 
   app.notFound((c) => failure(c, 404, 'not_found', '不存在'));
 
-  return app;
+  return Object.assign(app,{close:()=>{monitor.close(); if (!options.knowledgeIndex) knowledgeIndex?.close();}});
 }

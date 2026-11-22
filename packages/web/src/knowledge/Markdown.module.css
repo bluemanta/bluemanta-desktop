@@ -158,3 +158,14 @@
 .tableWrap tr:last-child td {
   border-bottom: 0;
 }
+
+.markdown mark {
+  background: var(--bm-mark);
+  color: inherit;
+  border-radius: var(--bm-r-sm);
+}
+
+.inline {
+  font-size: inherit;
+  line-height: inherit;
+}

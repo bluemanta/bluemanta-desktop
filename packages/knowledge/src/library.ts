@@ -30,9 +30,10 @@ const SKIP_DIRS = new Set(['node_modules', '.git', '.obsidian', '.trash']);
 const DOCUMENT_ENTRIES: readonly TopicDocument[] = ['readme', 'assetIndex', 'knowledge', 'log'];
 
 export function getLibrary(env: KnowledgeEnv, id: string): LibraryConfig {
-  const library = env.libraries.find((item) => item.id === id);
+  // Legacy Arsenal-layout readers must not bypass PersonalOS hidden-path rules.
+  const library = env.libraries.find((item) => item.id === id && item.kind !== 'personalos');
   if (!library) throw new KnowledgeError('library_not_found', `没有 id 为 ${id} 的库`);
-  return library;
+  return { ...library, kind: library.kind ?? 'arsenal' };
 }
 
 function statOrNull(path: string): Stats | null {
@@ -249,7 +250,9 @@ function buildCategories(library: LibraryConfig, rows: readonly RouterRow[], war
 }
 
 export function listLibraries(env: KnowledgeEnv): LibrarySummary[] {
-  return env.libraries.map((library) => readLibraryIndex(env, library.id).library);
+  // Legacy browsing stays on Arsenal-layout libraries during the PersonalOS migration.
+  return env.libraries.filter((library) => library.kind !== 'personalos')
+    .map((library) => readLibraryIndex(env, library.id).library);
 }
 
 export function readLibraryIndex(env: KnowledgeEnv, libraryId: string): LibraryIndex {

@@ -1,5 +1,7 @@
-/** A Markdown library laid out like SalesOS Arsenal (ADR 0009). */
+/** A file-backed library; legacy inputs without kind use the Arsenal layout. */
+export type LibraryKind = 'arsenal' | 'personalos';
 export interface LibraryConfig {
+  kind: LibraryKind;
   /** Stable id used in URLs and tool arguments, e.g. `personal`, `arsenal`. */
   id: string;
   name: string;
@@ -9,9 +11,12 @@ export interface LibraryConfig {
   writable: boolean;
 }
 
+/** Compatibility boundary for callers created before ADR 0011. */
+export type LibraryInput = Omit<LibraryConfig, 'kind'> & { kind?: LibraryKind };
+
 export interface KnowledgeEnv {
   home: string;
-  libraries: readonly LibraryConfig[];
+  libraries: readonly LibraryInput[];
 }
 
 export type KnowledgeErrorCode =
@@ -20,7 +25,9 @@ export type KnowledgeErrorCode =
   | 'invalid_path'
   | 'not_found'
   | 'not_a_topic'
-  | 'read_error';
+  | 'read_error'
+  | 'invalid_input'
+  | 'conflict';
 
 export class KnowledgeError extends Error {
   readonly code: KnowledgeErrorCode;

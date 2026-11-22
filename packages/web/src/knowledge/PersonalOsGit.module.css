@@ -1,0 +1,12 @@
+.row { width:100%; text-align:left; color:var(--bm-text); background:transparent; border:0; cursor:pointer; }
+.row[aria-pressed=true] { background:var(--bm-surface); box-shadow:var(--bm-shadow-row); }
+.row code,.row time { color:var(--bm-text-3); font-family:var(--bm-font-mono); }
+.detail { min-width:0; overflow:auto; padding:var(--bm-sp-12); overflow-wrap:anywhere; }
+.detail details { margin-block:var(--bm-sp-12); }
+.detail summary { cursor:pointer; }
+.detail pre { white-space:pre-wrap; font-family:var(--bm-font-mono); }
+.detail pre span { display:block; }
+.detail [data-kind=add] { background:var(--bm-accent-soft); }
+.detail [data-kind=del] { background:var(--bm-danger-soft); }
+.detail [data-kind=hunk] { color:var(--bm-text-3); }
+.detail details pre { max-height:32vh; overflow:auto; background:var(--bm-surface); }

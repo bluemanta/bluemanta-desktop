@@ -4,7 +4,7 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 
 ## 当前阶段
 
-阶段 1.5（灵感台迁网页，ADR 0005）开发已完成，收尾中（用户试用一周，见 [docs/phase-1-5.md](docs/phase-1-5.md) 第 10 节）；阶段 2（内容线）暂缓。同时开发工作台第二个模块「Skill 台」（[ADR 0008](docs/decisions/0008-skill-desk.md)，[交接文档](docs/skill-desk-handoff.md)）和阶段 3「知识台」（[ADR 0009](docs/decisions/0009-knowledge-desk.md)，[计划](docs/phase-3.md)）。路线和阶段划分见 [docs/vision.md](docs/vision.md)，阶段 1 记录见 [docs/phase-1.md](docs/phase-1.md)。
+阶段 1.5（灵感台迁网页，ADR 0005）开发已完成，收尾中（用户试用一周，见 [docs/phase-1-5.md](docs/phase-1-5.md) 第 10 节）；阶段 2（内容线）暂缓。同时开发工作台第二个模块「Skill 台」（[ADR 0008](docs/decisions/0008-skill-desk.md)，[交接文档](docs/skill-desk-handoff.md)）和阶段 3「知识台」（[ADR 0009](docs/decisions/0009-knowledge-desk.md)，[计划](docs/phase-3.md)）；知识台 2026-11-21 起改为 PersonalOS 看板（[ADR 0011](docs/decisions/0011-personalos-desk.md)，[方案](docs/personalos-desk-plan.md)）。路线和阶段划分见 [docs/vision.md](docs/vision.md)，阶段 1 记录见 [docs/phase-1.md](docs/phase-1.md)。
 
 ## 分工
 
@@ -12,7 +12,8 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 
 - **Cursor**：产品代码实现者（Skill 台、知识台以外的任务）。从 Linear「BlueManta-Desktop」项目领取委派给自己的 issue，一次一个。
 - **Codex**：Skill 台的实现者，同样从 Linear 领取委派给自己的 issue。先读 [docs/skill-desk-handoff.md](docs/skill-desk-handoff.md)。
-- **Claude Code**：项目经理。规划、写说明书、委派任务、处理技术阻塞、技术验证（`spikes/`）、验收、合并。阶段 3 知识台由 Claude Code 自己实现（ADR 0009 决定 10）。
+  知识台 PersonalOS 看板也由 Codex 实现：本轮不经 Linear，说明书在 `docs/tasks/personalos-*.md`，在本机 worktree `~/Developer/bm-pos` 开发（ADR 0011）。
+- **Claude Code**：项目经理。规划、写说明书、委派任务、处理技术阻塞、技术验证（`spikes/`）、验收、合并。阶段 3 知识台第一版由 Claude Code 自己实现（ADR 0009 决定 10），PersonalOS 看板改由 Codex 实现、Claude Code 验收（ADR 0011）。
 - **用户**：回答产品决策题；阶段开始时批准计划，结束时试用。
 
 ## 开工前必读
@@ -78,4 +79,4 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 | `packages/server` | 本地服务：`/api/v1` 接口、本机口令与 Host 校验，托管网页构建产物（默认 `127.0.0.1:4310`）；`npm run service` 管理 launchd 开机自启 |
 | `packages/web` | 网页版工作台（灵感台；Skill 台、知识台开发中）：React + Vite，样式只用 `docs/design/tokens.css`；Playwright 走查 |
 | `packages/skills` | Skill 台的数据与规则（开发中，K1）：读 skill 登记表和各工具安装目录，只读 |
-| `packages/knowledge` | 知识台的数据与规则（开发中，KB1）：读 Arsenal 结构的 Markdown 库，建可重建的全文索引，只读 |
+| `packages/knowledge` | 知识台的数据与规则：读 Arsenal 结构的 Markdown 库和 PersonalOS（开发中，ADR 0011），建可重建的全文索引，只读 |

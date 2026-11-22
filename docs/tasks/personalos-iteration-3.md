@@ -1,0 +1,42 @@
+# PersonalOS 看板 · 迭代 3 记录（P7、P8：写得回）
+
+- 实现与自查：Claude Code，2026-11-22（[ADR 0012](../decisions/0012-personalos-desk-claude-implements.md)：起由 Claude Code 自己实现）
+- 规则：[规格第 13 节](../specs/personalos-ui.md)，依据 [ADR 0011](../decisions/0011-personalos-desk.md) 决定 5 和 PersonalOS 的 `协议/更新.md`
+- 提交：P7 `98645f1`、P8 `8e731d1`，分支 `codex/personalos-desk`，只做了本地提交
+
+## 做了什么
+
+- **P7 写入通道**（`packages/knowledge/src/personalos/write.ts`，接口在 `packages/server/src/personalos-api.ts`）
+  - 速记：`POST /api/v1/personalos/inbox`，往 `收件箱.md` 末尾追加 `- 日期 内容`。不写日志，不提交。
+  - 完成待办：`POST /api/v1/personalos/todos/complete`，可以先 dry-run 预览。
+    - 普通事项：打勾，行尾加完成日期。周期事项：`@due` 顺延到今天之后（月末和闰日按规格处理）。
+    - 然后改「更新于」，在当月日志追加一行。
+    - 两个文件都干净时，只提交这两个文件：钩子关闭，别处已暂存的改动不会被带进提交。有未存档改动时只写不提交。
+  - 安全：
+    - 路径由服务端拼出，不接受请求里的路径；
+    - 写前比对文件哈希和行内容，不一致返回 409；
+    - 先写隐藏临时文件再改名覆盖；写入串行执行；
+    - 保留 CRLF 换行。
+  - 每条待办增加 `raw`（原文行）和 `hash`（所在文件的 SHA-256）。
+- **P8 网页**
+  - 今天页和领域详情的事项行：空心圆变成「完成」复选框，选中行按 `x` 也可以。确认框依次显示：事项、会改的文件、提交说明、可展开的差异。
+  - 结果提示三种：「已完成并提交」；「已完成，未提交：原因」；冲突时提示后刷新。
+  - 今天页收件箱上方有速记输入框，下面灰字预览将要追加的那一行。命令面板加了「知识台：速记」。
+  - 领域详情去掉了「只读」标。
+
+## 验收项
+
+| 项 | 结果 | 命令与结果 |
+|---|---|---|
+| 构建、类型、单测 | verified | fixture 环境下运行 `npm run build && npm run check && npm test`，退出 0，合计 449 项。其中新增：写入单测 17 项（`personalos-write.test.ts`，覆盖规格 13.4 列出的全部情形），写入接口测试 2 项。 |
+| 写入走查 | verified | `personalos-write.spec.ts` 的 7 条在可写 Git 副本（`.dev-data/pos-write-home`）上运行：确认框截图；取消不写；确认后打勾、写日志、提交，行从「已逾期」消失；周期事项在领域详情里完成后换到「未来 7 天」；预览后文件被改得到冲突提示，不写；有未存档改动时只写不提交；`x` 打开、Esc 取消；速记预览加回车追加。 |
+| 全量走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough` 连续两次 186 passed。迭代 1 有一条断言写的是「今天页没有复选框」，已改成「每件未完成事项有一个完成复选框（10 个）」。 |
+| 截图 | verified | `packages/web/screenshots/personalos-complete-{1440,720}-{light,dark}.png`（不提交）。抽看了 1440 浅色和 720 深色：确认框里的文件、提交说明、差异都清楚；720 宽没有横向溢出。 |
+| 隐私 | verified | 测试和走查只写临时副本。提交用虚构身份，测试里屏蔽了本机的 git 配置。仓库里的 fixture 没有被改（`git status` 干净）。 |
+| 真实 PersonalOS 试写 | not-run | 需要 Chris 同意，而且这次是**真的写入**。建议合并后由 Chris 自己在看板上完成一件真实待办、记一条速记，再用 `git log -1` 和 `git show` 核对。 |
+
+## 已知问题
+
+- `personalos-refresh.spec.ts`「新提交在十秒内出现」（P6 的用例）在全量走查的高负载下偶尔超时：4 次全量运行里失败 1 次，单独运行 3 次都通过。它测的是监听到 git 提交之后的延迟，不是写入功能的问题。先记录在这里，以后再加宽超时或换一种等待方式。
+- 速记暂时只在网页里。dsh 侧栏嵌入的就是这个网页，所以在 Desktop 里也能用；dsh 插件本身不加单独的速记输入框。
+- 构建时 Vite 提示网页包超过 500 kB（迭代 1 起就有）。
