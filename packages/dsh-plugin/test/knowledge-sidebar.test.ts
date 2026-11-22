@@ -97,8 +97,8 @@ describe('知识工具卡片解析 cli 的输出文字', () => {
       keywords: ['会员'],
       count: 2,
       items: [
-        { source: 'library', library: 'personal', path: '02_a/售前方法/Topic_Knowledge.md', ideaId: '', title: '售前方法 Topic Knowledge', headings: ['核心观点'], topic: '售前方法', archived: true, excerpt: '会员 分层\n第二行' },
-        { source: 'idea', library: '', path: '', ideaId: 'card_1', title: '会员分层的新想法', headings: [], topic: '', archived: false, excerpt: '按最近消费' },
+        { source: 'library', library: 'personal', path: '02_a/售前方法/Topic_Knowledge.md', ideaId: '', title: '售前方法 Topic Knowledge', headings: ['核心观点'], topic: '售前方法', domain: '', archived: true, excerpt: '会员 分层\n第二行' },
+        { source: 'idea', library: '', path: '', ideaId: 'card_1', title: '会员分层的新想法', headings: [], topic: '', domain: '', archived: false, excerpt: '按最近消费' },
       ],
     });
     expect(knowledgeToolCard(KNOWLEDGE_SEARCH_NAME, 'result', null, text, false)).toEqual({

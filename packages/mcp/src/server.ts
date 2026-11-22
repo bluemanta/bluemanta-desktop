@@ -29,7 +29,13 @@ import {
   KNOWLEDGE_ROUTE_TOOL,
   KNOWLEDGE_SEARCH_DESCRIPTION,
   KNOWLEDGE_SEARCH_TOOL,
+  KNOWLEDGE_TOOL_LIBRARIES,
+  PERSONALOS_TODAY_DESCRIPTION,
+  PERSONALOS_TODAY_TOOL,
   openKnowledgeIndex,
+  personalOsToday,
+  renderPersonalOsToday,
+  type PersonalOsTodayToolResult,
   readKnowledge,
   renderKnowledgeRead,
   renderKnowledgeRoute,
@@ -46,7 +52,7 @@ const categorySchema = z
   .enum(IDEA_CATEGORY_VALUES)
   .describe('可选分类：product 产品想法、learning 学习备忘、work 工作事务、life 生活随想、other 其他');
 
-type ToolValue = CaptureIdeaResult | SearchIdeaResult | GetIdeaResult | KnowledgeRouteResult | KnowledgeSearchResult | KnowledgeReadResult;
+type ToolValue = CaptureIdeaResult | SearchIdeaResult | GetIdeaResult | KnowledgeRouteResult | KnowledgeSearchResult | KnowledgeReadResult | PersonalOsTodayToolResult;
 
 export function clientSourceName(name: string | undefined): string {
   const trimmed = name?.trim() ?? '';
@@ -173,7 +179,7 @@ export function createIdeaMcpServer(dataDir: string, knowledgeEnv: KnowledgeEnv 
       description: KNOWLEDGE_ROUTE_DESCRIPTION,
       inputSchema: {
         query: z.string().describe('用户的问题或关键词'),
-        library: z.enum(['personal', 'arsenal']).describe('只查一个库：personal 个人库，arsenal 售前主题库').optional(),
+        library: z.enum(KNOWLEDGE_TOOL_LIBRARIES).describe('只查一个库：personalos 个人状态与知识，arsenal 售前主题库').optional(),
         limit: z.number().int().describe('候选主题数，默认 5，最多 10').optional(),
       },
     },
@@ -190,7 +196,7 @@ export function createIdeaMcpServer(dataDir: string, knowledgeEnv: KnowledgeEnv 
       description: KNOWLEDGE_SEARCH_DESCRIPTION,
       inputSchema: {
         query: z.string().describe('关键词，按空白分开'),
-        library: z.enum(['personal', 'arsenal']).describe('只搜一个库；指定后不含灵感').optional(),
+        library: z.enum(KNOWLEDGE_TOOL_LIBRARIES).describe('只搜一个库；指定后不含灵感').optional(),
         includeIdeas: z.boolean().describe('是否包含灵感，默认 true').optional(),
         limit: z.number().int().describe('返回条数，默认 10，最多 30').optional(),
       },
@@ -207,8 +213,8 @@ export function createIdeaMcpServer(dataDir: string, knowledgeEnv: KnowledgeEnv 
     {
       description: KNOWLEDGE_READ_DESCRIPTION,
       inputSchema: {
-        library: z.enum(['personal', 'arsenal']).describe('库 id'),
-        path: z.string().describe('库内相对路径：主题目录或文件'),
+        library: z.enum(KNOWLEDGE_TOOL_LIBRARIES).describe('库 id：personalos 或 arsenal'),
+        path: z.string().describe('库内相对路径：领域目录、主题目录或文件'),
         offset: z.number().int().describe('长文件接着读的起点（上次结果里给出）').optional(),
       },
     },
@@ -216,6 +222,16 @@ export function createIdeaMcpServer(dataDir: string, knowledgeEnv: KnowledgeEnv 
       aborted(extra.signal);
       const result = readKnowledge(knowledgeEnv, args);
       return toolResult(result, renderKnowledgeRead(result));
+    },
+  );
+
+  server.registerTool(
+    PERSONALOS_TODAY_TOOL,
+    { description: PERSONALOS_TODAY_DESCRIPTION, inputSchema: {} },
+    async (_args, extra) => {
+      aborted(extra.signal);
+      const result = personalOsToday(knowledgeEnv);
+      return toolResult(result, renderPersonalOsToday(result));
     },
   );
 

@@ -6,7 +6,12 @@ import {
   KNOWLEDGE_SEARCH_DESCRIPTION,
   KNOWLEDGE_SEARCH_LIMIT_DEFAULT,
   KNOWLEDGE_SEARCH_TOOL,
+  KNOWLEDGE_TOOL_LIBRARIES,
+  PERSONALOS_TODAY_DESCRIPTION,
+  PERSONALOS_TODAY_TOOL,
+  personalOsToday,
   readKnowledge,
+  renderPersonalOsToday,
   renderKnowledgeRead,
   renderKnowledgeRoute,
   renderKnowledgeSearch,
@@ -23,8 +28,8 @@ function aborted(signal: AbortSignal): void {
 
 const LIBRARY = {
   type: 'string' as const,
-  enum: ['personal', 'arsenal'],
-  description: 'personal 个人库，arsenal 售前主题库（只读）',
+  enum: [...KNOWLEDGE_TOOL_LIBRARIES],
+  description: 'personalos 个人状态与知识（PersonalOS），arsenal 售前主题库（只读）',
 };
 
 const FAILURE = {
@@ -39,7 +44,7 @@ const FAILURE = {
 const STRINGS = { type: 'array', items: { type: 'string' }, required: true } as const;
 
 /**
- * 三个只读知识工具（ADR 0009，KB5）。执行逻辑和说明在 `@bluemanta/cli/knowledge-tools`，MCP 共用。
+ * 四个只读知识工具（ADR 0009，KB5；迭代 4 改用 PersonalOS 并加「今天」）。执行逻辑和说明在 `@bluemanta/cli/knowledge-tools`，MCP 共用。
  * 索引由调用方按需打开，返回值用于卸载。
  */
 export function registerKnowledgeTools(ctx: HostContext, env: KnowledgeEnv, index: () => KnowledgeIndex): Array<() => void> {
@@ -128,6 +133,7 @@ export function registerKnowledgeTools(ctx: HostContext, env: KnowledgeEnv, inde
                     title: { type: 'string', required: true },
                     headings: STRINGS,
                     topic: { type: 'string', required: true },
+                    domain: { type: 'string', required: true },
                     archived: { type: 'boolean', required: true },
                     excerpt: { type: 'string', required: true },
                   },
@@ -157,7 +163,7 @@ export function registerKnowledgeTools(ctx: HostContext, env: KnowledgeEnv, inde
     description: KNOWLEDGE_READ_DESCRIPTION,
     parameters: {
       library: { ...LIBRARY, required: true },
-      path: { type: 'string', required: true, description: '库内相对路径：主题目录或文件' },
+      path: { type: 'string', required: true, description: '库内相对路径：领域目录、主题目录或文件' },
       offset: { type: 'integer', description: '长文件接着读的起点（上次结果里给出）' },
     },
     output: {
@@ -170,7 +176,7 @@ export function registerKnowledgeTools(ctx: HostContext, env: KnowledgeEnv, inde
               ok: { type: 'boolean', const: true, required: true },
               library: { type: 'string', required: true },
               path: { type: 'string', required: true },
-              kind: { type: 'string', enum: ['markdown', 'file', 'topic'], required: true },
+              kind: { type: 'string', enum: ['markdown', 'file', 'topic', 'domain'], required: true },
               displayPath: { type: 'string', required: true },
               content: { type: 'string', required: true },
               offset: { type: 'integer', required: true },
@@ -194,5 +200,75 @@ export function registerKnowledgeTools(ctx: HostContext, env: KnowledgeEnv, inde
     },
   }));
 
-  return [disposeRoute, disposeSearch, disposeRead];
+  const TODAY_ITEM = {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      domain: { type: 'string', required: true },
+      text: { type: 'string', required: true },
+      due: { oneOf: [{ type: 'string' }, { type: 'null' }], required: true },
+      wait: { oneOf: [{ type: 'string' }, { type: 'null' }], required: true },
+      every: { oneOf: [{ type: 'string' }, { type: 'null' }], required: true },
+      file: { type: 'string', required: true },
+      line: { type: 'integer', required: true },
+    },
+  } as const;
+  const TODAY_ITEMS = { type: 'array', items: TODAY_ITEM, required: true } as const;
+  const disposeToday = ctx.tools.register(defineTool({
+    name: PERSONALOS_TODAY_TOOL,
+    description: PERSONALOS_TODAY_DESCRIPTION,
+    parameters: {},
+    output: {
+      schema: {
+        oneOf: [
+          {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              ok: { type: 'boolean', const: true, required: true },
+              today: { type: 'string', required: true },
+              overdue: TODAY_ITEMS,
+              dueToday: TODAY_ITEMS,
+              next7: TODAY_ITEMS,
+              waiting: TODAY_ITEMS,
+              undated: {
+                type: 'object',
+                additionalProperties: false,
+                required: true,
+                properties: { items: TODAY_ITEMS, total: { type: 'integer', required: true } },
+              },
+              laterCount: { type: 'integer', required: true },
+              staleDomains: {
+                type: 'array',
+                required: true,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: { name: { type: 'string', required: true }, staleDays: { oneOf: [{ type: 'integer' }, { type: 'null' }], required: true } },
+                },
+              },
+              inbox: {
+                type: 'array',
+                required: true,
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  properties: { date: { type: 'string', required: true }, text: { type: 'string', required: true } },
+                },
+              },
+            },
+          },
+          FAILURE,
+        ],
+      },
+      render: (_args, value) => [{ type: 'text', text: renderPersonalOsToday(value) }],
+    },
+    isConcurrencySafe: () => true,
+    async execute(_args, exec) {
+      aborted(exec.signal);
+      return personalOsToday(env);
+    },
+  }));
+
+  return [disposeRoute, disposeSearch, disposeRead, disposeToday];
 }

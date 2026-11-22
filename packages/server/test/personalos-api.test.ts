@@ -19,6 +19,15 @@ import type {
 import { createApp } from '../src/app.js';
 import { removeTempDirs, tempDir } from './helpers.js';
 
+/** The old ~/Documents/Knowledge layout is no longer a default library (spec 14.1); these tests still exercise
+ *  the Arsenal-structure code on the fixture's Knowledge folder, so they list it explicitly. */
+const legacyEnv = (options: { home: string }) => defaultKnowledgeEnv({ home: options.home, libraries: [
+  { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(options.home, 'Documents', 'PersonalOS'), writable: false },
+  { kind: 'arsenal', id: 'personal', name: '个人', root: join(options.home, 'Documents', 'Knowledge'), writable: false },
+  { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(options.home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
+] });
+
+
 const PORT = 4310;
 const HOST = `127.0.0.1:${PORT}`;
 const TOKEN = '56'.repeat(32);
@@ -43,7 +52,7 @@ function enc(path: string): string {
 
 const SIX_PATHS = [BASE, `${BASE}/today`, `${BASE}/domains/${enc('工作')}`, `${BASE}/registry`, `${BASE}/log`, `${BASE}/files/${enc('我/状态.md')}`];
 
-function fixture(env: KnowledgeEnv | null = defaultKnowledgeEnv({ home: FIXTURE_HOME })) {
+function fixture(env: KnowledgeEnv | null = legacyEnv({ home: FIXTURE_HOME })) {
   const core = openCore({ dataDir: tempDir() });
   cores.push(core);
   const app = createApp({ core, token: TOKEN, port: PORT, webDir: null, ...(env ? { knowledgeEnv: env } : {}) });
@@ -383,7 +392,7 @@ it('Git 接口鉴权、缺库、无仓库、分页筛选、隐藏路径与逐文
   const base = BASE+'/git/commits';
   const home = tempDir();
   const root = join(home,'Documents/PersonalOS');
-  const { call } = fixture(defaultKnowledgeEnv({home}));
+  const { call } = fixture(legacyEnv({ home }));
   await expectFailure(await call(base),404,'library_missing');
   execFileSync(process.execPath,[fileURLToPath(new URL('../../knowledge/scripts/git-fixture.mjs',import.meta.url)),root]);
   const snapshot = () => {

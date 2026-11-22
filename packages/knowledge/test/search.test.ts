@@ -17,6 +17,15 @@ import {
   type IdeaDoc,
 } from '../src/index.js';
 
+/** The old ~/Documents/Knowledge layout is no longer a default library (spec 14.1); these tests still exercise
+ *  the Arsenal-structure code on the fixture's Knowledge folder, so they list it explicitly. */
+const legacyEnv = (options: { home: string }) => defaultKnowledgeEnv({ home: options.home, libraries: [
+  { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(options.home, 'Documents', 'PersonalOS'), writable: false },
+  { kind: 'arsenal', id: 'personal', name: '个人', root: join(options.home, 'Documents', 'Knowledge'), writable: false },
+  { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(options.home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
+] });
+
+
 const FIXTURE_HOME = fileURLToPath(new URL('../fixtures/home', import.meta.url));
 const temps: string[] = [];
 const indexes: KnowledgeIndex[] = [];
@@ -52,7 +61,7 @@ const IDEAS: IdeaDoc[] = [
 
 function open(options: { home?: string; ideas?: IdeaDoc[]; dbPath?: string; now?: () => number; includePersonalOs?: boolean } = {}): KnowledgeIndex {
   const index = new KnowledgeIndex({
-    env: defaultKnowledgeEnv({ home: options.home ?? FIXTURE_HOME }),
+    env: legacyEnv({ home: options.home ?? FIXTURE_HOME }),
     dbPath: options.dbPath ?? ':memory:',
     ideas: () => options.ideas ?? IDEAS,
     includePersonalOs: options.includePersonalOs,

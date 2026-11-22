@@ -11,7 +11,7 @@ import {
   IDEA_GET_TOOL,
   IDEA_SEARCH_TOOL,
 } from '@bluemanta/cli/idea-tools';
-import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL } from '@bluemanta/cli/knowledge-tools';
+import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL, PERSONALOS_TODAY_TOOL } from '@bluemanta/cli/knowledge-tools';
 import { captureWithClient, clientSourceName, mcpCaptureRequestId, mcpProcessToken } from '../src/server.js';
 
 const mcpJs = fileURLToPath(new URL('../dist/mcp.js', import.meta.url));
@@ -130,7 +130,7 @@ describe('stdio MCP 服务', () => {
     }
   });
 
-  it('列出三个工具，并能记录、查找、读取', async () => {
+  it('列出灵感和知识工具，并能记录、查找、读取', async () => {
     const dataDir = tempDir();
     const stderr: string[] = [];
     const transport = new StdioClientTransport({
@@ -153,6 +153,7 @@ describe('stdio MCP 服务', () => {
         KNOWLEDGE_ROUTE_TOOL,
         KNOWLEDGE_SEARCH_TOOL,
         KNOWLEDGE_READ_TOOL,
+        PERSONALOS_TODAY_TOOL,
       ]);
 
       const captured = await client.callTool({
@@ -227,18 +228,29 @@ describe('知识工具（独立进程，虚构知识库）', () => {
       const routed = await client.callTool({ name: KNOWLEDGE_ROUTE_TOOL, arguments: { query: 'Loyalty' } });
       expect(routed.structuredContent).toMatchObject({ ok: true, candidates: [expect.objectContaining({ library: 'arsenal', name: '会员体系' })] });
 
-      const searched = await client.callTool({ name: KNOWLEDGE_SEARCH_TOOL, arguments: { query: '评分项', library: 'personal' } });
+      const domain = await client.callTool({ name: KNOWLEDGE_ROUTE_TOOL, arguments: { query: '图书交换', library: 'personalos' } });
+      expect(domain.structuredContent).toMatchObject({ ok: true, candidates: [expect.objectContaining({ library: 'personalos', name: '工作', topicPath: '领域/工作' })] });
+
+      const searched = await client.callTool({ name: KNOWLEDGE_SEARCH_TOOL, arguments: { query: '雾灯便签', library: 'personalos' } });
       expect(searched.structuredContent).toMatchObject({
         ok: true,
-        items: [expect.objectContaining({ library: 'personal', path: '02_职业与业务/售前方法/Topic_Knowledge.md' })],
+        items: expect.arrayContaining([expect.objectContaining({ library: 'personalos', path: '领域/工作/状态.md', domain: '工作' })]),
       });
-      expect(searched.content).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('库：personal　路径：02_职业与业务/售前方法/Topic_Knowledge.md') })]);
+      expect(searched.content).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('库：personalos　路径：领域/工作/状态.md　领域：工作') })]);
 
       const read = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'arsenal', path: '01_业务主题/会员体系/Topic_Knowledge.md' } });
       expect(read.structuredContent).toMatchObject({ ok: true, kind: 'markdown', content: expect.stringContaining('积分要有消耗出口') });
+      const readDomain = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'personalos', path: '领域/工作' } });
+      expect(readDomain.structuredContent).toMatchObject({ ok: true, kind: 'domain', content: expect.stringContaining('# 工作') });
 
-      const escaped = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'personal', path: '../../x.md' } });
+      const escaped = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'personalos', path: '../../x.md' } });
       expect(escaped.structuredContent).toMatchObject({ ok: false });
+      const hidden = await client.callTool({ name: KNOWLEDGE_READ_TOOL, arguments: { library: 'personalos', path: '.claude/fixture-only.md' } });
+      expect(hidden.structuredContent).toMatchObject({ ok: false });
+
+      const today = await client.callTool({ name: PERSONALOS_TODAY_TOOL, arguments: {} });
+      expect(today.structuredContent).toMatchObject({ ok: true, today: '2026-11-21', overdue: expect.any(Array) });
+      expect(today.content).toEqual([expect.objectContaining({ type: 'text', text: expect.stringContaining('PersonalOS 今天：2026-11-21') })]);
     } finally {
       await client.close();
     }

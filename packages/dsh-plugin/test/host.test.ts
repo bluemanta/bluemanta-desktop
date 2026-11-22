@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL } from '@bluemanta/cli/knowledge-tools';
+import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL, PERSONALOS_TODAY_TOOL } from '@bluemanta/cli/knowledge-tools';
 import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
 import type { FetchRoute, HostContext, ToolRegistration } from '../src/context.js';
 import { resolveDataDir } from '../src/data-dir.js';
@@ -19,6 +19,7 @@ import {
   WEB_CONFIG_PATH,
   type LocalServer,
 } from '../src/index.js';
+
 
 const require = createRequire(import.meta.url);
 const semver = require('semver') as {
@@ -99,16 +100,19 @@ describe('宿主插件', () => {
         KNOWLEDGE_ROUTE_TOOL,
         KNOWLEDGE_SEARCH_TOOL,
         KNOWLEDGE_READ_TOOL,
+        PERSONALOS_TODAY_TOOL,
       ]);
       expect(tools.slice(0, 3).every((tool) => tool.description.includes('不能收藏、追记、删除'))).toBe(true);
-      expect(tools.slice(3).every((tool) => tool.description.includes('知识库只读'))).toBe(true);
+      expect(tools.slice(3).every((tool) => tool.description.includes('这些工具只读'))).toBe(true);
       // 知识索引第一次调用时才在数据目录建。
       expect(existsSync(join(dir, 'knowledge-index.sqlite'))).toBe(false);
       const search = tools[4] as unknown as { execute: (args: object, exec: { signal: AbortSignal; callId: string }) => Promise<unknown> };
-      await expect(search.execute({ query: '评分项', library: 'personal' }, { signal: new AbortController().signal, callId: 'c1' })).resolves.toMatchObject({
+      await expect(search.execute({ query: '雾灯便签', library: 'personalos' }, { signal: new AbortController().signal, callId: 'c1' })).resolves.toMatchObject({
         ok: true,
-        items: [expect.objectContaining({ path: '02_职业与业务/售前方法/Topic_Knowledge.md' })],
+        items: expect.arrayContaining([expect.objectContaining({ library: 'personalos', path: '领域/工作/状态.md', domain: '工作' })]),
       });
+      // 旧的 personal 库不再接受（规格 14.1）。
+      await expect(search.execute({ query: '评分项', library: 'personal' }, { signal: new AbortController().signal, callId: 'c2' })).rejects.toThrow('personalos');
       expect(existsSync(join(dir, 'knowledge-index.sqlite'))).toBe(true);
       expect(routes.map((route) => ({ path: route.path, method: route.methods[0], body: route.requestBody }))).toEqual([
         { path: WEB_CONFIG_PATH, method: 'GET', body: 'buffered' },

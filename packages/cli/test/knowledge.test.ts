@@ -3,12 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openCore } from '@bluemanta/core';
-import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
+import { defaultKnowledgeEnv, PersonalOsReader } from '@bluemanta/knowledge';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   KNOWLEDGE_INDEX_FILE,
   KNOWLEDGE_READ_MAX_CHARS,
+  KNOWLEDGE_TOOL_LIBRARIES,
   ideaDocsFrom,
+  personalOsToday,
+  renderPersonalOsToday,
   openKnowledgeIndex,
   readKnowledge,
   renderKnowledgeRead,
@@ -19,8 +22,17 @@ import {
 } from '../src/knowledge-tools.js';
 import { runKnowledge } from '../src/run-knowledge.js';
 
+/** The old ~/Documents/Knowledge layout is no longer a default library (spec 14.1); these tests still exercise
+ *  the Arsenal-structure code on the fixture's Knowledge folder, so they list it explicitly. */
+const legacyEnv = (options: { home: string }) => defaultKnowledgeEnv({ home: options.home, libraries: [
+  { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(options.home, 'Documents', 'PersonalOS'), writable: false },
+  { kind: 'arsenal', id: 'personal', name: '个人', root: join(options.home, 'Documents', 'Knowledge'), writable: false },
+  { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(options.home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
+] });
+
+
 const FIXTURE_HOME = fileURLToPath(new URL('../../knowledge/fixtures/home', import.meta.url));
-const knowledgeEnv = defaultKnowledgeEnv({ home: FIXTURE_HOME });
+const knowledgeEnv = legacyEnv({ home: FIXTURE_HOME });
 const dirs: string[] = [];
 
 function tempDir(): string {
@@ -138,67 +150,103 @@ describe('knowledge 命令', () => {
   });
 });
 
-describe('知识 agent 工具', () => {
+describe('知识 agent 工具（迭代 4：PersonalOS 与 Arsenal）', () => {
+  // agent 看到的是默认配置：只有 personalos 和 arsenal（规格 14.1）。
+  const toolEnv = defaultKnowledgeEnv({ home: FIXTURE_HOME });
   function index(dataDir: string) {
     const core = openCore({ dataDir });
-    const opened = openKnowledgeIndex({ dataDir, core, env: knowledgeEnv });
+    const opened = openKnowledgeIndex({ dataDir, core, env: toolEnv });
     return { opened, close: () => { opened.close(); core.close(); } };
   }
 
-  it('路由：按别名找主题，输出带库、路径和读取顺序', () => {
+  it('默认库只有 personalos 和 arsenal；传旧的 personal 会提示改用 personalos', () => {
+    expect(toolEnv.libraries.map((library) => library.id)).toEqual(['personalos', 'arsenal']);
+    expect(KNOWLEDGE_TOOL_LIBRARIES).toEqual(['personalos', 'arsenal']);
+    const old = readKnowledge(toolEnv, { library: 'personal', path: 'README.md' });
+    expect(old).toMatchObject({ ok: false });
+    expect(!old.ok && old.error).toContain('library=personalos');
+  });
+
+  it('路由：Arsenal 按别名找主题；PersonalOS 按领域名、别名、典型问题找领域', () => {
     const dataDir = tempDir();
     const { opened, close } = index(dataDir);
     try {
-      const result = routeKnowledge(opened, knowledgeEnv, { query: 'Loyalty 怎么讲' });
+      const result = routeKnowledge(opened, toolEnv, { query: 'Loyalty 怎么讲' });
       expect(result).toMatchObject({ ok: true, candidates: [{ library: 'arsenal', topicPath: '01_业务主题/会员体系', name: '会员体系' }] });
-      const text = renderKnowledgeRoute(result);
-      expect(text).toContain('1. 会员体系\n   库：arsenal　路径：01_业务主题/会员体系');
-      expect(text).toContain('读取顺序：01_业务主题/会员体系/README.md → ');
-      expect(routeKnowledge(opened, knowledgeEnv, { query: ' ' })).toEqual({ ok: false, error: 'query 不能为空' });
-      expect(routeKnowledge(opened, knowledgeEnv, { query: 'x', library: 'nope' })).toMatchObject({ ok: false });
+      expect(renderKnowledgeRoute(result)).toContain('读取顺序：01_业务主题/会员体系/README.md → ');
+      for (const query of ['副业', '图书交换', '样品准备好了吗']) {
+        const routed = routeKnowledge(opened, toolEnv, { query, library: 'personalos' });
+        expect(routed.ok && routed.candidates[0]?.library, query).toBe('personalos');
+      }
+      const alias = routeKnowledge(opened, toolEnv, { query: '图书交换', library: 'personalos' });
+      expect(alias).toMatchObject({ ok: true, candidates: [{ topicPath: '领域/工作', name: '工作', readOrder: ['领域/工作/状态.md', '领域/工作/资料登记.md'] }] });
+      expect(routeKnowledge(opened, toolEnv, { query: ' ' })).toEqual({ ok: false, error: 'query 不能为空' });
+      expect(routeKnowledge(opened, toolEnv, { query: 'x', library: 'nope' })).toMatchObject({ ok: false });
       expect(renderKnowledgeRoute({ ok: true, query: 'x', candidates: [] })).toContain('没有匹配的主题');
     } finally {
       close();
     }
   });
 
-  it('搜索：库和灵感一起，指定库时不含灵感；输出可按行解析', () => {
+  it('搜索：灵感和两个库一起；PersonalOS 命中带领域；指定库时不含灵感', () => {
     const dataDir = tempDir();
     const id = seedIdea(dataDir);
     const { opened, close } = index(dataDir);
     try {
-      const result = searchKnowledge(opened, knowledgeEnv, { query: '会员分层' });
+      const result = searchKnowledge(opened, toolEnv, { query: '会员分层' });
       expect(result.ok && result.items[0]).toMatchObject({ source: 'idea', ideaId: id });
-      const text = renderKnowledgeSearch(result);
-      expect(text).toMatch(/^找到 \d+ 条（关键词：会员分层）：/);
-      expect(text).toContain(`   灵感 id：${id}`);
-      const scoped = searchKnowledge(opened, knowledgeEnv, { query: '评分项', library: 'personal' });
-      expect(scoped.ok && scoped.items.every((item) => item.library === 'personal')).toBe(true);
-      expect(renderKnowledgeSearch(scoped)).toContain('   库：personal　路径：02_职业与业务/售前方法/Topic_Knowledge.md　主题：售前方法');
-      expect(searchKnowledge(opened, knowledgeEnv, { query: '火星移民计划xyz' })).toMatchObject({ ok: true, count: 0 });
+      expect(renderKnowledgeSearch(result)).toContain(`   灵感 id：${id}`);
+      const scoped = searchKnowledge(opened, toolEnv, { query: '雾灯便签', library: 'personalos' });
+      expect(scoped.ok && scoped.items.length).toBeGreaterThan(0);
+      expect(scoped.ok && scoped.items.every((item) => item.library === 'personalos' && item.source === 'library')).toBe(true);
+      expect(scoped.ok && scoped.items.find((item) => item.path === '领域/工作/状态.md')?.domain).toBe('工作');
+      expect(renderKnowledgeSearch(scoped)).toContain('   库：personalos　路径：领域/工作/状态.md　领域：工作');
+      expect(searchKnowledge(opened, toolEnv, { query: '火星移民计划xyz' })).toMatchObject({ ok: true, count: 0 });
       expect(renderKnowledgeSearch({ ok: true, query: 'x', keywords: ['x'], count: 0, items: [] })).toContain('没有找到');
     } finally {
       close();
     }
   });
 
-  it('读取：主题给 README 和文件清单，文件给正文，越界拒绝', () => {
-    const topic = readKnowledge(knowledgeEnv, { library: 'personal', path: '02_职业与业务/售前方法' });
-    expect(topic).toMatchObject({ ok: true, kind: 'topic', displayPath: '~/Documents/Knowledge/02_职业与业务/售前方法' });
-    expect(topic.ok && topic.files).toEqual([
-      '02_职业与业务/售前方法/README.md',
-      '02_职业与业务/售前方法/Asset_Index.md',
-      '02_职业与业务/售前方法/Topic_Knowledge.md',
-      '02_职业与业务/售前方法/方案框架_v1.pptx',
-      '02_职业与业务/售前方法/客户研究清单.md',
-    ]);
-    const file = readKnowledge(knowledgeEnv, { library: 'arsenal', path: '01_业务主题/会员体系/Topic_Knowledge.md' });
+  it('读取：PersonalOS 领域给状态.md 和文件清单，文件给正文，隐藏路径和越界拒绝；Arsenal 照旧', () => {
+    const domain = readKnowledge(toolEnv, { library: 'personalos', path: '领域/工作' });
+    expect(domain).toMatchObject({ ok: true, kind: 'domain', displayPath: '~/Documents/PersonalOS/领域/工作' });
+    expect(domain.ok && domain.content).toContain('# 工作');
+    expect(domain.ok && domain.files).toContain('领域/工作/状态.md');
+    expect(domain.ok && domain.files).toContain('领域/工作/资料登记.md');
+    expect(renderKnowledgeRead(domain)).toContain('领域文件：');
+    const file = readKnowledge(toolEnv, { library: 'personalos', path: '领域/工作/资料登记.md' });
     expect(file).toMatchObject({ ok: true, kind: 'markdown', nextOffset: null });
-    expect(renderKnowledgeRead(file)).toContain('积分要有消耗出口');
-    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '02_职业与业务/售前方法/方案框架_v1.pptx' })).toMatchObject({ ok: true, kind: 'file' });
-    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '../Shuyun/SalesOS/Arsenal/README.md' })).toMatchObject({ ok: false });
-    expect(readKnowledge(knowledgeEnv, { library: '', path: 'x' })).toEqual({ ok: false, error: 'library 不能为空' });
-    expect(readKnowledge(knowledgeEnv, { library: 'personal', path: '没有.md' })).toMatchObject({ ok: false });
+    const folder = readKnowledge(toolEnv, { library: 'personalos', path: '协议' });
+    expect(folder.ok && folder.files.length).toBeGreaterThan(0);
+    expect(readKnowledge(toolEnv, { library: 'personalos', path: '.claude/fixture-only.md' })).toMatchObject({ ok: false });
+    expect(readKnowledge(toolEnv, { library: 'personalos', path: '../Knowledge/README.md' })).toMatchObject({ ok: false });
+    expect(readKnowledge(toolEnv, { library: 'personalos', path: '没有.md' })).toMatchObject({ ok: false });
+    const topic = readKnowledge(toolEnv, { library: 'arsenal', path: '01_业务主题/会员体系' });
+    expect(topic).toMatchObject({ ok: true, kind: 'topic' });
+    const arsenal = readKnowledge(toolEnv, { library: 'arsenal', path: '01_业务主题/会员体系/Topic_Knowledge.md' });
+    expect(renderKnowledgeRead(arsenal)).toContain('积分要有消耗出口');
+    expect(readKnowledge(toolEnv, { library: '', path: 'x' })).toEqual({ ok: false, error: 'library 不能为空' });
     expect(KNOWLEDGE_READ_MAX_CHARS).toBe(20000);
+  });
+
+  it('今天：分组与网页今天页一致，文本按晨间简报顺序，末尾说明外部来源', () => {
+    const result = personalOsToday(toolEnv);
+    const page = new PersonalOsReader({ home: FIXTURE_HOME }).today();
+    expect(result).toMatchObject({ ok: true, today: '2026-11-21' });
+    if (!result.ok) throw new Error(result.error);
+    expect([result.overdue.length, result.dueToday.length, result.next7.length, result.waiting.length, result.undated.total, result.laterCount])
+      .toEqual([page.overdue.length, page.dueToday.length, page.next7.length, page.waiting.length, page.undated.total, page.later.count]);
+    expect(result.inbox.length).toBe(page.inbox.length);
+    expect(result.overdue[0]).toMatchObject({ file: expect.stringMatching(/状态\.md$/), line: expect.any(Number) });
+    const text = renderPersonalOsToday(result);
+    const order = ['已逾期', '今天到期', '未来 7 天', '等待中', '无日期'].map((title) => text.indexOf(title));
+    expect(order.every((at) => at >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(text).toContain('逾期');
+    expect(text.trim().endsWith('日历、Linear、SalesOS 等外部来源不在这里，需要另外查。')).toBe(true);
+    const missing = personalOsToday(defaultKnowledgeEnv({ home: tempDir() }));
+    expect(missing).toMatchObject({ ok: false });
+    expect(!missing.ok && missing.error).toContain('没有找到 PersonalOS');
   });
 });

@@ -7,14 +7,13 @@ export type KnowledgeEnvOverrides = {
   libraries?: readonly LibraryInput[];
 };
 
-/** Default libraries from ADR 0011. `BLUEMANTA_KNOWLEDGE_HOME` points development and tests at fictional homes. */
+/** Default libraries from ADR 0011: PersonalOS and Arsenal (the old ~/Documents/Knowledge library was dropped in iteration 4, spec 14.1). `BLUEMANTA_KNOWLEDGE_HOME` points development and tests at fictional homes. */
 export function defaultKnowledgeEnv(overrides: KnowledgeEnvOverrides = {}): KnowledgeEnv & { libraries: readonly LibraryConfig[] } {
   const home = overrides.home ?? process.env.BLUEMANTA_KNOWLEDGE_HOME ?? homedir();
   return {
     home,
     libraries: (overrides.libraries ?? [
       { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(home, 'Documents', 'PersonalOS'), writable: false },
-      { kind: 'arsenal', id: 'personal', name: '个人', root: join(home, 'Documents', 'Knowledge'), writable: false },
       { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
     ] satisfies readonly LibraryInput[]).map((library) => ({ ...library, kind: library.kind ?? 'arsenal' })),
   };

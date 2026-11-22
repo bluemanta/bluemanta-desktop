@@ -19,8 +19,17 @@ import {
   type KnowledgeEnv,
 } from '../src/index.js';
 
+/** The old ~/Documents/Knowledge layout is no longer a default library (spec 14.1); these tests still exercise
+ *  the Arsenal-structure code on the fixture's Knowledge folder, so they list it explicitly. */
+const legacyEnv = (options: { home: string }) => defaultKnowledgeEnv({ home: options.home, libraries: [
+  { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(options.home, 'Documents', 'PersonalOS'), writable: false },
+  { kind: 'arsenal', id: 'personal', name: '个人', root: join(options.home, 'Documents', 'Knowledge'), writable: false },
+  { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(options.home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
+] });
+
+
 const FIXTURE_HOME = fileURLToPath(new URL('../fixtures/home', import.meta.url));
-const env = defaultKnowledgeEnv({ home: FIXTURE_HOME });
+const env = legacyEnv({ home: FIXTURE_HOME });
 const temps: string[] = [];
 
 function tempDir(): string {
@@ -43,16 +52,16 @@ function codeOf(fn: () => unknown): string | undefined {
 }
 
 describe('环境', () => {
-  it('默认三个库，旧输入兼容 Arsenal，全部只读', () => {
-    expect(env.libraries.map((library) => [library.id, library.writable])).toEqual([
-      ['personalos', false],
-      ['personal', false],
-      ['arsenal', false],
+  it('默认两个库：PersonalOS 和 Arsenal，旧个人库已去掉，全部只读', () => {
+    const defaults = defaultKnowledgeEnv({ home: FIXTURE_HOME });
+    expect(defaults.libraries.map((library) => [library.id, library.kind, library.writable])).toEqual([
+      ['personalos', 'personalos', false],
+      ['arsenal', 'arsenal', false],
     ]);
-    expect(env.libraries[0]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'PersonalOS'));
+    expect(defaults.libraries[0]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'PersonalOS'));
+    expect(defaults.libraries[1]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'));
+    // 显式传入的旧输入（没有 kind）仍按 Arsenal 结构解析。
     expect(env.libraries.map((library) => library.kind)).toEqual(['personalos', 'arsenal', 'arsenal']);
-    expect(env.libraries[1]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Knowledge'));
-    expect(env.libraries[2]?.root).toBe(join(FIXTURE_HOME, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'));
   });
 
   it('BLUEMANTA_KNOWLEDGE_HOME 覆盖 home', () => {
