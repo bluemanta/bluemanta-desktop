@@ -31,6 +31,10 @@ test('中文改名、删除和文件差异',async({page})=>{
   await open(page,base);await page.getByTitle('移除旧纸桥').click();
   await expect(page.getByTestId('git-detail').locator('summary')).toContainText('D 领域/工作/纸桥.md');
   await expect(page.getByText('打开当前版本')).toHaveCount(0);
+  // 详情里的时间是可读格式，不是 ISO 原文；领域页签的行带日期。
+  await expect(page.getByTestId('git-detail').locator('time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  await open(page,'/knowledge/domains/写作');await page.getByRole('tab',{name:'提交'}).click();
+  await expect(page.getByRole('tabpanel',{name:'提交'}).locator('time').first()).toHaveText(/^\d{2}-\d{2} \d{2}:\d{2}$/);
 });
 for(const width of [1440,720]) for(const theme of ['light','dark'] as const){
   test('提交三视图 '+width+' '+theme,async({page})=>{

@@ -27,18 +27,20 @@ function fetchPage(domains:string[],unassigned:boolean,skip:number,limit:number,
 export function useDomainCommits(domain:string) {
   return useQuery({queryKey:['pos-git','domain',domain],refetchInterval:30000,staleTime:30000,queryFn:({signal})=>fetchPage([domain],false,0,10,signal)});
 }
-function Row({item,tags=true,selected=false}:{item:Commit;tags?:boolean;selected?:boolean}) {
+/** Commit times stay in the author's own offset, the way git shows them. */
+const when=(iso:string)=>iso.slice(0,10)+' '+iso.slice(11,16);
+function Row({item,tags=true,selected=false,day=false}:{item:Commit;tags?:boolean;selected?:boolean;day?:boolean}) {
   const navigate=useAppNavigate();
   return <button data-pos-focus className={styles.entry+' '+git.row} aria-pressed={selected} title={item.subject} onClick={()=>navigate(base+'/'+item.sha)}>
     <code>{item.shortSha}</code><span className={styles.entryText}>{item.subject}</span>
     {tags && item.domains.slice(0,2).map(d=><span key={d} className={common.tag}>{d}</span>)}{tags && item.domains.length>2 && <span>+{item.domains.length-2}</span>}
-    {item.tag && <span className={common.tag}>{item.tag}</span>}<span>+{item.insertions} −{item.deletions}</span><time>{item.date.slice(11,16)}</time>
+    {item.tag && <span className={common.tag}>{item.tag}</span>}<span>+{item.insertions} −{item.deletions}</span><time dateTime={item.date}>{day?item.date.slice(5,10)+' ':''}{item.date.slice(11,16)}</time>
   </button>;
 }
 export function DomainCommits({domain,commits}:{domain:string;commits:Commit[]}) {
   const [,navigate]=useLocation(); const {embed}=useLaunch();
   const params=new URLSearchParams({domain}); if(embed) params.set('embed',embed);
-  return <>{commits.map(item=><Row key={item.sha} item={item} tags={false}/>)}<Button onClick={()=>navigate(base+'?'+params)}>在动态页查看全部</Button></>;
+  return <>{commits.map(item=><Row key={item.sha} item={item} tags={false} day/>)}<Button onClick={()=>navigate(base+'?'+params)}>在动态页查看全部</Button></>;
 }
 function Unavailable({reason,retry}:{reason:string;retry:()=>void}) {
   if(reason==='git_error') return <Banner onRetry={retry}>读取 Git 记录失败</Banner>;
@@ -52,7 +54,7 @@ function CommitDetail({sha}:{sha:string}) {
   const c=q.data.commit;
   return <article className={git.detail} data-testid="git-detail"><h2 className={common.detailTitle}>{c.subject}</h2>
     {q.isError && <Banner onRetry={()=>void q.refetch()}>{describeError(q.error)}</Banner>}
-    <time>{c.date}</time><button className={common.linkButton} title="复制提交号" onClick={()=>void navigator.clipboard.writeText(c.sha)}>{c.sha}</button>
+    <time dateTime={c.date}>{when(c.date)}</time><button className={common.linkButton} title="复制提交号" onClick={()=>void navigator.clipboard.writeText(c.sha)}>{c.sha}</button>
     {c.domains.map(d=><span className={common.tag} key={d}>{d}</span>)}{c.body && <pre>{c.body}</pre>}
     {c.hiddenOnly && <p>只改了隐藏文件</p>}
     {c.files.map((f,i)=><details key={f.path} open={i<3}><summary>{f.status} {f.oldPath && f.oldPath+' → '}{f.path}　+{f.insertions} −{f.deletions}</summary>
