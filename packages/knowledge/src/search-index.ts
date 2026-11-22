@@ -598,7 +598,7 @@ export class KnowledgeIndex {
     const area = (row.area as FileArea | null) ?? null;
     if (area) score *= AREA_WEIGHT[area];
     // 根目录的总索引 `*_Index.md` 是一整张路由表，交给 route() 用；搜索里降权，免得表格行压过正文。
-    if (area === 'root' && row.path !== null && (/_Index\.md$/i.test(row.path) || (row.path === 'AGENTS.md' && this.activeLibraries.some((library) => library.id === row.library && library.kind === 'personalos')))) score *= 0.3;
+    if (area === 'root' && row.path !== null && (/_Index\.md$/i.test(row.path) || ((row.path === 'AGENTS.md' || row.path === 'README.md') && this.activeLibraries.some((library) => library.id === row.library && library.kind === 'personalos')))) score *= 0.3;
     if (mode === 'any') score *= 0.6;
     if (mode === 'fuzzy') score *= 0.4;
     const plain = plainText(row.body);

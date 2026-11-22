@@ -168,7 +168,7 @@ function DomainGrid({ overview, selected, onOpen }: { overview: Overview; select
         {domain.latestChange ? <span className={styles.change} title={`${domain.latestChange.date} ${domain.latestChange.text}`}>{domain.latestChange.date} {domain.latestChange.text}</span> : null}
       </button>)}
     </div>
-    {overview.documents.length ? <nav className={styles.about} aria-label="关于 PersonalOS"><span>关于 PersonalOS：</span>{overview.documents.filter((file) => file.path === 'AGENTS.md' || file.path.startsWith('协议/') || file.path.startsWith('蓝图/')).map((file) => <button key={file.path} onClick={() => onOpen(file.path)}>{file.path === 'AGENTS.md' ? '入口说明' : file.path.replace(/\.md$/i, '')}</button>)}</nav> : null}
+    {overview.documents.length ? <nav className={styles.about} aria-label="关于 PersonalOS"><span>关于 PersonalOS：</span>{[...overview.documents.filter((file) => file.path === 'README.md' && overview.routerFile === 'README.md'), ...overview.documents.filter((file) => file.path === 'AGENTS.md' || file.path.startsWith('协议/') || file.path.startsWith('蓝图/'))].map((file) => <button key={file.path} onClick={() => onOpen(file.path)}>{file.path === 'README.md' ? '导航' : file.path === 'AGENTS.md' ? (overview.routerFile === 'README.md' ? '工作约定' : '入口说明') : file.path.replace(/\.md$/i, '')}</button>)}</nav> : null}
   </>;
 }
 

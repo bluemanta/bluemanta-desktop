@@ -32,8 +32,19 @@ export class PersonalOsReader {
       return { content: '', availability: missing ? 'missing' : 'unreadable' };
     }
   }
-  private routes(warnings: Warning[]): { about: string; domains: Route[] } {
-    const input = this.markdown('AGENTS.md', warnings); const parsed = parseRouter(input.content); warnings.push(...parsed.warnings);
+  /** PersonalOS v0.4 keeps the routing table in README.md; v0.3 in AGENTS.md. README.md wins when it has one (spec 1.2). */
+  private router(warnings: Warning[]): Router {
+    const readme = this.markdown('README.md', warnings, true).content;
+    const fromReadme = readme ? parseRouter(readme, 'README.md') : null;
+    if (fromReadme && !fromReadme.warnings.some((warning) => warning.code === 'router_missing')) {
+      const about = fromReadme.about || parseRouter(this.markdown('AGENTS.md', [], true).content).about;
+      return { ...fromReadme, about };
+    }
+    const agents = parseRouter(this.markdown('AGENTS.md', warnings).content, 'AGENTS.md');
+    return { ...agents, about: agents.about || (fromReadme?.about ?? '') };
+  }
+  private routes(warnings: Warning[]): Router {
+    const parsed = this.router(warnings); warnings.push(...parsed.warnings); const file = parsed.file;
     const domains: Route[] = []; const paths = new Set<string>();
     for (const route of parsed.domains) {
       try {
@@ -41,9 +52,9 @@ export class PersonalOsReader {
         if (!path) throw new Error('empty');
         // Only a domain-shaped directory may be registered, never a protocol or a file.
         if (path !== '我' && !/^领域\/[^/]+$/.test(path)) throw new Error('not domain');
-        if (paths.has(path)) { warnings.push({ code: 'router_duplicate', message: '路由表重复登记了领域目录', file: 'AGENTS.md' }); continue; }
+        if (paths.has(path)) { warnings.push({ code: 'router_duplicate', message: '路由表重复登记了领域目录', file }); continue; }
         paths.add(path); domains.push({ ...route, path });
-      } catch { warnings.push({ code: 'router_path', message: '路由表有无法安全读取的领域路径', file: 'AGENTS.md' }); }
+      } catch { warnings.push({ code: 'router_path', message: '路由表有无法安全读取的领域路径', file }); }
     }
     const candidates = [
       ...(isPersonalOsDirectory(this.root, '我') ? [{ name: '我', path: '我' }] : []),
@@ -53,7 +64,7 @@ export class PersonalOsReader {
       if (paths.has(item.path) || domains.some((domain) => domain.id === item.name)) continue;
       paths.add(item.path); domains.push({ id: item.name, name: item.name, path: item.path, aliases: [], keywords: [], typicalQuestions: [], registered: false });
     }
-    return { about: parsed.about, domains };
+    return { about: parsed.about, domains, warnings: [], file };
   }
   /** Routing metadata without reading domain documents or checking external registry locations. */
   routing(): Router {
@@ -90,17 +101,17 @@ export class PersonalOsReader {
       warnings, file, sections: parsed.sections, todos, changes: parsed.changes, links: parsed.links, mounts: parsed.mounts,
       registry: exists ? this.registryFor(route, warnings) : [], matters, knowledge, files, markdown: parsed.markdown };
   }
-  private snapshot(): { today: string; about: string; domains: DomainDetail[]; inbox: InboxEntry[]; warnings: Warning[] } {
+  private snapshot(): { today: string; about: string; routerFile: Router['file']; domains: DomainDetail[]; inbox: InboxEntry[]; warnings: Warning[] } {
     this.requireRoot(); const today = this.date(); const warnings: Warning[] = []; const routes = this.routes(warnings);
     const domains = routes.domains.map((route) => this.detail(route, today)); warnings.push(...domains.flatMap((domain) => domain.warnings));
     const inbox = parseInbox(this.markdown('收件箱.md', warnings, true).content);
-    return { today, about: routes.about, domains, inbox, warnings };
+    return { today, about: routes.about, routerFile: routes.file, domains, inbox, warnings };
   }
   overview(): Overview {
-    if (!personalOsExists(this.root)) return { root: abbreviateHome(this.root, this.home), exists: false, today: this.date(), about: '', focus: [], domains: [], inbox: 0, warnings: [{ code: 'library_missing', message: '没有找到 PersonalOS' }] };
+    if (!personalOsExists(this.root)) return { root: abbreviateHome(this.root, this.home), exists: false, today: this.date(), about: '', routerFile: 'AGENTS.md', focus: [], domains: [], inbox: 0, warnings: [{ code: 'library_missing', message: '没有找到 PersonalOS' }] };
     const state = this.snapshot(); const self = state.domains.find((domain) => domain.path === '我');
     const focus = self ? parseStatus(self.markdown, { domain: self.id, file: self.file }).focus.slice(0, 3) : [];
-    return { root: abbreviateHome(this.root, this.home), exists: true, today: state.today, about: state.about, focus, domains: state.domains.map(summary), inbox: state.inbox.length, warnings: state.warnings };
+    return { root: abbreviateHome(this.root, this.home), exists: true, today: state.today, about: state.about, routerFile: state.routerFile, focus, domains: state.domains.map(summary), inbox: state.inbox.length, warnings: state.warnings };
   }
   today(): TodayResult {
     const state = this.snapshot();
