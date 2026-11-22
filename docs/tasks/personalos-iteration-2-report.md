@@ -69,3 +69,5 @@ P5b 提交 SHA：`1f1a0fd6815598a96a1b857ba1ff4cbaaa5069f4`。
 | 3 既有模块回归 | verified，以上全量运行覆盖已有灵感台、Arsenal 与外壳走查；Skill 包 24 项单测及 server 的 4 项 Skill API 测试通过。not-run：仓库无 Skill 台专属浏览器用例。 |
 
 过程与已知问题：首次单测发现无遍历权限时监听器覆盖概览接口的 read_error，已修正并重跑。新增搜索测试曾因响应未声明类型以及回调类型过窄而未通过类型检查，已修正。最终检查无剩余失败。无范围偏离。与 P5b 相同，构建仍有 Vite 包体积提示。真实 PersonalOS 试跑属于整体验收方，本轮 not-run。
+
+P6 提交 SHA：`026f93038ed10267ed47c2039dc78de9f41a7b8d`。
