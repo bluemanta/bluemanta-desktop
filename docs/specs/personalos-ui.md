@@ -1,7 +1,7 @@
 # PersonalOS 看板（知识台 v2）规格
 
 - v1：2026-11-21。决定见 [ADR 0011](../decisions/0011-personalos-desk.md)，迭代见 [personalos-desk-plan.md](../personalos-desk-plan.md)。
-- 本文写**迭代 1（只读看板）**的全部规则，第 12 节写迭代 2（Git 视图与自动刷新），第 13 节写迭代 3（写入）；迭代 4 只列要点，开工前再补。
+- 本文写**迭代 1（只读看板）**的全部规则，第 12 节写迭代 2（Git 视图与自动刷新），第 13 节写迭代 3（写入），第 14 节写迭代 4（agent 工具）。
 - 优先级：视觉与布局以[设计规范](../design/DESIGN.md)为准；外壳、详情卡片、阅读器、嵌入模式、快捷键沿用[知识台 v1 规格](knowledge-ui.md)和[灵感台规格](idea-ui.md)。本文只写不同的地方。冲突时：设计规范 > 本文 > 知识台 v1 规格。
 - 网页只经 `/api/v1/personalos*` 和 `/api/v1/knowledge*` 访问数据。
 
@@ -251,7 +251,7 @@ Playwright 走查用 fixture 和 `BLUEMANTA_TODAY=2026-11-21`，覆盖：今天�
 
 - **迭代 2**：已补规格，见第 12 节。
 - **迭代 3**：已补规格，见第 13 节。
-- **迭代 4**：agent 工具改用 PersonalOS（route 用路由表，search、read 覆盖 PersonalOS，新增 `bluemanta_personalos_today`）；去掉旧个人库配置；用 PersonalOS 重做真实问题测试。
+- **迭代 4**：已补规格，见第 14 节。
 
 ## 12. 迭代 2：Git 视图与自动刷新（2026-11-21）
 
@@ -408,3 +408,42 @@ Playwright 走查用 fixture 和 `BLUEMANTA_TODAY=2026-11-21`，覆盖：今天�
   - 速记：追加格式、缺结尾换行、空文本、换行、超长、文件不存在；
   - 并发：两个完成请求同时到达时排队执行，后一个因 `hash` 变化得到 409。
 - 走查：在可写副本服务上覆盖复选框、确认框、取消、完成后列表变化、周期事项换组、冲突提示、速记追加、`x` 快捷键；截图有确认框（1440 / 720，深浅色）。
+
+## 14. 迭代 4：agent 工具改用 PersonalOS（2026-11-22）
+
+依据：[ADR 0011](../decisions/0011-personalos-desk.md)。PersonalOS 是个人知识和个人状态的正本，旧个人库 `~/Documents/Knowledge` 已迁入。agent 工具（MCP 和 dsh 插件共用，定义在 `packages/cli/src/knowledge-tools.ts`）原来只认 `personal`（旧个人库）和 `arsenal`，本迭代改为 `personalos` 和 `arsenal`。
+
+### 14.1 库配置
+
+- 默认库只剩两个：`personalos`（`~/Documents/PersonalOS`）和 `arsenal`。去掉 `personal`。旧目录里的文件原样不动，只是 Desktop 不再读它。
+- agent 用的索引包含 PersonalOS（与网页搜索相同），另加灵感。
+- 工具的 `library` 参数只接受 `personalos` 或 `arsenal`。传 `personal` 返回错误，提示改用 `personalos`。
+
+### 14.2 三个已有工具
+
+- **route**：PersonalOS 的候选就是路由表里的领域（领域名、别名与关键词、典型问题参与比对，规则同 1.2）。读取顺序是 `<领域>/状态.md` → `<领域>/资料登记.md`。Arsenal 不变。
+- **search**：结果覆盖 PersonalOS。PersonalOS 的命中带领域名，标题链和网页一致（第 7 节）。
+- **read**：`library: personalos` 时：
+  - `path` 是领域目录（如 `领域/工作`）：返回该领域的 `状态.md` 正文和目录里的 Markdown 文件清单（`kind: domain`）。
+  - `path` 是 Markdown 文件：返回正文，过长截断，可用 `offset` 接着读。规则同 1.1：隐藏路径拒绝；`.icloud` 占位文件说明「尚未从 iCloud 下载」。
+  - 根目录文件（`README.md`、`AGENTS.md`、`协议/*`、`日志/*`、`收件箱.md`）同样可以读。
+- 工具说明改写：先说 PersonalOS 管什么（个人状态、待办、领域知识、资料登记），再说 Arsenal 管什么（售前主题），最后写只读。
+- **只读**：这些工具不写任何文件。agent 要改 PersonalOS 时，按 PersonalOS 自己的 `AGENTS.md` 和 `协议/更新.md` 直接改文件，工具说明里写明这一点。
+
+### 14.3 新工具 `bluemanta_personalos_today`
+
+- 用途：回答「今天有什么要做」「什么逾期了」，以及晨间简报中 PersonalOS 的那一部分。
+- 没有参数。返回内容和今天页（第 3 节、1.5）一致：今天日期；已逾期、今天到期、未来 7 天、等待中、无日期（前 3 条加总数）、更晚（条数）；过期领域；收件箱未分拣条目。每件事项带领域、文本、截止日期、等待对象、周期和所在文件与行号。
+- 文本输出按晨间简报的顺序排，空组不写。末尾一句说明：日历、Linear、SalesOS 等外部来源不在这里，需要另外查。
+- 只读。PersonalOS 不存在时返回错误说明，写出路径（`~` 缩写）。
+
+### 14.4 测试
+
+- 单测（fixture）：
+  - route 命中 PersonalOS 领域（用领域名、别名、典型问题各一次）；
+  - search 的 PersonalOS 命中带领域；
+  - read 领域目录、文件、隐藏路径（拒绝）、`personal`（拒绝并提示）；
+  - today 工具的分组数与今天页一致；
+  - MCP 和 dsh 两侧都注册了四个知识工具，参数枚举是 `personalos|arsenal`。
+- 已有依赖旧 `personal` 库的测试：解析和搜索 Arsenal 结构的测试改为显式传入 fixture 的 `Knowledge` 目录，作为一个 Arsenal 结构的库；不再依赖默认配置。
+- **真实问题测试**（经 Chris 同意，只读）：用真实 PersonalOS 问 5 个典型问题（今天要做什么、某领域现状、某资料在哪、按别名找领域、找以前的记录），逐条记下工具调用顺序和是否答到点上。记录里不写私人内容。

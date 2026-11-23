@@ -17,6 +17,15 @@ import type {
 import { createApp } from '../src/app.js';
 import { removeTempDirs, tempDir } from './helpers.js';
 
+/** The old ~/Documents/Knowledge layout is no longer a default library (spec 14.1); these tests still exercise
+ *  the Arsenal-structure code on the fixture's Knowledge folder, so they list it explicitly. */
+const legacyEnv = (options: { home: string }) => defaultKnowledgeEnv({ home: options.home, libraries: [
+  { id: 'personalos', kind: 'personalos', name: 'PersonalOS', root: join(options.home, 'Documents', 'PersonalOS'), writable: false },
+  { kind: 'arsenal', id: 'personal', name: '个人', root: join(options.home, 'Documents', 'Knowledge'), writable: false },
+  { kind: 'arsenal', id: 'arsenal', name: 'Arsenal', root: join(options.home, 'Documents', 'Shuyun', 'SalesOS', 'Arsenal'), writable: false },
+] });
+
+
 const PORT = 4310;
 const TOKEN = '34'.repeat(32);
 const HOST = `127.0.0.1:${PORT}`;
@@ -30,7 +39,7 @@ afterEach(() => {
   removeTempDirs();
 });
 
-function fixture(env: KnowledgeEnv = defaultKnowledgeEnv({ home: FIXTURE_HOME })): {
+function fixture(env: KnowledgeEnv = legacyEnv({ home: FIXTURE_HOME })): {
   dataDir: string;
   core: Core;
   call: (path: string, token?: boolean) => Promise<Response>;
