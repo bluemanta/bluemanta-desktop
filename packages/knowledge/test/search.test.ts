@@ -409,3 +409,38 @@ describe('PersonalOS 搜索（显式启用）', () => {
     expect(rebuilt.search('消耗出口', scope).hits[0]?.library).toBe('arsenal');
   });
 });
+
+describe('PersonalOS 日志切段（规格 14.5）', () => {
+  const scope = { libraries: ['personalos'], includeIdeas: false };
+  const log = '日志/2026-11.md';
+
+  it('小节后面追加的条目单独成段：标题是日期和标签，摘录是条目本身，领域按标签', () => {
+    const index = open({ includePersonalOs: true });
+    const hit = index.search('访谈顺序', scope).hits[0];
+    expect(hit).toMatchObject({ library: 'personalos', path: log, headings: ['2026-11-21 [工作]'], domain: '工作' });
+    expect(hit?.excerpt).toBe('2026-11-21 [工作] 将访谈顺序改成先观察后提问。');
+  });
+
+  it('夹在小节列表中间的条目也单独成段；非领域标签的条目 domain 为空', () => {
+    const index = open({ includePersonalOs: true });
+    expect(index.search('重复书名样例', scope).hits[0]).toMatchObject({ path: log, headings: ['2026-11-20 [技术]'], domain: '技术' });
+    expect(index.search('失败假设', scope).hits[0]).toMatchObject({ path: log, headings: ['2026-11-21 [蓝图]'], domain: null });
+    expect(index.search('没有预设任务', scope).hits[0]).toMatchObject({ path: log, headings: ['2026-11-19'], domain: null });
+  });
+
+  it('小节正文仍能搜到，且不含条目文字', () => {
+    const index = open({ includePersonalOs: true });
+    const hit = index.search('输入输出说明', scope).hits[0]!;
+    expect(hit).toMatchObject({ path: log, headings: ['2026-11-20 索引实验交付说明'], domain: null });
+    const text = index.chunkText(hit.chunkId)!;
+    expect(text).toContain('空书名应得到提示');
+    expect(text).not.toContain('访谈顺序');
+    expect(text).not.toContain('重复书名样例');
+    expect(index.search('失败样例', scope).hits[0]).toMatchObject({ path: log, headings: ['2026-11-20 索引实验交付说明', '2026-11-20 回看要点'] });
+  });
+
+  it('其他文件的切段不变', () => {
+    const index = open({ includePersonalOs: true });
+    expect(index.search('雾灯便签', scope).hits[0]).toMatchObject({ path: '领域/工作/状态.md', headings: ['现状', '社区图书交换试点'] });
+  });
+});

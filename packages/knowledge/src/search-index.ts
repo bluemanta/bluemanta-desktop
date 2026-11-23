@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import { readLibraryIndex, walkLibrary } from './library.js';
+import { parseLog } from './personalos/parse.js';
 import { PersonalOsReader } from './personalos/reader.js';
 import { readPersonalOsFile, walkPersonalOsFiles } from './personalos/files.js';
 import type { Route } from './personalos/types.js';
@@ -10,7 +11,7 @@ import { bigrams, chunkMarkdown, countOccurrences, excerptAround, extractKeyword
 import type { FileArea, KnowledgeEnv, LibraryInput, WalkedFile } from './types.js';
 
 /** Bump when the stored shape changes; a mismatch drops and rebuilds the index (it is derived data). */
-export const INDEX_SCHEMA_VERSION = 2;
+export const INDEX_SCHEMA_VERSION = 3;
 export const DEFAULT_REFRESH_INTERVAL_MS = 30_000;
 export const DEFAULT_SEARCH_LIMIT = 20;
 const CANDIDATE_LIMIT = 400;
@@ -365,9 +366,12 @@ export class KnowledgeIndex {
         continue;
       }
       this.deleteChunks('library = ? AND path = ?', libraryId, file.path);
-      const parsed = chunkMarkdown(markdown, basename(file.path).replace(/\.(md|markdown)$/i, ''));
+      const fallbackTitle = basename(file.path).replace(/\.(md|markdown)$/i, '');
+      const parsed = personalOs && LOG_FILE.test(file.path)
+        ? logChunks(markdown, file.path, fallbackTitle, routes.map((route) => route.name))
+        : chunkMarkdown(markdown, fallbackTitle);
       const updatedAt = new Date(file.modifiedMs).toISOString();
-      const chunks = parsed.chunks.length > 0 ? parsed.chunks : [{ headings: [], body: '' }];
+      const chunks: Array<{ headings: string[]; body: string; domain?: string | null }> = parsed.chunks.length > 0 ? parsed.chunks : [{ headings: [], body: '' }];
       chunks.forEach((chunk, ord) => {
         this.addChunk({
           source: 'library',
@@ -380,7 +384,7 @@ export class KnowledgeIndex {
           body: chunk.body,
           area: file.area,
           topicPath: file.topicPath,
-          domain: file.domain,
+          domain: chunk.domain === undefined ? file.domain : chunk.domain,
           routeTerms: file.routeTerms,
           updatedAt,
         });
@@ -626,4 +630,22 @@ export class KnowledgeIndex {
     const row = this.db.prepare('SELECT source, library, body FROM chunks WHERE id = ?').get(chunkId) as Pick<ChunkRow, 'source' | 'library' | 'body'> | undefined;
     return row && this.allowed(row, {}) ? row.body : null;
   }
+}
+
+const LOG_FILE = /^日志\/\d{4}-\d{2}\.md$/;
+
+/**
+ * PersonalOS monthly logs (spec 14.5): each appended `- YYYY-MM-DD …` entry is its own chunk, titled by its date and tag,
+ * with the tagged domain; the rest of the file (sections, preamble) is chunked by heading as usual, without the entry lines.
+ */
+export function logChunks(markdown: string, path: string, fallbackTitle: string, domainNames: readonly string[]): { title: string; chunks: Array<{ headings: string[]; body: string; domain?: string | null }> } {
+  const lines = markdown.split(/\r?\n/);
+  const entries = parseLog(markdown, path, domainNames).filter((item) => item.kind === 'entry').sort((a, b) => a.line - b.line);
+  const entryLines = new Set(entries.map((entry) => entry.line));
+  const rest = chunkMarkdown(lines.filter((_, index) => !entryLines.has(index + 1)).join('\n'), fallbackTitle);
+  const entryChunks = entries.map((entry) => {
+    const label = entry.domain ?? entry.tag;
+    return { headings: [label ? `${entry.date} [${label}]` : entry.date], body: (lines[entry.line - 1] ?? '').replace(/^- /, '').trim(), domain: entry.domain ?? null };
+  });
+  return { title: rest.title, chunks: [...rest.chunks, ...entryChunks] };
 }
