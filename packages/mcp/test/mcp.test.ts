@@ -85,6 +85,7 @@ function serverEnv(dataDir: string): Record<string, string> {
   }
   env.BLUEMANTA_DATA_DIR = dataDir;
   env.BLUEMANTA_KNOWLEDGE_HOME = KNOWLEDGE_FIXTURE_HOME;
+  env.BLUEMANTA_TODAY = '2026-11-21';
   return env;
 }
 

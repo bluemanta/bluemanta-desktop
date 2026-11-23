@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openCore } from '@bluemanta/core';
 import { defaultKnowledgeEnv, PersonalOsReader } from '@bluemanta/knowledge';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   KNOWLEDGE_INDEX_FILE,
   KNOWLEDGE_READ_MAX_CHARS,
@@ -42,6 +42,7 @@ function tempDir(): string {
 }
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -231,6 +232,7 @@ describe('知识 agent 工具（迭代 4：PersonalOS 与 Arsenal）', () => {
   });
 
   it('今天：分组与网页今天页一致，文本按晨间简报顺序，末尾说明外部来源', () => {
+    vi.stubEnv('BLUEMANTA_TODAY', '2026-11-21');
     const result = personalOsToday(toolEnv);
     const page = new PersonalOsReader({ home: FIXTURE_HOME }).today();
     expect(result).toMatchObject({ ok: true, today: '2026-11-21' });
