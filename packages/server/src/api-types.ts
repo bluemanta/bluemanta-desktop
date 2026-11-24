@@ -255,6 +255,7 @@ export type ApiErrorCode =
   | 'invalid_path'
   | 'read_error'
   | 'conflict'
+  | 'forbidden'
   | 'write_error'
   | 'internal';
 
@@ -432,4 +433,7 @@ export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import
 export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
 export type PersonalOsQuickNoteResponse = { ok: true } & import('@bluemanta/knowledge').QuickNoteResult;
 export type PersonalOsCompleteResponse = { ok: true } & import('@bluemanta/knowledge').CompleteTodoResult;
+/** 接入页（ADR 0013，规格 personalos-sources 第 4 节）。 */
+export type PersonalOsSourcesResponse = { ok: true } & import('@bluemanta/knowledge').PersonalOsSources;
+export type PersonalOsTaskLogResponse = { ok: true; ref: string; path: string; lines: string[] };
 export type PersonalOsVersionResponse = {ok:true} & ReturnType<import('@bluemanta/knowledge').PersonalOsVersion['current']>;

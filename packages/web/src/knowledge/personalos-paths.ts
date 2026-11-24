@@ -7,12 +7,17 @@ export type PersonalOsRoute =
   | { view: 'commits'; sha: string | null }
   | { view: 'file'; file: string }
   | { view: 'resources' | 'activity' }
+  | { view: 'sources'; tab: 'sources' | 'tasks'; task: string | null }
   | { view: 'arsenal'; topic: string | null; file: string | null }
   | { view: 'search'; query: string };
 
 export const TODAY_PATH = '/knowledge/today';
 export const DOMAINS_PATH = '/knowledge/domains';
 export const domainPath = (id: string): string => `${DOMAINS_PATH}/${encodeURIComponent(id)}`;
+export const SOURCES_PATH = '/knowledge/sources';
+export const TASKS_PATH = '/knowledge/sources/tasks';
+/** A task ref such as `launchd:local.example` is one encoded segment. */
+export const taskPath = (ref: string): string => `${TASKS_PATH}/${encodeURIComponent(ref)}`;
 export const personalOsFilePath = (path: string): string => `/knowledge/pos/file/${encodePath(path)}`;
 
 function decode(segments: string[]): string | null {
@@ -36,6 +41,12 @@ export function parsePersonalOsPath(pathname: string): PersonalOsRoute {
   }
   if (page === 'search') return { view: 'search', query: decode(rest) ?? '' };
   if (page === 'resources' && rest.length === 0) return { view: 'resources' };
+  if (page === 'sources') {
+    if (rest.length === 0) return { view: 'sources', tab: 'sources', task: null };
+    if (rest[0] === 'tasks' && rest.length === 1) return { view: 'sources', tab: 'tasks', task: null };
+    const ref = rest[0] === 'tasks' && rest.length === 2 ? decode(rest.slice(1)) : null;
+    return ref && !/[/\\\0]/.test(ref) ? { view: 'sources', tab: 'tasks', task: ref } : redirect;
+  }
   if (page === 'resources' && rest[0] === 'arsenal' && rest.length === 1) return { view: 'arsenal', topic: null, file: null };
   if (page === 'activity' && rest[0] === 'commits') {
     if (rest.length === 1) return {view:'commits',sha:null};

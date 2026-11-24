@@ -1,0 +1,5 @@
+version = 1
+id = "one-shot"
+name = "示例｜一次性"
+status = "ACTIVE"
+rrule = "DTSTART;TZID=Asia/Shanghai:20261201T090000\nRRULE:FREQ=DAILY;COUNT=1"

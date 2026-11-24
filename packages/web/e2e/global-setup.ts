@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
  * 完整库和空库只读；写操作和截图各用一份，避免并行用例互相改数据。
  * 地址和口令经环境变量交给用例（Playwright 的 worker 继承这里设置的环境变量）。
  */
-import { existsSync } from 'node:fs';
+import { cpSync, existsSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadToken, startServer, type RunningServer } from '@bluemanta/server';
 import { freePort, resetSandbox, sandboxDir, WEB_DIST } from '../scripts/sandbox.ts';
@@ -29,6 +29,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.DSH_HOME = join(fixtureHome, '.dsh');
   process.env.DSH_AGENTS_HOME = join(fixtureHome, '.agents');
   process.env.BLUEMANTA_TODAY = '2026-11-21';
+  // 接入页：launchd 状态读虚构的 launchctl 输出，所有服务都不执行真实命令。
+  const sourcesFixture = join(fixtureHome, '..', 'sources');
+  process.env.BLUEMANTA_LAUNCHCTL_LIST_FILE = join(sourcesFixture, 'launchctl-list.txt');
   if (!existsSync(join(WEB_DIST, 'index.html'))) {
     throw new Error('网页还没构建：先运行 npm run build（走查用构建产物，由本地服务托管）');
   }
@@ -57,6 +60,19 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const posWrite = await serve('pos-write','empty');
   process.env.BM_E2E_POS_WRITE_URL = posWrite.url;
   process.env.BM_E2E_POS_WRITE_TOKEN = posWrite.token;
+  // 接入页走查：完整 PersonalOS 虚构库加上接入页的虚构任务目录。新鲜度按服务的当前时间算，日志和目录时间相对现在写入。
+  const sourcesHome = sandboxDir('sources-home');
+  resetSandbox(sourcesHome);
+  cpSync(fixtureHome, sourcesHome, { recursive: true });
+  cpSync(join(sourcesFixture, 'home'), sourcesHome, { recursive: true });
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+  const stamp = (date: Date) => { const p = (n: number) => String(n).padStart(2, '0'); return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`; };
+  writeFileSync(join(sourcesHome, 'vault/logs/refresh.log'), [`${stamp(ago(140))} 成功`, `${stamp(ago(80))} 资源告警`, `${stamp(ago(20))} 成功`, ''].join('\n'));
+  for (const path of ['vault/notes/a.md', 'vault/notes']) utimesSync(join(sourcesHome, path), ago(48 * 60), ago(48 * 60));
+  process.env.BLUEMANTA_KNOWLEDGE_HOME = sourcesHome;
+  const sources = await serve('sources', 'empty');
+  process.env.BM_E2E_SOURCES_URL = sources.url;
+  process.env.BM_E2E_SOURCES_TOKEN = sources.token;
   process.env.BLUEMANTA_KNOWLEDGE_HOME = fixtureHome;
   process.env.BM_E2E_GIT_URL=git.url;
   process.env.BM_E2E_GIT_TOKEN=git.token;
@@ -69,6 +85,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.BM_E2E_SHOT_URL = shots.url;
   process.env.BM_E2E_SHOT_TOKEN = shots.token;
   return async () => {
+    await sources.server.close();
     await posWrite.server.close();
     await refresh.server.close();
     await git.server.close();

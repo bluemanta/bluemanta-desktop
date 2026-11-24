@@ -1,0 +1,8 @@
+version = 1
+id = "weekly-report"
+kind = "heartbeat"
+name = "示例｜周报草稿"
+status = "ACTIVE"
+rrule = "RRULE:FREQ=WEEKLY;BYDAY=SA;BYHOUR=8;BYMINUTE=30;BYSECOND=0"
+prompt = "虚构提示词：不应出现在返回值里"
+target_thread_id = "00000000-0000-0000-0000-000000000000"

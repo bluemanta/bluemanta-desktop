@@ -6,6 +6,8 @@ import type {
   PersonalOsFileResponse,
   PersonalOsRegistryResponse,
   PersonalOsLogResponse,
+  PersonalOsSourcesResponse,
+  PersonalOsTaskLogResponse,
   KnowledgeInboxResponse,
   KnowledgeIndexResponse,
   KnowledgeLibrariesResponse,
@@ -97,6 +99,8 @@ export const personalOsKeys = {
   today: ['personalos', 'today'] as const,
   domain: (id: string) => ['personalos', 'domain', id] as const,
   registry: ['personalos', 'registry'] as const,
+  sources: ['personalos', 'sources'] as const,
+  taskLog: (ref: string) => ['personalos', 'sources', 'log', ref] as const,
   log: (domains: readonly string[], before: string | null, includeUnassigned = false) => ['personalos', 'log', [...domains].sort(), before, includeUnassigned] as const,
 };
 
@@ -156,4 +160,21 @@ export function usePersonalOsLogPages(domains:readonly string[], cursors:readonl
     return {queryKey:personalOsKeys.log(domains,before,unassigned),staleTime:STALE_MS,refetchInterval:STALE_MS,
       queryFn:({signal}:{signal:AbortSignal})=>apiJson<PersonalOsLogResponse>(`/api/v1/personalos/log?${params}`,{signal})};
   })});
+}
+
+/** 接入页（ADR 0013）：每 60 秒刷新一次，不监听文件（规格 personalos-sources 第 4 节）。 */
+const SOURCES_MS = 60_000;
+export function usePersonalOsSources() {
+  return useQuery({
+    queryKey: personalOsKeys.sources,
+    queryFn: ({ signal }) => apiJson<PersonalOsSourcesResponse>('/api/v1/personalos/sources', { signal }),
+    staleTime: SOURCES_MS, refetchInterval: SOURCES_MS,
+  });
+}
+export function usePersonalOsTaskLog(ref: string | null) {
+  return useQuery({
+    queryKey: personalOsKeys.taskLog(ref ?? ''),
+    queryFn: ({ signal }) => apiJson<PersonalOsTaskLogResponse>(`/api/v1/personalos/sources/tasks/${encodeURIComponent(ref ?? '')}/log`, { signal }),
+    enabled: ref !== null && ref !== '', retry: false, staleTime: SOURCES_MS,
+  });
 }

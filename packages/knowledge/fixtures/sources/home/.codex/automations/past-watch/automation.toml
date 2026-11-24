@@ -1,0 +1,5 @@
+version = 1
+id = "past-watch"
+name = "示例｜观察"
+status = "ACTIVE"
+rrule = "RRULE:FREQ=HOURLY;INTERVAL=1;BYMINUTE=46;BYSECOND=47;UNTIL=20260924T144647Z"

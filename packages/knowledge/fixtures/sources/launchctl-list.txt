@@ -1,0 +1,8 @@
+PID	Status	Label
+-	0	local.example.mirror-refresh
+-	1	com.apple.example-checkin
+-	0	local.example.interval
+4321	0	local.example.service
+-	-9	local.example.weekly
+-	0	com.vendor.updater
+-	0	com.apple.Finder
