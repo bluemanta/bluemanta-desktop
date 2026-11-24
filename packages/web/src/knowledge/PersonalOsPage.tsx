@@ -17,6 +17,7 @@ import { PersonalOsActivity, PersonalOsResources } from './PersonalOsCollections
 import { PersonalOsMissing as Missing, PersonalOsReadWarning as ReadWarning } from './PersonalOsReadState';
 import { useSearch } from 'wouter';
 import { QuickNote, TodoCheck, useCompleteTodo } from './PersonalOsWrite';
+import { PersonalOsSourcesView, SourcesAlert } from './PersonalOsSources';
 import { DOMAINS_PATH, domainPath, personalOsFilePath, personalOsTarget, type PersonalOsRoute } from './personalos-paths';
 import shared from './Knowledge.module.css';
 import styles from './PersonalOsPages.module.css';
@@ -139,6 +140,7 @@ function TodayView() {
         {today.isPending ? <p className={styles.note}>正在读取今天的事项…</p> : null}
         {data ? <>
           <div className={styles.summary} data-testid="personalos-summary"><span>{data.today} {week(data.today)}</span><span>{count} 件到期或逾期</span><span>{data.waiting.length} 件等待中</span><span>收件箱 {data.inbox.length} 条未分拣</span></div>
+          <SourcesAlert />
           {data.warnings.length ? <p className={styles.notice} role="status">有 {data.warnings.length} 项资料需要核对，详情中保留了原文与读取说明。</p> : null}
           {allCount === 0 ? <EmptyState icon="book" title="没有到期的事" /> : null}
           {renderGroup('已逾期', data.overdue)}
@@ -203,5 +205,6 @@ export function PersonalOsPage({ route }: { route: PageRoute }) {
   if (route.view === 'commits') return <CommitView sha={route.sha} />;
   if (route.view === 'today') return <TodayView />;
   if (route.view === 'domains' || route.view === 'file') return <DomainsView route={route} />;
+  if (route.view === 'sources') return <PersonalOsSourcesView tab={route.tab} task={route.task} />;
   return <PageFrame section={route.view} onClose={() => {}}>{route.view === 'resources' ? <PersonalOsResources /> : <PersonalOsActivity />}</PageFrame>;
 }

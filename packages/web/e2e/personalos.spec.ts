@@ -18,14 +18,14 @@ async function openPersonalOs(page: Page, path = '/knowledge/today', search = ''
 test.describe('PersonalOS 今天与领域', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('入口、五个分段、侧栏到期计数与今天六组', async ({ page }) => {
+  test('入口、六个分段、侧栏到期计数与今天六组', async ({ page }) => {
     await openPersonalOs(page, '/ideas');
     const entry = page.getByRole('navigation', { name: '模块' }).getByRole('button', { name: '知识台', exact: true });
     await entry.click();
     await expect(page).toHaveURL(/\/knowledge\/today$/);
     await expect(entry).toContainText('3');
     const sections = page.getByRole('group', { name: '知识台页面' });
-    await expect(sections.getByRole('button')).toHaveText(['今天', '领域', '资料', '动态', '搜索']);
+    await expect(sections.getByRole('button')).toHaveText(['今天', '领域', '资料', '接入', '动态', '搜索']);
     await expect(page.getByTestId('personalos-focus')).toContainText('社区图书交换');
     await expect(today(page)).toContainText('2026-11-21');
     const expected: Array<[string, number]> = [['已逾期', 2], ['今天到期', 1], ['未来 7 天', 2], ['等待中', 1], ['无日期', 3]];
