@@ -1,9 +1,10 @@
 import { join } from 'node:path';
-import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, PersonalOsWriter, abbreviateHome, type PersonalOsVersion, type KnowledgeEnv } from '@bluemanta/knowledge';
+import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, PersonalOsWriter, SourcesReader, abbreviateHome, type PersonalOsVersion, type KnowledgeEnv } from '@bluemanta/knowledge';
 import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
   PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse, PersonalOsQuickNoteResponse, PersonalOsCompleteResponse,
+  PersonalOsSourcesResponse, PersonalOsTaskLogResponse,
 } from './api-types.js';
 
 const NO_STORE = { 'cache-control': 'no-store' };
@@ -17,6 +18,7 @@ function readFailure(c: Context, error: unknown): Response {
       case 'library_missing': return failure(c, 404, 'library_missing', '没有找到 PersonalOS');
       case 'conflict': return failure(c, 409, 'conflict', '文件刚被改过，已刷新，请再试一次');
       case 'invalid_input': return failure(c, 400, 'invalid_input', error.message);
+      case 'forbidden': return failure(c, 403, 'forbidden', error.message);
       case 'invalid_path': return failure(c, 400, 'invalid_path', '路径不能越界或包含隐藏内容');
       case 'library_not_found':
       case 'not_found': return failure(c, 404, 'not_found', '没有找到这个领域或文件');
@@ -59,6 +61,8 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
   const root = env.libraries.find((library) => library.kind === 'personalos' || library.id === 'personalos')?.root;
   const reader = new PersonalOsReader({ home: env.home, ...(root === undefined ? {} : { root }) });
   const writer = new PersonalOsWriter({ home: env.home, ...(root === undefined ? {} : { root }) });
+  // 接入页（ADR 0013）：只读；唯一的子进程是 `launchctl list`。
+  const sources = new SourcesReader({ home: env.home, ...(root === undefined ? {} : { root }) });
   const app = new Hono();
   app.use('/personalos/*', async (_c,next) => { monitor.current(); await next(); });
   app.get('/personalos/version',c=>c.json({ok:true,...monitor.current()},200,NO_STORE));
@@ -131,6 +135,18 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c,error); }
   });
 
+  app.get('/personalos/sources', async (c) => {
+    try { const body: PersonalOsSourcesResponse = { ok: true, ...(await sources.collect()) }; return c.json(body, 200, NO_STORE); }
+    catch (error) { return readFailure(c, error); }
+  });
+  /** `ref` is one URL-encoded segment such as `launchd%3Alocal.example`; the log path always comes from the registry. */
+  app.get('/personalos/sources/tasks/:ref/log', (c) => {
+    const ref = tailPath(c, '/personalos/sources/tasks/')?.replace(/\/log$/, '') ?? null;
+    if (ref === null || ref === '' || ref.length > 200 || /[\/\\\0]/.test(ref)) return failure(c, 400, 'invalid_input', '任务标识不合法');
+    try { const body: PersonalOsTaskLogResponse = { ok: true, ...sources.taskLog(ref) }; return c.json(body, 200, NO_STORE); }
+    catch (error) { return readFailure(c, error); }
+  });
+
   app.post('/personalos/inbox', async (c) => {
     const body = await readBody(c);
     if (!body || typeof body.text !== 'string') return failure(c, 400, 'invalid_input', '请求体需要 { text }');
@@ -165,7 +181,7 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c, error); }
   });
 
-  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/inbox', '/personalos/todos/complete']) {
+  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/sources', '/personalos/sources/tasks/:ref/log', '/personalos/inbox', '/personalos/todos/complete']) {
     app.all(path, (c) => failure(c, 405, 'method_not_allowed', `不支持 ${c.req.method}`));
   }
   return app;
