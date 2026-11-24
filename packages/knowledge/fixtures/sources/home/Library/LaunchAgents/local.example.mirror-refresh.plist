@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>local.example.mirror-refresh</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/bin/python3</string>
+		<string>/opt/example/refresh.py</string>
+		<string>--token=abcDEF1234567890abcdef12345</string>
+	</array>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Minute</key>
+		<integer>5</integer>
+	</dict>
+	<key>StandardErrorPath</key>
+	<string>/tmp/bm-sources-fixture-missing.err</string>
+	<key>Umask</key>
+	<integer>63</integer>
+</dict>
+</plist>

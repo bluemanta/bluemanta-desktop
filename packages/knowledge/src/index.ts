@@ -39,3 +39,5 @@ export type { Overview as PersonalOsOverview, TodayResult as PersonalOsToday, Do
 export { gitCommit, gitCommits, type GitFile, type GitCommit, type GitListOptions } from './personalos/git.js';
 export { PersonalOsVersion, type VersionMode, type WatchRoot } from './personalos/version.js';
 export { PersonalOsWriter, addPeriod, nextDue, type CompleteTodoInput, type CompleteTodoResult, type QuickNoteResult, type WriteFileChange } from './personalos/write.js';
+export { SourcesReader, type SourcesReaderOptions } from './personalos/sources/index.js';
+export type { SourcesResult as PersonalOsSources, SourceView as PersonalOsSource, TaskView as PersonalOsTask } from './personalos/sources/types.js';

@@ -1,0 +1,6 @@
+version = 1
+id = "old-followup"
+kind = "heartbeat"
+name = "示例｜跟进"
+status = "PAUSED"
+rrule = "FREQ=HOURLY;INTERVAL=1;BYMINUTE=46"

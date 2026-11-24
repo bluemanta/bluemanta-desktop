@@ -27,7 +27,8 @@ export type KnowledgeErrorCode =
   | 'not_a_topic'
   | 'read_error'
   | 'invalid_input'
-  | 'conflict';
+  | 'conflict'
+  | 'forbidden';
 
 export class KnowledgeError extends Error {
   readonly code: KnowledgeErrorCode;

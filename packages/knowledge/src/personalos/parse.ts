@@ -29,7 +29,7 @@ function visibleLines(markdown: string): Array<{ text: string; line: number; fen
     return { text, line: index + 1, fenced };
   });
 }
-function tables(markdown: string): Array<{ headers: string[]; rows: string[][]; line: number }> {
+export function tables(markdown: string): Array<{ headers: string[]; rows: string[][]; line: number }> {
   const lines = visibleLines(markdown); const result: Array<{ headers: string[]; rows: string[][]; line: number }> = [];
   for (let i = 0; i + 1 < lines.length; i += 1) {
     const head = lines[i]!; const next = lines[i + 1]!;

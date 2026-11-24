@@ -1,0 +1,5 @@
+version = 1
+id = "yearly"
+name = "示例｜年度"
+status = "ACTIVE"
+rrule = "FREQ=YEARLY;BYMONTH=1"

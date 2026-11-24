@@ -57,7 +57,7 @@
 ### 3.1 launchd
 
 - 扫描 `~/Library/LaunchAgents/*.plist`（只看用户域，不看 `/Library`）。目录可由 `BLUEMANTA_LAUNCHAGENTS_DIR` 覆盖，供测试使用。
-- 自己解析 XML plist，只需支持 `dict`、`array`、`string`、`integer`、`real`、`true`、`false`、`date`。二进制 plist 或读取失败（如权限不足）时，任务名用文件名，标「无法读取」。
+- 自己解析 XML plist，只需支持 `dict`、`array`、`string`、`integer`、`real`、`true`、`false`、`date`。二进制 plist 或读取失败（如权限不足）时，任务名用文件名，标「无法读取」。这类任务无法判断是不是自建，一律放进「未登记」组，由人来决定。
 - 时间翻成中文：
   - `StartCalendarInterval`（dict，或 dict 数组）中，Minute / Hour / Day / Weekday / Month 组合为「每小时第 5 分」「每天 9:00」「每周一 9:00」「每月 1 日 9:00」，数组用「；」连接。Weekday 中 0 和 7 都是周日。
   - `StartInterval` 显示为「每 N 分钟」「每 N 小时」。
@@ -132,7 +132,7 @@
 - 点击行，右侧打开详情卡片：
   - ref；
   - 配置文件路径（可复制）；
-  - launchd 任务显示程序和参数（home 缩写；参数中看起来像密钥的值，即长度 ≥ 24 的连续字母、数字或 `_-`，显示为 `•••`）；
+  - launchd 任务显示程序和参数（home 缩写；参数中看起来像密钥的值，即长度 ≥ 24、同时含字母和数字的连续 `[A-Za-z0-9_-]` 串，显示为 `•••`；不含数字的长串（如任务标识）不遮）；
   - 日志路径；
   - 「日志可显示」的任务显示最后 20 行；
   - 未登记的任务给一段可复制的登记表行，方便贴进 `我/数据源.md`。
@@ -143,7 +143,7 @@
 
 ## 6. 虚构 fixture
 
-放在 `packages/knowledge/test/fixtures/personalos-sources/`（随测试数据一起，不含真实标识）：
+放在 `packages/knowledge/fixtures/sources/`，与现有 fixture 同级。`home/` 按真实 home 的布局放，测试时复制到临时目录再用。不含真实标识。
 
 - `我/数据源.md`：一个副本型来源（运行日志探针，带成功标记）、一个目录探针来源、一个查询型来源、一个探针不存在的来源、一行 `忽略`、一个找不到的任务。
 - `LaunchAgents/`：定时任务（`StartCalendarInterval` 为单个 dict 和数组各一个）、`StartInterval` 任务、常驻服务、用 `com.apple.` 前缀的自建任务、一个厂商更新器、一个二进制或损坏的 plist。
