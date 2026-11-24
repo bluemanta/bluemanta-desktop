@@ -21,13 +21,13 @@
 
 | 项 | 结果 | 命令与结果 |
 |---|---|---|
-| 构建、类型、单测 | not-run | `npm run build && npm run check && npm test` |
-| 走查 | not-run | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，包含新加的接入页用例 |
-| 截图 | not-run | 1440 / 720，深浅色 |
-| 只读 | not-run | 测试中给 fixture 目录做哈希，运行前后一致；服务端代码里只有 `launchctl list` 这一条子进程调用 |
-| 隐私 | not-run | Codex 返回值里没有 `prompt` 等非白名单字段；日志接口对未登记为可显示的任务返回 403；仓库 fixture 不含真实标识 |
-| 真实环境试跑 | not-run | 见规格第 7 节最后一条 |
-| 交付检查 | not-run | `npm run check:pr` |
+| 构建、类型、单测 | verified | 用 `env -u BLUEMANTA_TODAY -u BLUEMANTA_KNOWLEDGE_HOME npm run build && npm run check && npm test` 模拟 CI，全部退出 0，单测合计 493 项。新增：数据层 27 项，在 UTC、纽约、上海三个时区都通过；接口 4 项。 |
+| 走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，194 项全部通过，含接入页新用例 8 条。第二次运行 193 项通过、1 项失败，是迭代 3 已记录的 `personalos-refresh.spec.ts`「新提交在十秒内出现」高负载偶发超时。第一次全量运行另有 4 项 Git 视图用例和 1 项接入页用例在并发下失败，单独运行都通过。接入页那一项是测试时序问题（关闭详情后下一帧才重新聚焦），已改用例。 |
+| 截图 | verified | `packages/web/screenshots/personalos-sources-{cards,task,today}-{1440,720}-{light,dark}.png`，不提交。抽看了来源卡片 1440 浅色、任务详情 1440 深色、今天页 720 浅色：卡片、圆点、详情、提醒行都清楚；720 宽没有横向溢出。抽看时发现详情卡里「配置」二字被挤成两行，已修。 |
+| 只读 | verified | 单测「只读」一项：运行汇总和读日志前后，fixture 副本的文件哈希和修改时间都不变。服务端只有 `runLaunchctlList` 一处子进程调用；测试和走查都改读 `BLUEMANTA_LAUNCHCTL_LIST_FILE`，不执行真实命令。 |
+| 隐私 | verified | 单测和接口测试都断言 Codex 的 `prompt` 不出现在返回值里；日志接口对未登记为可显示的任务返回 403；参数里像密钥的长串显示为 `•••`；fixture 全是虚构标识。 |
+| 真实环境试跑 | not-run | 等 Chris 同意 |
+| 交付检查 | 见 PR 评论 | `npm run check:pr`，每次推送后运行 |
 
 ## S0 记录（2026-11-24）
 
@@ -39,3 +39,19 @@ Chris 先看过草稿，同意后才写入。仓库是公开的，下面只写�
 | 根导航 | verified | `README.md`「使用入口」加了一行，链接到数据源。 |
 | 蓝图 | verified | v0.4 输入稿第 6 节加了「2026-11-23 补充决定：后台任务与数据源登记」，第 7 节相应一行改写。输入稿里本来就有别人未存档的改动，所以没有单独提交，留给晨间存档。 |
 | 提交 | verified | PersonalOS 本地提交一笔，只包含 3 个文件：数据源、README、当月日志。提交说明为 `[我] 新建数据源登记表，根导航加入口`。收件箱和输入稿仍在工作区，没有被带进提交。 |
+
+## 实现记录（S1a–S1c，2026-11-24）
+
+- 提交：S1a `3c629b9`、S1b `822225b`、S1c `590f6f1`；草稿 PR #40。
+- 偏离说明书的地方：
+  - fixture 放在 `packages/knowledge/fixtures/sources/`，与现有 fixture 同级，已写回规格；
+  - 为复用表格解析，导出了 `packages/knowledge/src/personalos/parse.ts` 的 `tables`；
+  - 在 `packages/knowledge/src/types.ts` 新增错误码 `forbidden`，接口映射为 403。
+- 规格补充（已写回）：
+  - 无法读取的 plist 放进「未登记」；
+  - 脱敏要求长串同时含字母和数字；
+  - 任务段路由为 `/knowledge/sources/tasks/<编码后的标识>`；
+  - 今天页提醒在只有任务失败时直接进入任务段。
+- 已知问题：
+  - 登记表里写错执行方的标识（如缺少 `launchd:`）在列表里显示为 launchd，状态为「找不到」；
+  - Codex 和 Claude 任务的上次结果一律显示「运行记录未接入」。
