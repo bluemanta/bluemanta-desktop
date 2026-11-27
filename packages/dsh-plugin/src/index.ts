@@ -1,6 +1,7 @@
 import { defaultDataDir, openCore } from '@bluemanta/core';
 import type { HostContext } from './context.js';
 import { resolveDataDir } from './data-dir.js';
+import { loadWorkbenchConfig, WORKBENCH_CONFIG_PATH } from './workbench-config.js';
 import {
   createLocalServer,
   failingServer,
@@ -50,10 +51,21 @@ export {
   spawnNodeServer,
 } from './local-server.js';
 export type { EnsureResult, HealthState, LocalServer, WebConfig } from './local-server.js';
+export {
+  CONSOLE_PROBE_TIMEOUT_MS,
+  DEFAULT_CONSOLE_URL,
+  WORKBENCH_CONFIG_PATH,
+  loadWorkbenchConfig,
+  probeConsole,
+  resolveConsoleUrl,
+  type ConsoleUrlResult,
+  type WorkbenchConfig,
+} from './workbench-config.js';
 
 export type ApplyOptions = {
   /** 测试注入。缺省时按环境变量检查并按需拉起本地服务。 */
   server?: LocalServer;
+  consoleFetch?: typeof fetch;
   dataDir?: string;
   /** 测试注入虚构知识库；缺省按 BLUEMANTA_KNOWLEDGE_HOME 或 home 目录。 */
   knowledgeEnv?: KnowledgeEnv;
@@ -98,8 +110,15 @@ export function apply(ctx: HostContext, options: ApplyOptions = {}): void {
         }
       },
     });
+    const disposeWorkbenchRoute = ctx.connection.fetch.register({
+      path: '/' + WORKBENCH_CONFIG_PATH,
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: async () => Response.json(await loadWorkbenchConfig(process.env, options.consoleFetch), { headers: NO_STORE }),
+    });
     void server.ensure().catch(() => undefined);
     return () => {
+      disposeWorkbenchRoute();
       disposeRoute();
       for (const dispose of disposeTools) dispose();
       server.stop();

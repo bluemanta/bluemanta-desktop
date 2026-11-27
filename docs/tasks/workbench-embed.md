@@ -118,4 +118,25 @@ Claude Code 另行验收：
 
 ## 验收记录
 
-（Claude Code 验收后填写）
+2026-11-28，Claude Code。运行记录：`~/Developer/.codex-runs/202611271649-workbench-embed/`。
+
+派发经过：
+- 第一次运行 400：PATH 里的 npm 全局 codex 0.139.0 不认模型名。脚本改为优先用 ChatGPT 应用自带的 CLI（`49a3b0f`）。
+- 第二次运行 Codex 在动手前停工：前置规则禁止读其他仓库，与本说明书「必读」冲突，属于说明书方的错误。规则已改为必读路径可以只读（`e4b929b`），续接同一会话后用 6.5 分钟完成。没有退回质量返工。
+
+| 项 | 结果 | 依据 |
+|---|---|---|
+| 范围 | verified | 15 个文件，全部在 `packages/dsh-plugin/`；`git diff --check` 无问题 |
+| 1. 构建 | verified | 沙箱外 `npm run build` 退出 0 |
+| 2. 类型检查 | verified | `npm run check` 退出 0 |
+| 3. 测试 | verified | `npm run test` 退出 0，插件包 99 项（原 73 项），全仓零失败。Codex 在沙箱里报 failed 的原因是不能监听端口、不能运行 `ps`，与代码无关 |
+| 4. dsh:smoke | failed（环境） | 检查 1「插件没有被拒载」PASS。浏览器一步失败：Playwright 1.64 需要的 chromium_headless_shell-1248 本机没装，缓存里只有 1217，main 上同样会失败。下载浏览器属于改动用户环境，未做。浏览器部分改由第 6 项手动覆盖 |
+| 6. 隔离 dsh + 3002 | verified | 用 smoke 留下的隔离 `DSH_HOME`，在 dsh web 模式（3093）里打开，`BLUEMANTA_CONSOLE_URL` 指向 3002 合成数据。主区显示 Console，框为 `name=bluemanta-workbench-main`、带 `data-html-preview`，`src=http://127.0.0.1:3002/dashboard`；框内切到「今天」，数据正常读取。停掉 3002 后重新打开，显示「工作台没有在运行（http://127.0.0.1:3002）…」和「重试」；启动 3002 后点「重试」恢复。灵感台、知识台照常加载 |
+| 7. Desktop 专有行为 | not-run | 快捷键、新窗口链接、红绿灯遮挡只能在 Desktop 里看，留到第 8 项。按 README，左栏收起时 dsh 给主区框发 160px 的避让，Console 不接 `bm:chrome`，页头左上角很可能被挡住 |
+| 8. 真实 3001 只读查看 | not-run | 需要 Chris 同意装进他的 Desktop |
+
+其他观察：
+- 在 dsh web 模式里，刷新后第一次点左侧栏任一入口（知识台也一样）不会切换，要点第二次。这是宿主的行为，不是本任务引入的。
+- 代码评审没有发现需要返工的问题。Codex 主动把 3001 加进 smoke 的保留端口，探测时只取响应头。
+
+结论：可以合并。合并、装进 Desktop、真实只读查看等 Chris 同意。

@@ -2,7 +2,7 @@
   "name": "@bluemanta/dsh-plugin",
   "version": "0.0.0",
   "private": true,
-  "description": "bluemanta Desktop 的 dsh 插件：嵌入网页版灵感台，并保留 agent 工具与工具卡片",
+  "description": "bluemanta Desktop 的 dsh 插件：嵌入灵感台、知识台和工作台，并保留 agent 工具与工具卡片",
   "type": "module",
   "engines": {
     "node": ">=24",

@@ -72,7 +72,7 @@ function fakeContext() {
 }
 
 describe('client.js 在假宿主里执行', () => {
-  it('工厂和 apply 不报错，灵感台与知识台的入口、右侧栏页、工具卡片都注册了', () => {
+  it('注册三个主区入口，右侧栏页和工具卡片仍属灵感台和知识台', () => {
     const { id, plugin } = loadClient();
     expect(id).toBe('@bluemanta/dsh-plugin');
     const { ctx, slots, tabs } = fakeContext();
@@ -81,8 +81,9 @@ describe('client.js 在假宿主里执行', () => {
     expect(panels).toEqual([
       ['bluemanta.ideas', '灵感台', 10],
       ['bluemanta.knowledge', '知识台', 11],
+      ['bluemanta.workbench', '工作台', 12],
     ]);
-    expect(slots.filter((item) => item.name === 'main').map((item) => item.key)).toEqual(['bluemanta.ideas', 'bluemanta.knowledge']);
+    expect(slots.filter((item) => item.name === 'main').map((item) => item.key)).toEqual(['bluemanta.ideas', 'bluemanta.knowledge', 'bluemanta.workbench']);
     expect(tabs.map((item) => item.kind)).toEqual(['bluemanta.idea', 'bluemanta.knowledge']);
     const toolViews = slots.filter((item) => item.name === 'tool.call.toolview').map((item) => item.key);
     expect(toolViews).toEqual([

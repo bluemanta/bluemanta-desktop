@@ -16,6 +16,7 @@ export const SMOKE_PROFILE: 'bluemanta-smoke';
 
 export type SmokePanel = {
   label: string;
+  portKey: 'serverPort' | 'consolePort';
   frameName: string;
   readyRole: string;
   readyName: string;
@@ -61,7 +62,7 @@ export function knowledgeFixtureHome(repoRoot: string): string;
 export function smokeEnv(
   base: NodeJS.ProcessEnv | null | undefined,
   paths: { dshHome: string; dataDir: string; knowledgeHome: string },
-  ports: { serverPort: number },
+  ports: { serverPort: number; consolePort?: number },
 ): NodeJS.ProcessEnv;
 
 export function profileCreateArgs(profile?: string): string[];

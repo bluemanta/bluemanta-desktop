@@ -3,13 +3,14 @@
  * Desktop 自动升级后的自检。
  *
  * 用隔离的 DSH_HOME、虚构灵感数据和虚构知识库启动 dsh，确认插件没有被拒载，
- * 左侧栏能打开灵感台和知识台。不读写 ~/.dsh，也不占用 4310、4311、4312。
+ * 左侧栏能打开灵感台、知识台和虚构工作台。不读写 ~/.dsh，也不占用保留端口。
  * 结束时（成功、失败、超时、Ctrl-C）关掉浏览器，按进程组结束 dsh 和它拉起的本地服务，
  * 并删除临时目录。--keep 只保留临时目录。
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { mkdtempSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -46,6 +47,7 @@ const state = {
   tempRoot: '',
   keep: false,
   browser: null,
+  consoleServer: null,
   page: null,
   child: null,
   logged: null,
@@ -228,6 +230,13 @@ async function cleanup() {
       state.child = null;
       await killGroup(late);
     }
+    if (state.consoleServer?.listening) {
+      const server = state.consoleServer;
+      await new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      });
+    }
     const portsFree = await releasePorts();
     if (!portsFree) {
       console.error(`端口没有释放：${state.ports.join(', ')}`);
@@ -305,7 +314,7 @@ async function checkSidebar(page) {
       return { ok: false, reason: `左侧栏没有找到「${panel.label}」` };
     }
   }
-  return { ok: true, reason: '左侧栏有「灵感台」和「知识台」' };
+  return { ok: true, reason: '左侧栏有' + SMOKE_PANELS.map((panel) => `「${panel.label}」`).join('、') };
 }
 
 async function openPanel(page, panel, serverPort) {
@@ -404,11 +413,27 @@ async function main() {
 
   const serverPort = await acquirePort([]);
   const webPort = await acquirePort([serverPort]);
-  state.ports = [serverPort, webPort];
+  const consolePort = await acquirePort([serverPort, webPort]);
+  const consoleServer = createHttpServer((request, response) => {
+    if (request.url !== '/dashboard') {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end('<!doctype html><html lang="zh-CN"><title>虚构工作台</title><h1>虚构工作台</h1></html>');
+  });
+  state.consoleServer = consoleServer;
+  await new Promise((resolve, reject) => {
+    consoleServer.once('error', reject);
+    consoleServer.listen(consolePort, '127.0.0.1', resolve);
+  });
+  state.ports = [serverPort, webPort, consolePort];
   console.log(`本地服务端口：${serverPort}`);
   console.log(`dsh 网页端口：${webPort}`);
+  console.log(`虚构工作台端口：${consolePort}`);
 
-  const env = smokeEnv(process.env, { dshHome, dataDir, knowledgeHome }, { serverPort });
+  const ports = { serverPort, consolePort };
+  const env = smokeEnv(process.env, { dshHome, dataDir, knowledgeHome }, ports);
   const created = await runLogged(bin, profileCreateArgs(), env);
   if (created.code !== 0 && !hasIncompatibleWarning(state.log)) {
     throw new Error(`建立 profile 退出 ${created.signal ?? created.code}`);
@@ -475,7 +500,7 @@ async function main() {
         const reasons = [];
         let failed = '';
         for (const panel of SMOKE_PANELS) {
-          const opened = await openPanel(state.page, panel, serverPort);
+          const opened = await openPanel(state.page, panel, ports[panel.portKey]);
           if (!opened.ok) {
             failed = opened.reason;
             break;

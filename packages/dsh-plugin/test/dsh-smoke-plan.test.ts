@@ -39,7 +39,8 @@ describe('dsh:smoke 计划', () => {
     expect(resolveSmokeBin('/tmp/dsh')).toBe('/tmp/dsh');
     expect(DEFAULT_DSH_SMOKE_BIN).toBe('/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh');
     expect(missingBinMessage('/tmp/dsh')).toContain('DSH_SMOKE_BIN');
-    expect(RESERVED_SMOKE_PORTS).toEqual([4310, 4311, 4312]);
+    expect(RESERVED_SMOKE_PORTS).toEqual([3001, 4310, 4311, 4312]);
+    expect(choosePort([3001], [])).toBeNull();
     expect(choosePort([4310, 4311, 4312, 3092], [])).toBe(3092);
     expect(choosePort([4310, 4311, 4312], [])).toBeNull();
     expect(choosePort([3092, 4400], [3092])).toBe(4400);
@@ -61,9 +62,10 @@ describe('dsh:smoke 计划', () => {
   });
 
   it('主区 iframe 要带 data-html-preview、非空 name，并指向本次端口', () => {
-    expect(SMOKE_PANELS.map((panel) => [panel.label, panel.frameName, panel.readyName])).toEqual([
-      ['灵感台', 'bluemanta-ideas-main', '灵感清单'],
-      ['知识台', 'bluemanta-knowledge-main', '主题清单'],
+    expect(SMOKE_PANELS.map((panel) => [panel.label, panel.frameName, panel.readyRole, panel.readyName, panel.portKey])).toEqual([
+      ['灵感台', 'bluemanta-ideas-main', 'listbox', '灵感清单', 'serverPort'],
+      ['知识台', 'bluemanta-knowledge-main', 'listbox', '主题清单', 'serverPort'],
+      ['工作台', 'bluemanta-workbench-main', 'heading', '虚构工作台', 'consolePort'],
     ]);
     const src = 'http://127.0.0.1:34521/ideas?embed=main#token=abc';
     expect(assessFrame({ preview: true, name: 'bluemanta-ideas-main', src, serverPort: 34521 })).toEqual({ ok: true, reason: '' });
@@ -71,6 +73,7 @@ describe('dsh:smoke 计划', () => {
     expect(assessFrame({ preview: true, name: '  ', src, serverPort: 34521 }).reason).toContain('name');
     expect(assessFrame({ preview: true, name: 'bluemanta-ideas-main', src, serverPort: 4310 }).reason).toContain('4310');
     expect(assessFrame({ preview: true, name: 'bluemanta-ideas-main', src: 'http://localhost:34521/ideas', serverPort: 34521 }).ok).toBe(true);
+    expect(assessFrame({ preview: true, name: 'bluemanta-workbench-main', src, serverPort: 34522 }).ok).toBe(false);
   });
 
   it('隔离环境覆盖用户的 DSH_HOME，知识库指向虚构夹具', () => {
@@ -90,6 +93,14 @@ describe('dsh:smoke 计划', () => {
     expect(profileCreateArgs()).toEqual(['--profile', 'bluemanta-smoke', '--from-default-profile', 'web', '--dump-config']);
     expect(pluginAddArgs()).toEqual(['plugin', '--profile', 'bluemanta-smoke', 'add', './packages/dsh-plugin']);
     expect(serveArgs('bluemanta-smoke', 34521)).toEqual(['--profile', 'bluemanta-smoke', '--port', '34521', '--no-open']);
+  });
+
+  it('版本检查清除继承的 Console 地址，启动时只使用虚构 Console 端口', () => {
+    const base = { BLUEMANTA_CONSOLE_URL: 'http://127.0.0.1:3001/dashboard' };
+    const paths = { dshHome: '/tmp/smoke/home', dataDir: '/tmp/smoke/data', knowledgeHome: '/tmp/smoke/knowledge' };
+    expect(smokeEnv(base, paths, { serverPort: 0 }).BLUEMANTA_CONSOLE_URL).toBeUndefined();
+    expect(smokeEnv(base, paths, { serverPort: 34521, consolePort: 34522 }).BLUEMANTA_CONSOLE_URL)
+      .toBe('http://127.0.0.1:34522/dashboard');
   });
 
   it('三项检查都要 PASS 才算通过', () => {

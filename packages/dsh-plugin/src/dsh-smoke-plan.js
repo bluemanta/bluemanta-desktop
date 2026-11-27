@@ -5,6 +5,7 @@
 import { join } from 'node:path';
 import { htmlPreviewFrameName } from './html-preview-frame.js';
 import { knowledgeFrameName } from './knowledge-sidebar.js';
+import { WORKBENCH_FRAME_NAME } from './workbench-frame.js';
 
 /** 写代码和类型检查时对准的 dsh 版本。 */
 export const DSH_REFERENCE_VERSION = '0.2.2-rc.1';
@@ -15,8 +16,8 @@ export const DSH_ENGINE_RANGE = '>=0.2.1-rc.2 <0.3.0-0';
 /** Desktop 自带 CLI。可用 DSH_SMOKE_BIN 覆盖。 */
 export const DEFAULT_DSH_SMOKE_BIN = '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh';
 
-/** 4310 是用户常驻服务，4311 是 dev:dsh，4312 被 QQ 占用。 */
-export const RESERVED_SMOKE_PORTS = [4310, 4311, 4312];
+/** 3001 是真实 Console，4310 是用户常驻服务，4311 是 dev:dsh，4312 被 QQ 占用。 */
+export const RESERVED_SMOKE_PORTS = [3001, 4310, 4311, 4312];
 
 export const INCOMPATIBLE_MARK = 'is incompatible with dsh';
 
@@ -28,20 +29,29 @@ export const SMOKE_PROFILE = 'bluemanta-smoke';
 
 /**
  * 左侧栏入口，以及点开后要等的稳定元素。
- * 灵感台等「灵感清单」，知识台等「主题清单」。
+ * portKey 指定每个面板应加载哪一个临时服务。
  */
 export const SMOKE_PANELS = [
   {
     label: '灵感台',
+    portKey: 'serverPort',
     frameName: htmlPreviewFrameName('main', ''),
     readyRole: 'listbox',
     readyName: '灵感清单',
   },
   {
     label: '知识台',
+    portKey: 'serverPort',
     frameName: knowledgeFrameName('main', ''),
     readyRole: 'listbox',
     readyName: '主题清单',
+  },
+  {
+    label: '工作台',
+    portKey: 'consolePort',
+    frameName: WORKBENCH_FRAME_NAME,
+    readyRole: 'heading',
+    readyName: '虚构工作台',
   },
 ];
 
@@ -111,7 +121,7 @@ export function iframeTargetsServer(src, serverPort) {
   try {
     const url = new URL(src);
     const hostOk = url.hostname === '127.0.0.1' || url.hostname === 'localhost';
-    return hostOk && url.port === String(serverPort);
+    return url.protocol === 'http:' && hostOk && url.port === String(serverPort);
   } catch {
     return false;
   }
@@ -157,6 +167,8 @@ export function knowledgeFixtureHome(repoRoot) {
 export function smokeEnv(base, paths, ports) {
   const env = { ...(base ?? {}) };
   delete env.DSH_PROFILE;
+  delete env.BLUEMANTA_CONSOLE_URL;
+  if (ports.consolePort !== undefined) env.BLUEMANTA_CONSOLE_URL = `http://127.0.0.1:${ports.consolePort}/dashboard`;
   env.DSH_HOME = paths.dshHome;
   env.DSH_TELEMETRY_DISABLED = '1';
   env.BLUEMANTA_DATA_DIR = paths.dataDir;

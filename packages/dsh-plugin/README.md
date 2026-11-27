@@ -22,13 +22,14 @@ dsh 的参考版本是 0.2.2-rc.1（写代码和类型检查以它为准）。�
 
 端口被别的程序占用，或拉起失败：框里显示原因（例如「本地服务没有启动：端口 4310 被其他程序占用」）和「重试」，不抛到 dsh。
 
-## web-config
+## 配置路由
 
-插件里只保留这一条 dsh 鉴权路由：
+浏览器端通过 dsh 鉴权路由取得嵌入配置。
 
 | 方法与路径 | 结果 |
 |---|---|
 | `GET /api/bluemanta/web-config` | 成功：`{ ok: true, baseUrl, token }`。失败：`{ ok: false, reason }`。口令读数据目录的 `local-server.json`（本地服务生成） |
+| `GET /api/bluemanta/workbench-config` | 探测 SalesOS Console。在线时返回 `{ ok: true, url }`，地址无效或探测失败时返回 `{ ok: false, url, reason }` |
 
 浏览器端用相对路径 `api/bluemanta/web-config`（开头不带 `/`），web 版和 Desktop 的 `dsh-app://` 都能解析。
 
@@ -41,6 +42,8 @@ dsh 的参考版本是 0.2.2-rc.1（写代码和类型检查以它为准）。�
 `#` 后面的口令不会发给服务器。网页读到后存进本地存储并从地址栏抹掉。
 
 ## 主题与消息桥
+
+消息桥用于灵感台和知识台。工作台使用独立的 iframe。
 
 iframe 发 `bm:ready` 后，插件回 `bm:theme { dark }`（`document.body` 是否有 `data-ds-dark-theme`）。深浅色切换时给所有框重发。只发 `dark`，不发 `--dsw-alias-*`。
 
@@ -103,8 +106,8 @@ npm run dsh:smoke
 三项检查，每一项打印 `PASS` 或 `FAIL`：
 
 1. 插件没有被拒载。`plugin add` 和启动输出里不能出现 `is incompatible with dsh`，出现就失败，并打印那一行。
-2. 左侧栏有「灵感台」和「知识台」。
-3. 依次点开这两个入口。主区 iframe 带 `data-html-preview` 和非空 `name`，地址指向这次的本地服务端口，并且网页真的加载出来。灵感台要等到「灵感清单」（`role="listbox"`，`aria-label="灵感清单"`）。知识台要等到「主题清单」（`role="listbox"`，`aria-label="主题清单"`）。
+2. 左侧栏有「灵感台」「知识台」「工作台」三个入口。
+3. 依次点开三个入口，检查主区 iframe 的 `data-html-preview`、框名、目标端口和页面内容。灵感台和知识台使用本轮的 bluemanta 服务，分别等待「灵感清单」和「主题清单」。工作台使用另一个临时 HTTP 服务，等待「虚构工作台」标题。脚本会覆盖继承的 Console 地址，避开 3001，并在清理时关闭虚构服务。
 
 全部通过时退出码是 0。失败、超时或 Ctrl-C 都会关掉浏览器，按进程组结束 dsh 和它拉起的本地服务，确认端口已释放，并删掉临时目录。加 `--keep` 可以留下临时目录排查；如果当时网页已经打开，失败截图在临时目录的 `smoke-failure.png`。进程和端口仍会清掉：
 
@@ -158,6 +161,12 @@ DSH_SMOKE_BIN=/path/to/dsh npm run dsh:smoke
 ## 知识台入口
 
 左侧栏「知识台」（`bluemanta.knowledge`，排在灵感台后面）在主区嵌入 `/knowledge?embed=main`；右侧栏页类型 `bluemanta.knowledge`（开始页入口「知识台」）嵌入 `/knowledge/lib/<库>/<topic|file>/<路径>?embed=sidebar`。知识台的框名是 `bluemanta-knowledge-main` / `bluemanta-knowledge-sidebar-<tab>`，与灵感台的框分开，`data-html-preview` 同样保留（S5）。纯函数在 `src/knowledge-sidebar.js`，client.js 内嵌同一份文本（测试核对）；`test/client-smoke.test.ts` 在假宿主里真的执行一遍 client.js。
+
+## 工作台入口
+
+点击知识台下方的「工作台」，主区会打开 SalesOS Console。默认地址是 `http://127.0.0.1:3001/dashboard`。可在启动 dsh 前用 `BLUEMANTA_CONSOLE_URL` 覆盖，例如 `http://localhost:3002/dashboard`。地址须使用 HTTP、显式端口和本机主机名（`127.0.0.1`、`localhost` 或 `[::1]`），且不能带用户名或密码。路径和查询串会保留，片段标识会移除。
+
+插件只在打开或重试时检查连接，Console 的启停由使用者管理。地址无效、连接失败、探测超过 1.5 秒或返回 5xx 时，主区显示原因。启动 Console 或排除故障后点「重试」即可重新探测。
 
 ## 品牌
 
