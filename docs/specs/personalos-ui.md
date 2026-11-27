@@ -1,7 +1,7 @@
 # PersonalOS 看板（知识台 v2）规格
 
 - v1：2026-11-21。决定见 [ADR 0011](../decisions/0011-personalos-desk.md)，迭代见 [personalos-desk-plan.md](../personalos-desk-plan.md)。
-- 本文写**迭代 1（只读看板）**的全部规则，第 12 节写迭代 2（Git 视图与自动刷新），第 13 节写迭代 3（写入），第 14 节写迭代 4（agent 工具）。
+- 本文写**迭代 1（只读看板）**的全部规则，第 12 节写迭代 2（Git 视图与自动刷新），第 13 节写迭代 3（写入），第 14 节写迭代 4（agent 工具），第 15 节写关于页。
 - 优先级：视觉与布局以[设计规范](../design/DESIGN.md)为准；外壳、详情卡片、阅读器、嵌入模式、快捷键沿用[知识台 v1 规格](knowledge-ui.md)和[灵感台规格](idea-ui.md)。本文只写不同的地方。冲突时：设计规范 > 本文 > 知识台 v1 规格。
 - 网页只经 `/api/v1/personalos*` 和 `/api/v1/knowledge*` 访问数据。
 
@@ -457,3 +457,60 @@ Playwright 走查用 fixture 和 `BLUEMANTA_TODAY=2026-11-21`，覆盖：今天�
 - 去掉条目行后，其余内容照原来的规则按标题切段（小节正文、文件开头的说明）。正文为空的小节不成段。
 - 其他文件（状态、资料登记、收件箱、协议、蓝图）的切段不变。网页日志页和 `/personalos/log` 不受影响。
 - 测试：fixture 里小节后面追加的条目，搜条目里的词，第 1 条命中就是这条条目，标题是它的日期，摘录是它本身，`domain` 是标签领域；非领域标签的条目 `domain` 为空；小节正文仍能搜到，而且不含条目文字。
+
+## 15. 关于页（2026-11-27）
+
+Chris 想随时看清 PersonalOS 现在的整体架构：入口和关键文件、有哪些领域及对应目录、接了哪些数据源，以及「关于」本身的版本和更新日期。他会按 PersonalOS 的架构变化定期升级这一页。
+
+### 15.1 位置
+
+- 分段控件最后一项「关于」，在「搜索」之后，路径 `/knowledge/about`。命令面板加「知识台：关于」。
+- 只读。不启动子进程（不跑 `launchctl`、`git`），不读 PersonalOS 以外的文件。后台任务是否正常仍看接入页。
+- 和其他页一样随 PersonalOS 版本号自动刷新（12.6）。
+
+### 15.2 内容
+
+全部从 PersonalOS 实时读取，网页不写死任何领域、文件名或数据源。
+
+| 块 | 来源 | 显示 |
+|---|---|---|
+| 页头 | `我/关于.md` 的更新记录 | 「关于 vX.Y · 更新于 YYYY-MM-DD」，PersonalOS 位置，领域、入口文件、数据源、后台任务四个计数 |
+| 架构图 | 下面四类，按层排列 | 入口 → 领域 → 接入，旁边一列是记录（收件箱、日志、蓝图）。每个文件可点开阅读器，领域点开领域页，数据源点开接入页 |
+| 入口 | 根目录的 Markdown 和 `协议/*.md` | 文件名、第一个一级标题、正文第一句（最多 60 字，去掉链接和格式）。路由表所在文件标「路由表」（README.md 优先，同 1.2 的规则）；只有一行 `@文件名` 的文件显示「转到 文件名」；`收件箱.md` 归到记录 |
+| 领域 | 与领域页同一套路由：登记的领域加目录里未登记的 | 名称、路径、目录第一层的文件和文件夹、别名数；「未登记」「目录不存在」标记 |
+| 接入 | `我/数据源.md` 的来源表和定时任务表（规格 personalos-sources 第 1 节） | 来源名称、方式、刷新任务数；定时任务按执行方（launchd、Codex、Claude）计数，用途为「忽略」的不计。只给名称和计数，不返回外部路径。没有登记表时说明文件位置 |
+| 记录 | `收件箱.md`、`日志/YYYY-MM.md`、`蓝图/*.md` | 收件箱条目数；日志月份数和最新月份；蓝图逐个列标题和「日期：」行 |
+| 目录结构 | 根目录往下三层 | 树形；隐藏项不列；每个目录最多列 20 项，多的写「还有 N 项」 |
+| 更新记录 | 同页头 | 全部行，新的在上 |
+
+### 15.3 `我/关于.md`
+
+PersonalOS 里的一个普通 Markdown 文件，只放「关于」的更新记录，不写架构内容（架构都从文件结构实时读取），也不记阶段。
+
+- 识别表头含「版本」和「日期」的第一张表；「更新内容」列可以叫「内容」或「说明」。列顺序随意。
+- 版本写成 `v主.次`。日期最新的一行是当前版本；同一天按版本号大的算。日期不合法的行保留原文，排在最后，不当成当前版本。
+- 文件不存在或没有这张表时，页头显示「关于：还没有更新记录」，并写出文件路径；页面其他部分照常显示。
+- **维护规则**：每次升级「关于」页（看板这一页的内容或做法有变化，经 Chris 确认合并后），由 agent 在表格最上面加一行：次版本号加一（v1.0 → v1.1），页面结构大改时主版本加一（v1.3 → v2.0）；日期写完整年月日；更新内容一句话。按 PersonalOS 协议写日志并本地提交。
+
+### 15.4 接口
+
+`GET /api/v1/personalos/about`，返回：
+
+```text
+{ ok, root, exists, generatedAt, routerFile,
+  about: { file, exists, current, changelog: [{ version, date, text, line }] },
+  entries: [{ path, name, title, summary, role: router|rules|redirect|protocol|document, redirect }],
+  domains: [{ id, name, path, registered, exists, aliasCount, children: [{ name, kind }] }],
+  sources: { file, exists, items: [{ name, method, taskCount }], tasks: { total, launchd, codex, claude, other } },
+  records: { inbox: { exists, count }, logs: { count, latest }, blueprints: [{ path, title, date }] },
+  tree: [{ name, path, kind, children?, more? }],
+  warnings }
+```
+
+PersonalOS 不存在时 `exists: false`，其他字段为空。路径都是 PersonalOS 内的相对路径。
+
+### 15.5 测试
+
+- 数据层：虚构 fixture 加 `我/关于.md`（含一行日期不合法、一行顺序打乱）；断言当前版本、排序、入口角色和摘要、路由表在 README.md 和 AGENTS.md 两种情况、领域第一层内容、数据源计数（用接入页 fixture）、隐藏项不出现、读取前后 fixture 哈希不变。
+- 接口：200 与字段；PersonalOS 不存在；不支持的方法 405。
+- 走查：分段控件第 7 项是「关于」；页头版本；点入口文件开阅读器、点领域开领域页、点数据源到接入页；没有 `我/关于.md`、没有数据源登记表、没有 PersonalOS 三种空状态；1440 和 720 宽、浅深色截图，720 宽没有横向溢出。
