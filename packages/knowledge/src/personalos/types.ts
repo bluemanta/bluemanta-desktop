@@ -29,7 +29,7 @@ export interface FileContent extends DocumentFile { content?: string; message?: 
 export interface Matter { name: string; path: string; entry: string | null; files: DocumentFile[] }
 export interface RegistryLocation { kind: 'local' | 'link' | 'other'; display: string; exists?: boolean; url?: string }
 export interface RegistryRow { domain: string; topic: string; title: string; location: RegistryLocation; purpose: string; status: string; source: string }
-export interface InboxEntry { date: string; text: string; line: number }
+export interface InboxEntry { date: string; text: string; line: number; /** The whole line as written, for writes that must match it. */ raw: string }
 export interface LogEntry {
   id: string; kind: 'entry' | 'section'; date: string; domain: string | null; text: string;
   /** Original bracket label when it is not a registered domain name. */
@@ -49,7 +49,7 @@ export interface TodayGroups {
   overdue: Todo[]; dueToday: Todo[]; next7: Todo[]; waiting: Todo[];
   undated: { items: Todo[]; total: number }; later: { count: number; items: Todo[] }; staleDomains: DomainSummary[];
 }
-export interface TodayResult extends TodayGroups { inbox: InboxEntry[]; today: string; warnings: Warning[] }
+export interface TodayResult extends TodayGroups { inbox: InboxEntry[]; /** SHA-256 of 收件箱.md; null when it is missing. */ inboxHash: string | null; today: string; warnings: Warning[] }
 export interface StatInfo { isFile(): boolean; isDirectory(): boolean; size?: number; mtime?: Date }
 /** Used only to check registered external paths; contents are never read. */
 export type StatFunction = (path: string) => unknown;
