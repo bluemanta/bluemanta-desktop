@@ -7,6 +7,7 @@ export type PersonalOsRoute =
   | { view: 'commits'; sha: string | null }
   | { view: 'file'; file: string }
   | { view: 'resources' | 'activity' }
+  | { view: 'about' }
   | { view: 'sources'; tab: 'sources' | 'tasks'; task: string | null }
   | { view: 'arsenal'; topic: string | null; file: string | null }
   | { view: 'search'; query: string };
@@ -14,6 +15,7 @@ export type PersonalOsRoute =
 export const TODAY_PATH = '/knowledge/today';
 export const DOMAINS_PATH = '/knowledge/domains';
 export const domainPath = (id: string): string => `${DOMAINS_PATH}/${encodeURIComponent(id)}`;
+export const ABOUT_PATH = '/knowledge/about';
 export const SOURCES_PATH = '/knowledge/sources';
 export const TASKS_PATH = '/knowledge/sources/tasks';
 /** A task ref such as `launchd:local.example` is one encoded segment. */
@@ -41,6 +43,7 @@ export function parsePersonalOsPath(pathname: string): PersonalOsRoute {
   }
   if (page === 'search') return { view: 'search', query: decode(rest) ?? '' };
   if (page === 'resources' && rest.length === 0) return { view: 'resources' };
+  if (page === 'about' && rest.length === 0) return { view: 'about' };
   if (page === 'sources') {
     if (rest.length === 0) return { view: 'sources', tab: 'sources', task: null };
     if (rest[0] === 'tasks' && rest.length === 1) return { view: 'sources', tab: 'tasks', task: null };

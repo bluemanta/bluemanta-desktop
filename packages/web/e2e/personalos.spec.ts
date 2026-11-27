@@ -25,7 +25,7 @@ test.describe('PersonalOS 今天与领域', () => {
     await expect(page).toHaveURL(/\/knowledge\/today$/);
     await expect(entry).toContainText('3');
     const sections = page.getByRole('group', { name: '知识台页面' });
-    await expect(sections.getByRole('button')).toHaveText(['今天', '领域', '资料', '接入', '动态', '搜索']);
+    await expect(sections.getByRole('button')).toHaveText(['今天', '领域', '资料', '接入', '动态', '搜索', '关于']);
     await expect(page.getByTestId('personalos-focus')).toContainText('社区图书交换');
     await expect(today(page)).toContainText('2026-11-21');
     const expected: Array<[string, number]> = [['已逾期', 2], ['今天到期', 1], ['未来 7 天', 2], ['等待中', 1], ['无日期', 3]];

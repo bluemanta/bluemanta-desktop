@@ -7,7 +7,7 @@ import headerStyles from '../shell/Header.module.css';
 import { KNOWLEDGE_MODULE } from './module';
 import { searchPath } from './paths';
 
-export type KnowledgeSection = 'today' | 'domains' | 'resources' | 'sources' | 'activity' | 'search' | 'topics' | 'inbox';
+export type KnowledgeSection = 'today' | 'domains' | 'resources' | 'sources' | 'activity' | 'search' | 'about' | 'topics' | 'inbox';
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;

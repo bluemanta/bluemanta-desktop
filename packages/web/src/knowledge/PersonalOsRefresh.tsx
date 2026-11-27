@@ -37,7 +37,7 @@ export function ReadTime() {
       route.view==='arsenal'?['knowledge',route.file?'file':route.topic?'topic':'index','arsenal']:
       route.view==='domains' && route.domain?['personalos','domain',route.domain]:
       route.view==='commits'?(route.sha?['pos-git','commit',route.sha]:['pos-git','pages']):
-      ['personalos',route.view==='resources'?'registry':route.view==='activity'?'log':route.view==='today'?'today':'overview'];
+      ['personalos',route.view==='resources'?'registry':route.view==='activity'?'log':route.view==='today'?'today':route.view==='about'?'about':route.view==='sources'?'sources':'overview'];
     return Math.max(0,...cache.findAll({queryKey:keys,type:'active'}).map(q=>q.state.dataUpdatedAt));
   });
   const mode=useSyncExternalStore(subscribe,()=>client.getQueryData<PersonalOsVersionResponse>(versionKey)?.mode);
