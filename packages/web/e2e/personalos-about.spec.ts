@@ -106,6 +106,21 @@ test.describe('关于页', () => {
     await expect(about(page)).toContainText('没有找到 PersonalOS');
   });
 
+  test('内容比窗口高时页面能滚动到底部的更新记录', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 700 });
+    await openFull(page);
+    const changelog = page.getByTestId('about-changelog');
+    await expect(changelog).toBeVisible();
+    await expect(changelog).not.toBeInViewport();
+    const scroll = await about(page).evaluate((node) => ({ overflow: getComputedStyle(node).overflowY, height: node.scrollHeight, client: node.clientHeight }));
+    expect(scroll.overflow).toBe('auto');
+    expect(scroll.height).toBeGreaterThan(scroll.client);
+    await page.mouse.move(700, 400);
+    await page.mouse.wheel(0, 3000);
+    await expect(changelog).toBeInViewport();
+    await expect.poll(() => about(page).evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+  });
+
   test('720 宽：单列，没有横向溢出', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 900 });
     await openSources(page);
