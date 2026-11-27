@@ -40,4 +40,5 @@ export { gitCommit, gitCommits, type GitFile, type GitCommit, type GitListOption
 export { PersonalOsVersion, type VersionMode, type WatchRoot } from './personalos/version.js';
 export { PersonalOsWriter, addPeriod, nextDue, type CompleteTodoInput, type CompleteTodoResult, type QuickNoteResult, type WriteFileChange } from './personalos/write.js';
 export { SourcesReader, type SourcesReaderOptions } from './personalos/sources/index.js';
+export type { PersonalOsAbout, AboutChange as PersonalOsAboutChange, AboutTreeNode as PersonalOsAboutTreeNode } from './personalos/about.js';
 export type { SourcesResult as PersonalOsSources, SourceView as PersonalOsSource, TaskView as PersonalOsTask } from './personalos/sources/types.js';

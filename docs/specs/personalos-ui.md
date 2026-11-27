@@ -503,7 +503,7 @@ PersonalOS 里的一个普通 Markdown 文件，只放「关于」的更新记�
   domains: [{ id, name, path, registered, exists, aliasCount, children: [{ name, kind }] }],
   sources: { file, exists, items: [{ name, method, taskCount }], tasks: { total, launchd, codex, claude, other } },
   records: { inbox: { exists, count }, logs: { count, latest }, blueprints: [{ path, title, date }] },
-  tree: [{ name, path, kind, children?, more? }],
+  tree: [{ name, path, kind, children?, more? }], treeMore,
   warnings }
 ```
 
