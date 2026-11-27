@@ -19,9 +19,9 @@
 
 | 项 | 结果 | 命令与结果 |
 |---|---|---|
-| 构建、类型、单测 | not-run | |
-| 走查 | not-run | |
-| 截图 | not-run | |
-| 只读 | not-run | |
+| 构建、类型、单测 | verified | `env -u BLUEMANTA_TODAY -u BLUEMANTA_KNOWLEDGE_HOME sh -c 'npm run build && npm run check && npm test'` 全部退出 0，单测合计 506 项。新增：数据层 10 项（UTC、纽约、本机上海三个时区都通过），接口 3 项；路由单测加了 2 条断言。加了虚构 `我/关于.md` 后，原有单测全部照常通过。 |
+| 走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough`，一次运行 203 项全部通过，含关于页新用例 9 条（分段第 7 项、页头版本、三层架构、更新记录、点文件开阅读器和 Esc 回焦、点领域、命令面板、接了数据源的计数和跳转、两种空状态、720 宽无溢出、四张截图）；原「六个分段」断言改为七个。 |
+| 截图 | verified | `packages/web/screenshots/personalos-about-{1440,720}-{light,dark}.png`，不提交。抽看 1440 浅色和 720 深色：三层架构、记录列、目录树、更新记录都清楚，720 宽改为单列、没有横向溢出。抽看时发现两处，已修：`CLAUDE.md` 被「转到 AGENTS.md」标签挤成省略号，改为标签写「转向」、正文写「转到 AGENTS.md」；页头「数据读取于」显示「—」，因为读取时间不认识关于页的查询，接入页也有同样问题，一并修好。 |
+| 只读 | verified | 单测「只读」一项：读取前后 fixture 副本的文件哈希和修改时间不变。`about()` 只用 PersonalOS 内的读文件和列目录；数据源登记表用空的 `stat` 解析，不碰外部路径；没有子进程。 |
 | 真实环境核对 | not-run | |
 | 交付检查 | not-run | |
