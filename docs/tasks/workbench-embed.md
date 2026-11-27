@@ -132,11 +132,11 @@ Claude Code 另行验收：
 | 3. 测试 | verified | `npm run test` 退出 0，插件包 99 项（原 73 项），全仓零失败。Codex 在沙箱里报 failed 的原因是不能监听端口、不能运行 `ps`，与代码无关 |
 | 4. dsh:smoke | failed（环境） | 检查 1「插件没有被拒载」PASS。浏览器一步失败：Playwright 1.64 需要的 chromium_headless_shell-1248 本机没装，缓存里只有 1217，main 上同样会失败。下载浏览器属于改动用户环境，未做。浏览器部分改由第 6 项手动覆盖 |
 | 6. 隔离 dsh + 3002 | verified | 用 smoke 留下的隔离 `DSH_HOME`，在 dsh web 模式（3093）里打开，`BLUEMANTA_CONSOLE_URL` 指向 3002 合成数据。主区显示 Console，框为 `name=bluemanta-workbench-main`、带 `data-html-preview`，`src=http://127.0.0.1:3002/dashboard`；框内切到「今天」，数据正常读取。停掉 3002 后重新打开，显示「工作台没有在运行（http://127.0.0.1:3002）…」和「重试」；启动 3002 后点「重试」恢复。灵感台、知识台照常加载 |
-| 7. Desktop 专有行为 | not-run | 快捷键、新窗口链接、红绿灯遮挡只能在 Desktop 里看，留到第 8 项。按 README，左栏收起时 dsh 给主区框发 160px 的避让，Console 不接 `bm:chrome`，页头左上角很可能被挡住 |
-| 8. 真实 3001 只读查看 | not-run | 需要 Chris 同意装进他的 Desktop |
+| 7. Desktop 专有行为 | 部分 verified | 2026-11-28 经 Chris 同意，在他的 Desktop 里临时把插件指向本 worktree 后实测（见第 8 项）。**红绿灯遮挡：确认会挡。** 左栏收起后，红绿灯和 dsh 浮在左上角的「打开侧边栏」「新建会话」两个按钮压在 Console 导航顶部的「SalesOS」标志上；标志只是首页链接，导航本身能用。按 ADR 0016，在 Console 仓库改。**新窗口链接：** not-run。Console 里只有文件预览中 Markdown 的外部链接带 `target="_blank"`，要找一份含外链的真实文件，没有做。**快捷键：** not-run，后台操作工具测不了焦点在框内时的 ⌘ 快捷键 |
+| 8. 真实 3001 只读查看 | verified | Desktop「插件 → 添加插件」不允许同名插件直接换路径，先卸载 main 版、再装 worktree 版并启用。打开「工作台」，主区显示真实 3001（`/dashboard` 跳转到项目页，个人项目和关注队列正常读取）；在框内切到「任务」，23 项任务正常显示。只点了导航，没有点任何写入或确认按钮。框里的 Console 显示「连接团队账号」登录表单：Desktop 和浏览器的登录状态不共用，要看团队项目需在框里另外登录一次，没有代登录。看完后卸载 worktree 版、从 main 路径重装并启用，灵感台、知识台恢复，工作台入口消失。备份的 profile 文件在 `~/Developer/.codex-runs/desktop-install-backup-202611280748/`；恢复后 `package.json` 与备份只差 bundles 列表里本插件的位置（左栏里灵感台挪到了自动化任务下面） |
 
 其他观察：
 - 在 dsh web 模式里，刷新后第一次点左侧栏任一入口（知识台也一样）不会切换，要点第二次。这是宿主的行为，不是本任务引入的。
 - 代码评审没有发现需要返工的问题。Codex 主动把 3001 加进 smoke 的保留端口，探测时只取响应头。
 
-结论：可以合并。合并、装进 Desktop、真实只读查看等 Chris 同意。
+结论：可以合并。Desktop 实测后唯一的已知问题是左栏收起时红绿灯挡住 Console 的标志，在 Console 仓库处理，不阻塞本 PR。合并要 Chris 同意；合并后按 `docs/local-update.md` 退出并重开 Desktop 才会出现工作台。

@@ -29,8 +29,9 @@
 
 ## 待验收时确认
 
-- macOS 左上角红绿灯在侧栏收起时是否挡住 Console 页头。挡住的话，在 Console 仓库改，不在插件里给框加偏移。
-- 框里点 `target="_blank"` 的链接，Desktop 是否正常打开新窗口。
+- macOS 左上角红绿灯在侧栏收起时是否挡住 Console 页头。挡住的话，在 Console 仓库改，不在插件里给框加偏移。**2026-11-28 Desktop 实测：会挡**，红绿灯和 dsh 的两个浮动按钮压在 Console 导航顶部的标志上，待 Console 仓库处理。
+- 框里点 `target="_blank"` 的链接，Desktop 是否正常打开新窗口。未测；Console 里只有文件预览的外部链接用到。
+- Desktop 的登录状态和浏览器不共用：框里的 Console 要另外登录团队账号。
 
 ## 后果
 
