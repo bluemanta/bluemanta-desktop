@@ -18,6 +18,9 @@ const RUNS_ROOT = join(homedir(), 'Developer', '.codex-runs');
 const MODEL = 'gpt-6.2-astra';
 const EFFORT = 'xhigh';
 const MAIN_BRANCHES = new Set(['main', 'master']);
+/** PATH 里的 npm 全局版可能太旧、不认模型名；优先用 ChatGPT 应用自带的 CLI，可用 CODEX_BIN 覆盖。 */
+const BUNDLED_CODEX = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
+const CODEX_BIN = process.env.CODEX_BIN || (existsSync(BUNDLED_CODEX) ? BUNDLED_CODEX : 'codex');
 
 function fail(message) {
   console.error(`codex-worker：${message}`);
@@ -117,7 +120,7 @@ function runCodex(args, prompt, runDir, cwd, round) {
   const events = createWriteStream(eventsPath);
   const stderr = createWriteStream(join(runDir, `stderr${suffix}.log`));
   const started = Date.now();
-  const child = spawn('codex', [...args(reportPath), prompt], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(CODEX_BIN, [...args(reportPath), prompt], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.pipe(events);
   child.stderr.pipe(stderr);
   const stop = () => child.kill('SIGTERM');
@@ -153,8 +156,8 @@ if (command === 'run') {
   mkdirSync(runDir, { recursive: true });
   const prompt = preamble(spec);
   writeFileSync(join(runDir, 'prompt.md'), prompt + '\n');
-  writeFileSync(join(runDir, 'meta.json'), JSON.stringify({ task, cwd, spec, branch, base: git(cwd, ['rev-parse', 'HEAD']).trim(), model: MODEL, effort: EFFORT }, null, 2) + '\n');
-  console.log(`运行目录：${runDir}`);
+  writeFileSync(join(runDir, 'meta.json'), JSON.stringify({ task, cwd, spec, branch, base: git(cwd, ['rev-parse', 'HEAD']).trim(), codex: CODEX_BIN, model: MODEL, effort: EFFORT }, null, 2) + '\n');
+  console.log(`运行目录：${runDir}\ncodex：${CODEX_BIN}`);
   runCodex((report) => ['exec', ...codexArgs(cwd, report)], prompt, runDir, cwd, 0);
 } else if (command === 'resume') {
   const { run, 'message-file': messageFile } = options;
