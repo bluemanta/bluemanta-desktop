@@ -1,5 +1,6 @@
 /* 关于页（规格 personalos-ui 第 15 节）：只用 tokens.css 和 --bmw-* 变量。 */
-.page { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--bm-sp-20); padding: var(--bm-sp-12) var(--bm-sp-8) var(--bm-sp-32); }
+.page { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--bm-sp-20); padding: var(--bm-sp-12) var(--bm-sp-8) var(--bm-sp-32); overflow-y: auto; }
+.page > * { flex: none; }
 .muted { margin: 0; color: var(--bm-text-3); font-size: var(--bm-fs-sm); }
 .muted code, .notice code { font-family: var(--bm-font-mono); font-size: var(--bm-fs-xs); }
 .notice { margin: 0; padding: var(--bm-sp-6) var(--bm-sp-8); border-radius: var(--bm-r); background: var(--bm-warn-soft); color: var(--bm-text-2); font-size: var(--bm-fs-sm); }
