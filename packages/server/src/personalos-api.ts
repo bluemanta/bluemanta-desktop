@@ -4,7 +4,7 @@ import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
   PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse, PersonalOsQuickNoteResponse, PersonalOsCompleteResponse,
-  PersonalOsSourcesResponse, PersonalOsTaskLogResponse,
+  PersonalOsSourcesResponse, PersonalOsTaskLogResponse, PersonalOsAboutResponse,
 } from './api-types.js';
 
 const NO_STORE = { 'cache-control': 'no-store' };
@@ -135,6 +135,12 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c,error); }
   });
 
+  /** 关于页（规格第 15 节）：只读 PersonalOS 内的文件。 */
+  app.get('/personalos/about', (c) => {
+    try { const body: PersonalOsAboutResponse = { ok: true, ...reader.about() }; return c.json(body, 200, NO_STORE); }
+    catch (error) { return readFailure(c, error); }
+  });
+
   app.get('/personalos/sources', async (c) => {
     try { const body: PersonalOsSourcesResponse = { ok: true, ...(await sources.collect()) }; return c.json(body, 200, NO_STORE); }
     catch (error) { return readFailure(c, error); }
@@ -181,7 +187,7 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c, error); }
   });
 
-  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/sources', '/personalos/sources/tasks/:ref/log', '/personalos/inbox', '/personalos/todos/complete']) {
+  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/about', '/personalos/sources', '/personalos/sources/tasks/:ref/log', '/personalos/inbox', '/personalos/todos/complete']) {
     app.all(path, (c) => failure(c, 405, 'method_not_allowed', `不支持 ${c.req.method}`));
   }
   return app;
