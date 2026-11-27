@@ -25,7 +25,7 @@
 | 走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough` 共 209 项，新增 5 条（截图、完成与撤销、`x` 和 `Delete` 键及速记框不受影响、收件箱冲突、不做了的取消/确认/`Delete`/周期说明）。两次全量运行各有 1 项偶发失败，都不在这次改动的页面：第一次是接入页「定时任务段」键盘焦点，单独跑 3 次都通过；第二次是迭代 3 已记录的 `personalos-refresh.spec.ts`「新提交在十秒内出现」高负载超时，单独跑通过。写入走查和今天页走查合跑 32 项全部通过。 |
 | 截图 | verified | `packages/web/screenshots/personalos-inbox-hover-{1440,720}-{light,dark}.png`、`personalos-drop-{1440,720}-{light,dark}.png`、`personalos-inbox-undo-1440-light.png`，不提交。抽看撤销提示条 1440 浅色、不做了确认框 720 深色、收件箱悬停 1440 浅色：按钮、提示条、确认框和差异都清楚，720 宽没有横向溢出。撤销提示条只截了 1440 浅色一张（每截一张都要真写一次再撤销），与规格写的四种组合有出入。 |
 | 写入只碰允许的文件 | verified | 单测断言：收件箱操作只改 `收件箱.md` 和当月日志、提交只含这两个文件，不改任何 `状态.md`；不做了只改该领域 `状态.md` 和当月日志；别的未存档文件（`我/纸船.md`、`领域/写作/纸样.md`）提交后仍是未存档状态。 |
-| D0 PersonalOS 协议 | not-run | 等 Chris 看过附录的写法再写 |
+| D0 PersonalOS 协议 | verified | 2026-11-28 Chris 同意后写入，PersonalOS 提交 `25f5139`。`git show --stat 25f5139` 只含 `协议/更新.md`（+2 行）和 `日志/2026-11.md`（+1 行）；提交后 `git status --short` 仍是开工前就有的收件箱、蓝图输入稿、`tools/`、`协议/微信晨检.md`，没被带进去 |
 | D4 真实试写 | not-run | 需要 Chris 同意 |
 | 交付检查 | 见 PR 评论 | `npm run check:pr`，每次推送后运行 |
 
