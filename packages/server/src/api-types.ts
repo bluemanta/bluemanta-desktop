@@ -433,6 +433,8 @@ export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import
 export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
 export type PersonalOsQuickNoteResponse = { ok: true } & import('@bluemanta/knowledge').QuickNoteResult;
 export type PersonalOsCompleteResponse = { ok: true } & import('@bluemanta/knowledge').CompleteTodoResult;
+/** 关于页（规格 personalos-ui 第 15 节）。 */
+export type PersonalOsAboutResponse = { ok: true } & import('@bluemanta/knowledge').PersonalOsAbout;
 /** 接入页（ADR 0013，规格 personalos-sources 第 4 节）。 */
 export type PersonalOsSourcesResponse = { ok: true } & import('@bluemanta/knowledge').PersonalOsSources;
 export type PersonalOsTaskLogResponse = { ok: true; ref: string; path: string; lines: string[] };

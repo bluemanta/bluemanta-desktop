@@ -5,6 +5,8 @@ import { KnowledgeError } from '../types.js';
 import { abbreviateHome } from '../env.js';
 import { addDays, currentDate, dateDistance, groupTodos, parseInbox, parseLog, parseRegistry, parseRouter, parseStatus, todoBucket, validDate } from './parse.js';
 import { isPersonalOsDirectory, listPersonalOsFiles, normalizePersonalOsPath, personalOsExists, readPersonalOsFile, walkPersonalOsFiles } from './files.js';
+import { ABOUT_FILE, aboutDomain, aboutSources, aboutTree, blueprintInfo, documentSummary, entryRole, parseAboutChangelog, redirectTarget, type AboutEntry, type PersonalOsAbout } from './about.js';
+import { REGISTRY_FILE } from './sources/registry.js';
 import type { Availability, DocumentFile, DomainDetail, InboxEntry, LogOptions, LogResult, Matter, Overview, PersonalOsReaderOptions, RegistryRow, Route, Router, StatFunction, TodayResult, Warning } from './types.js';
 
 export function contentHash(content: string): string { return createHash('sha256').update(content, 'utf8').digest('hex'); }
@@ -137,6 +139,43 @@ export class PersonalOsReader {
     return { items: eligible.filter((item) => dateOf(item.date) >= start), hasMore: eligible.some((item) => dateOf(item.date) < start), warnings };
   }
   file(path: string): ReturnType<typeof readPersonalOsFile> { this.requireRoot(); return readPersonalOsFile(this.root, path); }
+  /** 关于页（规格第 15 节）：只读 PersonalOS 内的文件，不跑子进程、不碰外部路径。 */
+  about(): PersonalOsAbout {
+    const generatedAt = new Date().toISOString(); const root = abbreviateHome(this.root, this.home);
+    if (!personalOsExists(this.root)) {
+      return { root, exists: false, generatedAt, routerFile: 'README.md', about: { file: ABOUT_FILE, exists: false, current: null, changelog: [] }, entries: [], domains: [],
+        sources: aboutSources(null), records: { inbox: { exists: false, count: 0 }, logs: { count: 0, latest: null }, blueprints: [] }, tree: [], treeMore: 0,
+        warnings: [{ code: 'library_missing', message: '没有找到 PersonalOS' }] };
+    }
+    const warnings: Warning[] = []; const routes = this.routes(warnings); warnings.push(...routes.warnings);
+    const optional = (path: string): string | null => { const file = this.markdown(path, warnings, true); return file.availability === 'missing' ? null : file.content; };
+    const list = (path: string) => listPersonalOsFiles(this.root, path, warnings);
+
+    const aboutText = optional(ABOUT_FILE); const changelog = parseAboutChangelog(aboutText ?? '');
+    if (aboutText !== null && !changelog.found) warnings.push({ code: 'about_table_missing', message: '没有找到含「版本」「日期」的更新记录表', file: ABOUT_FILE });
+
+    const order: AboutEntry['role'][] = ['router', 'rules', 'document', 'redirect', 'protocol'];
+    const entries = [...list('').filter((file) => file.kind === 'markdown' && file.name !== '收件箱.md'), ...list('协议').filter((file) => file.kind === 'markdown')].map((file): AboutEntry => {
+      const content = this.markdown(file.path, warnings).content; const redirect = redirectTarget(content);
+      return { path: file.path, name: file.name, ...documentSummary(content), role: entryRole(file.path, routes.file, redirect), redirect };
+    }).sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+
+    const domains = routes.domains.map((route) => {
+      const exists = isPersonalOsDirectory(this.root, route.path);
+      return aboutDomain(route, exists, exists ? list(route.path) : []);
+    });
+    const inbox = optional('收件箱.md');
+    const logs = list('日志').filter((file) => /^\d{4}-\d{2}\.md$/.test(file.name)).map((file) => file.name.slice(0, 7)).sort();
+    const blueprints = list('蓝图').filter((file) => file.kind === 'markdown').map((file) => blueprintInfo(file.path, this.markdown(file.path, warnings).content));
+    const tree = aboutTree(list);
+    return {
+      root, exists: true, generatedAt, routerFile: routes.file,
+      about: { file: ABOUT_FILE, exists: aboutText !== null, current: changelog.current, changelog: changelog.changelog },
+      entries, domains, sources: aboutSources(optional(REGISTRY_FILE)),
+      records: { inbox: { exists: inbox !== null, count: inbox === null ? 0 : parseInbox(inbox).length }, logs: { count: logs.length, latest: logs.at(-1) ?? null }, blueprints },
+      tree: tree.nodes, treeMore: tree.more, warnings,
+    };
+  }
   /** Root-level explanatory documents, without hidden paths or the CLAUDE.md redirect. */
   documents(): DocumentFile[] {
     this.requireRoot(); const roots = listPersonalOsFiles(this.root).filter((entry) => entry.kind === 'markdown' && entry.name !== 'CLAUDE.md');

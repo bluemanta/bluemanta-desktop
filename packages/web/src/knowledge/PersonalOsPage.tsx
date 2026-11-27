@@ -18,6 +18,7 @@ import { PersonalOsMissing as Missing, PersonalOsReadWarning as ReadWarning } fr
 import { useSearch } from 'wouter';
 import { QuickNote, TodoCheck, useCompleteTodo } from './PersonalOsWrite';
 import { PersonalOsSourcesView, SourcesAlert } from './PersonalOsSources';
+import { PersonalOsAboutView } from './PersonalOsAbout';
 import { DOMAINS_PATH, domainPath, personalOsFilePath, personalOsTarget, type PersonalOsRoute } from './personalos-paths';
 import shared from './Knowledge.module.css';
 import styles from './PersonalOsPages.module.css';
@@ -206,5 +207,6 @@ export function PersonalOsPage({ route }: { route: PageRoute }) {
   if (route.view === 'today') return <TodayView />;
   if (route.view === 'domains' || route.view === 'file') return <DomainsView route={route} />;
   if (route.view === 'sources') return <PersonalOsSourcesView tab={route.tab} task={route.task} />;
+  if (route.view === 'about') return <PersonalOsAboutView />;
   return <PageFrame section={route.view} onClose={() => {}}>{route.view === 'resources' ? <PersonalOsResources /> : <PersonalOsActivity />}</PageFrame>;
 }

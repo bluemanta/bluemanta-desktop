@@ -1,4 +1,4 @@
-import type {
+import type { PersonalOsAboutResponse,
   KnowledgeFileResponse,
   PersonalOsOverviewResponse,
   PersonalOsTodayResponse,
@@ -99,6 +99,7 @@ export const personalOsKeys = {
   today: ['personalos', 'today'] as const,
   domain: (id: string) => ['personalos', 'domain', id] as const,
   registry: ['personalos', 'registry'] as const,
+  about: ['personalos', 'about'] as const,
   sources: ['personalos', 'sources'] as const,
   taskLog: (ref: string) => ['personalos', 'sources', 'log', ref] as const,
   log: (domains: readonly string[], before: string | null, includeUnassigned = false) => ['personalos', 'log', [...domains].sort(), before, includeUnassigned] as const,
@@ -160,6 +161,15 @@ export function usePersonalOsLogPages(domains:readonly string[], cursors:readonl
     return {queryKey:personalOsKeys.log(domains,before,unassigned),staleTime:STALE_MS,refetchInterval:STALE_MS,
       queryFn:({signal}:{signal:AbortSignal})=>apiJson<PersonalOsLogResponse>(`/api/v1/personalos/log?${params}`,{signal})};
   })});
+}
+
+/** 关于页（规格第 15 节）：随 PersonalOS 版本号自动刷新。 */
+export function usePersonalOsAbout() {
+  return useQuery({
+    queryKey: personalOsKeys.about,
+    queryFn: ({ signal }) => apiJson<PersonalOsAboutResponse>('/api/v1/personalos/about', { signal }),
+    staleTime: STALE_MS, refetchInterval: STALE_MS,
+  });
 }
 
 /** 接入页（ADR 0013）：每 60 秒刷新一次，不监听文件（规格 personalos-sources 第 4 节）。 */

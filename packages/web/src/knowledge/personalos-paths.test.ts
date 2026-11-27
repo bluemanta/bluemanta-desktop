@@ -16,6 +16,8 @@ describe('PersonalOS 路由与历史书签', () => {
     expect(parsePersonalOsPath('/knowledge/resources/arsenal')).toEqual({ view: 'arsenal', topic: null, file: null });
     expect(parsePersonalOsPath('/knowledge/search/%E6%90%9C%E7%B4%A2%20%E8%AF%8D')).toEqual({ view: 'search', query: '搜索 词' });
     expect(parsePersonalOsPath('/knowledge/today?embed=main')).toEqual({ view: 'today' });
+    expect(parsePersonalOsPath('/knowledge/about')).toEqual({ view: 'about' });
+    expect(parsePersonalOsPath('/knowledge/about/x')).toEqual({ view: 'redirect', to: TODAY_PATH });
   });
   it('异常编码不抛错，状态文件优先按路由领域名打开，其余文件进阅读器', () => {
     expect(parsePersonalOsPath('/knowledge/domains/%E0%A4%A')).toEqual({ view: 'redirect', to: TODAY_PATH });
