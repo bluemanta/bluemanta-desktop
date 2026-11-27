@@ -17,6 +17,7 @@ const PATHS = {
   ),
   extension: <path d="M5 4v7a4 4 0 0 0 4 4h10M15 11l4 4-4 4" />,
   close: <path d="M6 6l12 12M18 6 6 18" />,
+  check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   left: <path d="m15 5-7 7 7 7" />,
   right: <path d="m9 5 7 7-7 7" />,
   back: <path d="M19 12H5M11 6l-6 6 6 6" />,

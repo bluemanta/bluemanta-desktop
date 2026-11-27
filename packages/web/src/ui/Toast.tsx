@@ -5,7 +5,8 @@ const TOAST_MS = 4_000;
 
 export type ToastAction = { label: string; onClick: () => void };
 
-type ToastApi = { show: (text: string, action?: ToastAction) => void };
+/** `durationMs` lets a reversible write keep its「撤销」up longer than the default 4 seconds. */
+type ToastApi = { show: (text: string, action?: ToastAction, durationMs?: number) => void };
 
 const ToastContext = createContext<ToastApi>({ show: () => {} });
 
@@ -18,10 +19,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<{ text: string; key: number; action?: ToastAction } | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const show = useCallback((text: string, action?: ToastAction) => {
+  const show = useCallback((text: string, action?: ToastAction, durationMs = TOAST_MS) => {
     window.clearTimeout(timer.current);
     setMessage({ text, key: Date.now(), action });
-    timer.current = window.setTimeout(() => setMessage(null), TOAST_MS);
+    timer.current = window.setTimeout(() => setMessage(null), durationMs);
   }, []);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
