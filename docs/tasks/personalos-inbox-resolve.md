@@ -21,13 +21,18 @@
 
 | 项 | 结果 | 命令与结果 |
 |---|---|---|
-| 构建、类型、单测 | not-run | |
-| 走查 | not-run | |
-| 截图 | not-run | |
-| 写入只碰允许的文件 | not-run | |
-| D0 PersonalOS 协议 | not-run | |
-| D4 真实试写 | not-run | |
-| 交付检查 | not-run | |
+| 构建、类型、单测 | verified | `env -u BLUEMANTA_TODAY -u BLUEMANTA_KNOWLEDGE_HOME sh -c 'npm run build && npm run check && npm test'` 全部退出 0，单测合计 524 项（原 506 项）。新增：数据层 16 项（`personalos-inbox-resolve.test.ts`：today 带 `inboxHash` 和 `raw`；完成、不跟踪、手机追加行一起提交、日志有改动时不提交、400/404/409、并发、撤销及文件已变时的两条警告、撤销参数校验；不做了的 dry-run 差异、普通/等待/周期事项、400/409；没有 Git 时保留 CRLF 和新建当月日志），接口 2 项。原收件箱解析单测改为断言带 `raw`。 |
+| 走查 | verified | `BLUEMANTA_PW_CHANNEL=chrome npm run walkthrough` 共 209 项，新增 5 条（截图、完成与撤销、`x` 和 `Delete` 键及速记框不受影响、收件箱冲突、不做了的取消/确认/`Delete`/周期说明）。两次全量运行各有 1 项偶发失败，都不在这次改动的页面：第一次是接入页「定时任务段」键盘焦点，单独跑 3 次都通过；第二次是迭代 3 已记录的 `personalos-refresh.spec.ts`「新提交在十秒内出现」高负载超时，单独跑通过。写入走查和今天页走查合跑 32 项全部通过。 |
+| 截图 | verified | `packages/web/screenshots/personalos-inbox-hover-{1440,720}-{light,dark}.png`、`personalos-drop-{1440,720}-{light,dark}.png`、`personalos-inbox-undo-1440-light.png`，不提交。抽看撤销提示条 1440 浅色、不做了确认框 720 深色、收件箱悬停 1440 浅色：按钮、提示条、确认框和差异都清楚，720 宽没有横向溢出。撤销提示条只截了 1440 浅色一张（每截一张都要真写一次再撤销），与规格写的四种组合有出入。 |
+| 写入只碰允许的文件 | verified | 单测断言：收件箱操作只改 `收件箱.md` 和当月日志、提交只含这两个文件，不改任何 `状态.md`；不做了只改该领域 `状态.md` 和当月日志；别的未存档文件（`我/纸船.md`、`领域/写作/纸样.md`）提交后仍是未存档状态。 |
+| D0 PersonalOS 协议 | not-run | 等 Chris 看过附录的写法再写 |
+| D4 真实试写 | not-run | 需要 Chris 同意 |
+| 交付检查 | 见 PR 评论 | `npm run check:pr`，每次推送后运行 |
+
+## 和规格的出入
+
+- 按钮的无障碍名称带上事项文本（「完成：…」「不跟踪：…」「不做了：…」），和已有的完成复选框一致；规格 16.4 写的是只有动作名。悬停提示仍是「完成」「不跟踪」「不做了」。
+- 今天页收件箱的说明行原来写「晨间简报时由 agent 分拣」，自动分拣上线后已不准确，改为「每天 07:30 自动分拣；顺手做完的点 ✓，不用跟的点 ✕」，规格第 3 节同步改了。
 
 ## 附录：`协议/更新.md` 第 2 步加的两条
 
