@@ -103,11 +103,13 @@ export class PersonalOsReader {
       warnings, file, sections: parsed.sections, todos, changes: parsed.changes, links: parsed.links, mounts: parsed.mounts,
       registry: exists ? this.registryFor(route, warnings) : [], matters, knowledge, files, markdown: parsed.markdown };
   }
-  private snapshot(): { today: string; about: string; routerFile: Router['file']; domains: DomainDetail[]; inbox: InboxEntry[]; warnings: Warning[] } {
+  private snapshot(): { today: string; about: string; routerFile: Router['file']; domains: DomainDetail[]; inbox: InboxEntry[]; inboxHash: string | null; warnings: Warning[] } {
     this.requireRoot(); const today = this.date(); const warnings: Warning[] = []; const routes = this.routes(warnings);
     const domains = routes.domains.map((route) => this.detail(route, today)); warnings.push(...domains.flatMap((domain) => domain.warnings));
-    const inbox = parseInbox(this.markdown('收件箱.md', warnings, true).content);
-    return { today, about: routes.about, routerFile: routes.file, domains, inbox, warnings };
+    const inboxFile = this.markdown('收件箱.md', warnings, true);
+    const inbox = parseInbox(inboxFile.content);
+    const inboxHash = inboxFile.availability === 'available' ? contentHash(inboxFile.content) : null;
+    return { today, about: routes.about, routerFile: routes.file, domains, inbox, inboxHash, warnings };
   }
   overview(): Overview {
     if (!personalOsExists(this.root)) return { root: abbreviateHome(this.root, this.home), exists: false, today: this.date(), about: '', routerFile: 'AGENTS.md', focus: [], domains: [], inbox: 0, warnings: [{ code: 'library_missing', message: '没有找到 PersonalOS' }] };
@@ -117,7 +119,7 @@ export class PersonalOsReader {
   }
   today(): TodayResult {
     const state = this.snapshot();
-    return { ...groupTodos(state.domains.flatMap((domain) => domain.todos), state.domains.map(summary), state.today), inbox: state.inbox, today: state.today, warnings: state.warnings };
+    return { ...groupTodos(state.domains.flatMap((domain) => domain.todos), state.domains.map(summary), state.today), inbox: state.inbox, inboxHash: state.inboxHash, today: state.today, warnings: state.warnings };
   }
   domain(id: string): DomainDetail {
     this.requireRoot(); const warnings: Warning[] = []; const route = this.routes(warnings).domains.find((domain) => domain.id === id);

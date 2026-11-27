@@ -38,7 +38,7 @@ export { PersonalOsReader, parseRouter, parseStatus, parseTodos, parseRegistry, 
 export type { Overview as PersonalOsOverview, TodayResult as PersonalOsToday, DomainSummary as PersonalOsDomainSummary, DomainDetail as PersonalOsDomain, Todo as PersonalOsTodo, RegistryRow as PersonalOsRegistryRow, LogResult as PersonalOsLog, FileContent as PersonalOsFile, DocumentFile as PersonalOsDocument, LogOptions as PersonalOsLogOptions } from './personalos/types.js';
 export { gitCommit, gitCommits, type GitFile, type GitCommit, type GitListOptions } from './personalos/git.js';
 export { PersonalOsVersion, type VersionMode, type WatchRoot } from './personalos/version.js';
-export { PersonalOsWriter, addPeriod, nextDue, type CompleteTodoInput, type CompleteTodoResult, type QuickNoteResult, type WriteFileChange } from './personalos/write.js';
+export { PersonalOsWriter, addPeriod, nextDue, type CompleteTodoInput, type CompleteTodoResult, type QuickNoteResult, type WriteFileChange, type InboxAction, type ResolveInboxInput, type ResolveInboxResult, type UndoInboxInput, type UndoInboxResult, type InboxUndo, type CommitReason } from './personalos/write.js';
 export { SourcesReader, type SourcesReaderOptions } from './personalos/sources/index.js';
 export type { PersonalOsAbout, AboutChange as PersonalOsAboutChange, AboutTreeNode as PersonalOsAboutTreeNode } from './personalos/about.js';
 export type { SourcesResult as PersonalOsSources, SourceView as PersonalOsSource, TaskView as PersonalOsTask } from './personalos/sources/types.js';

@@ -193,7 +193,7 @@ export function parseRegistry(markdown: string, options: { domain: string; file:
 export function parseInbox(markdown: string): InboxEntry[] {
   return visibleLines(markdown).flatMap((row) => {
     const match = row.fenced ? null : /^\s*- (\d{4}-\d{2}-\d{2})\s+(.+)$/.exec(row.text);
-    return match && validDate(match[1]!) ? [{ date: match[1]!, text: match[2]!, line: row.line }] : [];
+    return match && validDate(match[1]!) ? [{ date: match[1]!, text: match[2]!, line: row.line, raw: row.text }] : [];
   });
 }
 export function parseLog(markdown: string, file: string, domainNames: readonly string[] = []): LogEntry[] {

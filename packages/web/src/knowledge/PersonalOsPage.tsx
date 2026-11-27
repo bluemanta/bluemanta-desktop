@@ -16,7 +16,7 @@ import { CommitView } from './PersonalOsGit';
 import { PersonalOsActivity, PersonalOsResources } from './PersonalOsCollections';
 import { PersonalOsMissing as Missing, PersonalOsReadWarning as ReadWarning } from './PersonalOsReadState';
 import { useSearch } from 'wouter';
-import { QuickNote, TodoCheck, useCompleteTodo } from './PersonalOsWrite';
+import { DropButton, InboxRow, QuickNote, TodoCheck, useCompleteTodo, useDropTodo, useInboxResolve } from './PersonalOsWrite';
 import { PersonalOsSourcesView, SourcesAlert } from './PersonalOsSources';
 import { PersonalOsAboutView } from './PersonalOsAbout';
 import { DOMAINS_PATH, domainPath, personalOsFilePath, personalOsTarget, type PersonalOsRoute } from './personalos-paths';
@@ -89,14 +89,16 @@ export function PageFrame({ section, detail, onClose, children, sidebarFallback 
   </Shell>;
 }
 
-function TodoRow({ todo, today, selected, onOpen, onFile, onComplete }: { todo: Todo; today: string; selected: boolean; onOpen: () => void; onFile: (path: string, anchor?: string) => void; onComplete: (todo: Todo) => void }) {
+function TodoRow({ todo, today, selected, onOpen, onFile, onComplete, onDrop }: { todo: Todo; today: string; selected: boolean; onOpen: () => void; onFile: (path: string, anchor?: string) => void; onComplete: (todo: Todo) => void; onDrop: (todo: Todo) => void }) {
   return <div role="option" aria-selected={selected} tabIndex={0} data-pos-focus data-testid="personalos-todo" data-todo-id={todo.id}
     className={`${listStyles.row} ${styles.todo}`} title={todo.text}
     onClick={(event) => { if (!(event.target instanceof Element && event.target.closest('a'))) onOpen(); }}
     onKeyDown={(event) => {
       if (event.target !== event.currentTarget) return;
       if (event.key === 'Enter') { event.preventDefault(); onOpen(); }
-      if (event.key === 'x' && !event.metaKey && !event.ctrlKey && !event.altKey) { event.preventDefault(); onComplete(todo); }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === 'x') { event.preventDefault(); onComplete(todo); }
+      if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); onDrop(todo); }
     }}>
     <TodoCheck todo={todo} onComplete={onComplete} />
     <span className={styles.todoText}><InlineMarkdown source={todo.text} basePath={todo.file} onOpen={onFile} /></span>
@@ -106,13 +108,14 @@ function TodoRow({ todo, today, selected, onOpen, onFile, onComplete }: { todo: 
     {todo.warnings.length ? <span className={styles.warn} title={todo.warnings.map((warning) => warning.message).join('；')}>日期待核对</span> : null}
     <span className={styles.due} data-overdue={todo.bucket === 'overdue'}>{dueLabel(todo, today)}</span>
     <span className={styles.domainTag}>{todo.domain}</span>
+    <DropButton todo={todo} onDrop={onDrop} />
   </div>;
 }
 
 function TodayView() {
   const overview = usePersonalOsOverview(); const today = usePersonalOsToday();
   const [selected, setSelected] = useState<Selected>(null); const list = useRef<HTMLDivElement>(null);
-  const navigate = useAppNavigate(); const complete = useCompleteTodo();
+  const navigate = useAppNavigate(); const complete = useCompleteTodo(); const drop = useDropTodo();
   const noteFocus = new URLSearchParams(useSearch()).get('note') === '1';
   const close = useCallback(() => {
     const id = selected?.todoId;
@@ -121,12 +124,13 @@ function TodayView() {
   }, [selected]);
   useNavigationKeys(list, false, selected ? close : null);
   const data = today.data;
+  const inbox = useInboxResolve(data?.inboxHash ?? null);
   const openFile = (path: string, anchor?: string) => navigate(personalOsTarget(path, overview.data?.domains), { state: anchor ? { knowledgeHeading: anchor } : undefined });
   const detail = selected ? <PersonalOsDomainDetail id={selected.domain} todoId={selected.todoId} onOpen={openFile} onReadFile={(path) => navigate(personalOsFilePath(path))} /> : null;
   const renderGroup = (label: string, items: Todo[], total = items.length) => items.length ? <section key={label} aria-label={label}>
     <h2 className={`${listStyles.group} ${styles.group}`} data-overdue={label === '已逾期'}>{label}<span className={listStyles.groupCount}>{total}</span></h2>
     <div role="listbox" aria-label={`${label}事项`}>
-      {items.map((todo) => <TodoRow key={todo.id} todo={todo} today={data?.today ?? ''} selected={selected?.todoId === todo.id} onOpen={() => setSelected({ domain: todo.domain, todoId: todo.id })} onFile={openFile} onComplete={complete.start} />)}
+      {items.map((todo) => <TodoRow key={todo.id} todo={todo} today={data?.today ?? ''} selected={selected?.todoId === todo.id} onOpen={() => setSelected({ domain: todo.domain, todoId: todo.id })} onFile={openFile} onComplete={complete.start} onDrop={drop.start} />)}
     </div>
     {total > items.length ? <p className={styles.more}>还有 {total - items.length} 条</p> : null}
   </section> : null;
@@ -149,13 +153,14 @@ function TodayView() {
           {renderGroup('未来 7 天', data.next7)}
           {renderGroup('等待中', data.waiting)}
           {renderGroup('无日期', data.undated.items, data.undated.total)}
-          {data.later.count ? <section aria-label="更晚"><details className={styles.later}><summary>更晚 <span>{data.later.count}</span></summary><div role="listbox" aria-label="更晚事项">{data.later.items.map((todo) => <TodoRow key={todo.id} todo={todo} today={data.today} selected={selected?.todoId === todo.id} onOpen={() => setSelected({ domain: todo.domain, todoId: todo.id })} onFile={openFile} onComplete={complete.start} />)}</div></details></section> : null}
+          {data.later.count ? <section aria-label="更晚"><details className={styles.later}><summary>更晚 <span>{data.later.count}</span></summary><div role="listbox" aria-label="更晚事项">{data.later.items.map((todo) => <TodoRow key={todo.id} todo={todo} today={data.today} selected={selected?.todoId === todo.id} onOpen={() => setSelected({ domain: todo.domain, todoId: todo.id })} onFile={openFile} onComplete={complete.start} onDrop={drop.start} />)}</div></details></section> : null}
           {data.staleDomains.length ? <section aria-label="需要留意"><h2 className={`${listStyles.group} ${styles.group}`}>需要留意</h2><div className={styles.stale}>{data.staleDomains.map((domain) => <button key={domain.id} className={styles.staleItem} onClick={() => setSelected({ domain: domain.id })}>{domain.name}<span>{domain.staleDays === null ? '没有更新日期' : `${domain.staleDays} 天未更新`}</span>{domain.exists ? null : <span>目录不存在</span>}</button>)}</div></section> : null}
-          <section aria-label="收件箱"><h2 className={`${listStyles.group} ${styles.group}`}>收件箱<span className={listStyles.groupCount}>{data.inbox.length}</span></h2><QuickNote today={data.today} focus={noteFocus} /><p className={styles.note}>晨间简报时由 agent 分拣</p>{data.inbox.length ? <ul className={styles.inbox}>{data.inbox.map((entry) => <li key={`${entry.date}:${entry.line}`}><time>{entry.date}</time><span>{entry.text}</span></li>)}</ul> : null}</section>
+          <section aria-label="收件箱"><h2 className={`${listStyles.group} ${styles.group}`}>收件箱<span className={listStyles.groupCount}>{data.inbox.length}</span></h2><QuickNote today={data.today} focus={noteFocus} /><p className={styles.note}>每天 07:30 自动分拣；顺手做完的点 ✓，不用跟的点 ✕</p>{data.inbox.length ? <div role="listbox" aria-label="收件箱条目" className={styles.inbox}>{data.inbox.filter((entry) => !inbox.hidden.has(entry.raw)).map((entry) => <InboxRow key={`${entry.line}:${entry.raw}`} entry={entry} onResolve={inbox.resolve} />)}</div> : null}</section>
         </> : null}
       </>}
     </div>
   {complete.dialog}
+  {drop.dialog}
   </PageFrame>;
 }
 
