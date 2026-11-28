@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KNOWLEDGE_READ_TOOL, KNOWLEDGE_ROUTE_TOOL, KNOWLEDGE_SEARCH_TOOL, PERSONALOS_TODAY_TOOL } from '@bluemanta/cli/knowledge-tools';
 import { defaultKnowledgeEnv } from '@bluemanta/knowledge';
 import type { FetchRoute, HostContext, ToolRegistration } from '../src/context.js';
@@ -17,6 +17,7 @@ import {
   inject,
   name,
   WEB_CONFIG_PATH,
+  WORKBENCH_CONFIG_PATH,
   type LocalServer,
 } from '../src/index.js';
 
@@ -40,13 +41,14 @@ describe('宿主插件', () => {
   const dirs: string[] = [];
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     while (dirs.length > 0) {
       const dir = dirs.pop();
       if (dir) rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('只注册 web-config，保留灵感与知识工具，卸载时停掉自己拉起的服务', async () => {
+  it('注册两个配置路由，保留灵感与知识工具，卸载时释放路由并停止自有服务', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'bluemanta-host-'));
     dirs.push(dir);
     const routes: FetchRoute[] = [];
@@ -90,7 +92,10 @@ describe('宿主插件', () => {
     };
 
     try {
-      apply(ctx, { dataDir: dir, server, knowledgeEnv: defaultKnowledgeEnv({ home: KNOWLEDGE_FIXTURE_HOME }) });
+      const consoleUrl = 'http://localhost:3002/dashboard';
+      vi.stubEnv('BLUEMANTA_CONSOLE_URL', consoleUrl);
+      const consoleFetch = vi.fn<typeof fetch>().mockResolvedValue(new Response());
+      apply(ctx, { dataDir: dir, server, consoleFetch, knowledgeEnv: defaultKnowledgeEnv({ home: KNOWLEDGE_FIXTURE_HOME }) });
       expect(name).toBe('bluemanta');
       expect(inject).toEqual(['connection', 'tools']);
       expect(tools.map((tool) => tool.name)).toEqual([
@@ -116,6 +121,7 @@ describe('宿主插件', () => {
       expect(existsSync(join(dir, 'knowledge-index.sqlite'))).toBe(true);
       expect(routes.map((route) => ({ path: route.path, method: route.methods[0], body: route.requestBody }))).toEqual([
         { path: WEB_CONFIG_PATH, method: 'GET', body: 'buffered' },
+        { path: '/' + WORKBENCH_CONFIG_PATH, method: 'GET', body: 'buffered' },
       ]);
 
       const configFetch = routes[0]?.fetch;
@@ -125,6 +131,11 @@ describe('宿主插件', () => {
         ok: false,
         reason: '本地服务没有启动：端口 4310 被其他程序占用',
       });
+      expect(consoleFetch).not.toHaveBeenCalled();
+      const workbench = await routes[1]?.fetch(new Request('http://localhost/api/bluemanta/workbench-config'));
+      expect(workbench?.headers.get('cache-control')).toBe('no-store');
+      await expect(workbench?.json()).resolves.toEqual({ ok: true, url: consoleUrl });
+      expect(consoleFetch).toHaveBeenCalledTimes(1);
 
       for (const cleanup of cleanups) cleanup();
       cleanups.length = 0;

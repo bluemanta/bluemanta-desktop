@@ -524,6 +524,14 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
   return { kind: 'error', message: text || '调用失败' };
 }
 
+const WORKBENCH_PANEL_ID = 'bluemanta.workbench';
+const WORKBENCH_FRAME_NAME = 'bluemanta-workbench-main';
+const WORKBENCH_CONFIG_ROUTE = 'api/bluemanta/workbench-config';
+
+function workbenchFrameAttrs() {
+  return { 'data-html-preview': '', name: WORKBENCH_FRAME_NAME };
+}
+
     function snapshotTabs(sidebarRight) {
       try {
         const source = sidebarRight && sidebarRight.openTabs
@@ -1142,6 +1150,61 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
       return h(WebFrame, { embed: 'main', path: '/knowledge', label: '知识台' })
     }
 
+    function WorkbenchIcon({ size = 16 }) {
+      return h('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true,
+      },
+      h('rect', { x: 3, y: 4, width: 18, height: 13, rx: 2 }),
+      h('path', { d: 'M12 17v4m-4 0h8' }))
+    }
+
+    function WorkbenchMainPage() {
+      const [config, setConfig] = React.useState(null)
+      const [attempt, setAttempt] = React.useState(0)
+      const [loaded, setLoaded] = React.useState(false)
+      React.useEffect(() => {
+        let alive = true
+        fetch(WORKBENCH_CONFIG_ROUTE, { cache: 'no-store' }).then((response) => response.json()).then((body) => {
+          if (!alive) return
+          if (body && body.ok === true && body.url) setConfig({ ok: true, url: body.url })
+          else setConfig({ ok: false, reason: (body && body.reason) || '读取工作台配置失败。' })
+        }).catch((error) => {
+          if (alive) setConfig({ ok: false, reason: '读取工作台配置失败：' + String(error.message || error) })
+        })
+        return () => { alive = false }
+      }, [attempt])
+
+      function retry() {
+        setConfig(null)
+        setLoaded(false)
+        setAttempt((value) => value + 1)
+      }
+
+      const boxStyle = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, position: 'relative' }
+      if (config && !config.ok) {
+        return h('div', { style: { ...boxStyle, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 } },
+          h('p', { style: { margin: 0, color: 'var(--dsw-alias-label-primary)', textAlign: 'center' } }, config.reason),
+          h('button', {
+            type: 'button',
+            onClick: retry,
+            style: {
+              border: '1px solid var(--dsw-alias-border-l3)', background: 'transparent',
+              color: 'var(--dsw-alias-label-primary)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
+            },
+          }, '重试'))
+      }
+      return h('div', { style: boxStyle },
+        !loaded ? h('p', { style: { margin: 0, padding: 16, color: 'var(--dsw-alias-label-secondary)' } }, '正在打开工作台…') : null,
+        config ? h('iframe', {
+          src: config.url,
+          title: '工作台',
+          ...workbenchFrameAttrs(),
+          style: { flex: '1 1 auto', width: '100%', height: '100%', border: 0, background: 'transparent' },
+          onLoad: () => setLoaded(true),
+        }) : null)
+    }
+
     return {
       inject: ['slots', 'sidebarRightTabs', 'sidebarRight', 'sessions'],
       apply(ctx) {
@@ -1159,6 +1222,10 @@ function knowledgeToolCard(toolName, phase, args, resultText, isError) {
         }, IdeasIcon))
         registerIdeaSidebar(ctx)
         registerKnowledge(ctx)
+        ctx.slots.inject('main', () => ctx.slots.register({ name: 'main', key: WORKBENCH_PANEL_ID }, WorkbenchMainPage))
+        ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+          name: 'sidebar.panellist', id: WORKBENCH_PANEL_ID, order: 12, label: '工作台',
+        }, WorkbenchIcon))
         ctx.effect(() => {
           const onMessage = (event) => handleBridgeMessage(event)
           window.addEventListener('message', onMessage)

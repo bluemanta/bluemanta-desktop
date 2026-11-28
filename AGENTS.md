@@ -13,6 +13,7 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 - **Cursor**：产品代码实现者（Skill 台、知识台以外的任务）。从 Linear「BlueManta-Desktop」项目领取委派给自己的 issue，一次一个。
 - **Codex**：Skill 台的实现者，同样从 Linear 领取委派给自己的 issue。先读 [docs/skill-desk-handoff.md](docs/skill-desk-handoff.md)。
 - **Claude Code**：项目经理。规划、写说明书、委派任务、处理技术阻塞、技术验证（`spikes/`）、验收、合并。阶段 3 知识台第一版由 Claude Code 自己实现（ADR 0009 决定 10）。PersonalOS 看板迭代 1、2 由 Codex 实现，2026-11-22 起由 Claude Code 自己实现（[ADR 0012](docs/decisions/0012-personalos-desk-claude-implements.md)）：不经 Linear，规则在 `docs/specs/personalos-ui.md`，任务和验收记录在 `docs/tasks/personalos-*.md`，在本机 worktree `~/Developer/bm-pos` 开发。
+- **Codex（本机派发）**：2026-11-28 起试行，由 Claude Code 用 `scripts/codex-worker.mjs` 在任务 worktree 里派活，Codex 只改文件，提交和 PR 由 Claude Code 完成（[ADR 0017](docs/decisions/0017-codex-local-dispatch.md)）。第一单是「工作台」（[ADR 0016](docs/decisions/0016-workbench-embeds-salesos-console.md)）。
 - **用户**：回答产品决策题；阶段开始时批准计划，结束时试用。
 
 ## 开工前必读
@@ -74,7 +75,7 @@ Chris 的个人工作台：核心功能做成本机运行的独立网页，DeepS
 | `packages/cli` | 本机灵感命令（Grok Bot 等经标准输入调用）与共用的灵感工具函数 |
 | `packages/mcp` | 供 Claude Code、Codex 使用的 MCP 服务（stdio） |
 | `packages/importer` | workbench 数据增量导入 |
-| `packages/dsh-plugin` | dsh 插件：agent 工具与工具卡片；左侧栏和右侧栏只放嵌入灵感台网页的框（带 `data-html-preview` 与 `name`，让 Desktop 快捷键归 dsh）；消息桥；本地服务没在跑时临时拉起；侧栏品牌 |
+| `packages/dsh-plugin` | dsh 插件：agent 工具与工具卡片；左侧栏和右侧栏只放嵌入灵感台、知识台网页的框，左侧栏另有「工作台」嵌入本机 SalesOS Console（ADR 0016，不管它的启停）（带 `data-html-preview` 与 `name`，让 Desktop 快捷键归 dsh）；消息桥；本地服务没在跑时临时拉起；侧栏品牌 |
 | `packages/server` | 本地服务：`/api/v1` 接口、本机口令与 Host 校验，托管网页构建产物（默认 `127.0.0.1:4310`）；`npm run service` 管理 launchd 开机自启 |
 | `packages/web` | 网页版工作台（灵感台；Skill 台、知识台开发中）：React + Vite，样式只用 `docs/design/tokens.css`；Playwright 走查 |
 | `packages/skills` | Skill 台的数据与规则（开发中，K1）：读 skill 登记表和各工具安装目录，只读 |
