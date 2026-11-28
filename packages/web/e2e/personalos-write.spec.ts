@@ -163,11 +163,16 @@ test('键盘：x 完成，Delete 不跟踪；速记框里打 x 不触发',async(
   const input=page.getByRole('textbox',{name:'速记'});
   await input.focus();await page.keyboard.type('x');
   await expect(input).toHaveValue('x');await input.fill('');
+  // Hold the refresh after the first write: the second key goes out before fresh data (and a new hash) arrives.
+  // CI hit this order by chance and got「收件箱刚被改过」; now it happens every run.
+  let release!:()=>void;const held=new Promise<void>((done)=>{release=done;});
+  await page.route('**/api/v1/personalos/today',async(route)=>{await held;await route.continue();});
   await entry(page,'反馈卡').focus();await page.keyboard.press('x');
   await expect(toast(page)).toContainText('已完成：在交换书架旁放一张让读者画表情的反馈卡。');
   await expect(entry(page,'反馈卡')).toHaveCount(0);
   await entry(page,'安静的时间').focus();await page.keyboard.press('Delete');
   await expect(toast(page)).toContainText('已不跟踪：试试用不同颜色标出一天里真正安静的时间。');
+  release();
   await expect(entry(page,'安静的时间')).toHaveCount(0);
   expect(read('日志/2026-11.md')).toContain('- 2026-11-21 不跟踪：试试用不同颜色标出一天里真正安静的时间。（收件箱 11-18）');
   expect(read('收件箱.md')).not.toMatch(/反馈卡|安静的时间/);
