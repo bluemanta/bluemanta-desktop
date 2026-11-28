@@ -151,12 +151,15 @@ export function QuickNote({ today, focus = false }: { today: string; focus?: boo
 /**
  * 完成 / 不跟踪 for inbox entries (spec 16.1, 16.2): written at once, with「撤销」on the toast for 10 seconds.
  * `hidden` keeps a resolved row out of the list until the refreshed data no longer has it.
+ * Until that refresh arrives, `local` carries the inbox hash the last write returned and the lines it removed,
+ * so a second 完成 / 不跟踪 right after the first is sent against the file as it is now, not as it was.
  */
 export function useInboxResolve(inboxHash: string | null): { resolve: (entry: InboxEntry, action: 'done' | 'drop') => void; hidden: ReadonlySet<string> } {
   const client = useQueryClient(); const toast = useToast();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const busy = useRef(false);
-  useEffect(() => { setHidden(new Set()); }, [inboxHash]);
+  const local = useRef<{ base: string; hash: string; removed: number[] } | null>(null);
+  useEffect(() => { setHidden(new Set()); local.current = null; }, [inboxHash]);
   const fail = useCallback((error: unknown, what: string) => {
     const conflict = error instanceof ApiError && error.code === 'conflict';
     toast.show(conflict ? '收件箱刚被改过，已刷新，请再试一次' : `${what}：${describeError(error)}`);
@@ -169,7 +172,7 @@ export function useInboxResolve(inboxHash: string | null): { resolve: (entry: In
         const notes = [...undone.warnings.map((warning) => warning.message), uncommitted(undone)].filter(Boolean);
         toast.show(notes.length ? `已撤销；${notes.join('；')}` : '已撤销');
       }, (error: unknown) => fail(error, '没有撤销'))
-      .finally(() => { setHidden(new Set()); void refreshPersonalOs(client); });
+      .finally(() => { local.current = null; setHidden(new Set()); void refreshPersonalOs(client); });
   }, [client, fail, toast]);
 
   const resolve = useCallback((entry: InboxEntry, action: 'done' | 'drop') => {
@@ -177,8 +180,12 @@ export function useInboxResolve(inboxHash: string | null): { resolve: (entry: In
     busy.current = true;
     setHidden((current) => new Set(current).add(entry.raw));
     const label = action === 'done' ? '已完成' : '已不跟踪';
-    post<PersonalOsInboxResolveResponse>('inbox/resolve', { line: entry.line, raw: entry.raw, hash: inboxHash, action })
+    const pending = local.current?.base === inboxHash ? local.current : null;
+    const removed = pending?.removed ?? [];
+    const line = entry.line - removed.filter((gone) => gone < entry.line).length;
+    post<PersonalOsInboxResolveResponse>('inbox/resolve', { line, raw: entry.raw, hash: pending?.hash ?? inboxHash, action })
       .then((result) => {
+        local.current = { base: inboxHash, hash: result.hash, removed: [...removed, entry.line] };
         const note = uncommitted(result);
         toast.show(`${label}：${entry.text}${note ? `；${note}` : ''}`, { label: '撤销', onClick: () => undo(result) }, UNDO_MS);
       }, (error: unknown) => {
