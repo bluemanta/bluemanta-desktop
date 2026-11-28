@@ -3,7 +3,7 @@ import { gitCommits, gitCommit, KnowledgeError, PersonalOsReader, PersonalOsWrit
 import { Hono, type Context } from 'hono';
 import type {
   ApiErrorCode, ApiFailure, PersonalOsDomainResponse, PersonalOsFileResponse, PersonalOsLogResponse,
-  PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse, PersonalOsQuickNoteResponse, PersonalOsCompleteResponse,
+  PersonalOsOverviewResponse, PersonalOsRegistryResponse, PersonalOsTodayResponse, PersonalOsQuickNoteResponse, PersonalOsCompleteResponse, PersonalOsDropResponse, PersonalOsInboxResolveResponse, PersonalOsInboxUndoResponse,
   PersonalOsSourcesResponse, PersonalOsTaskLogResponse, PersonalOsAboutResponse,
 } from './api-types.js';
 
@@ -50,6 +50,7 @@ function tailPath(c: Context, marker: string): string | null {
   try { return pathname.slice(start + marker.length).split('/').map((segment) => decodeURIComponent(segment)).join('/'); }
   catch { return null; }
 }
+function isHash(value: unknown): value is string { return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value); }
 function validDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00Z`);
@@ -160,15 +161,43 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     catch (error) { return writeFailure(c, error); }
   });
 
+  const todoBody = (body: Record<string, unknown> | null) => body && typeof body.domain === 'string' && Number.isSafeInteger(body.line) && typeof body.raw === 'string'
+    && isHash(body.hash) && typeof body.dryRun === 'boolean'
+    ? { domain: body.domain, line: body.line as number, raw: body.raw, hash: body.hash, dryRun: body.dryRun } : null;
+
   app.post('/personalos/todos/complete', async (c) => {
+    const input = todoBody(await readBody(c));
+    if (!input) return failure(c, 400, 'invalid_input', '请求体需要 { domain, line, raw, hash, dryRun }');
+    try { return c.json({ ok: true, ...(await writer.completeTodo(input)) } satisfies PersonalOsCompleteResponse, 200, NO_STORE); }
+    catch (error) { return writeFailure(c, error); }
+  });
+
+  app.post('/personalos/todos/drop', async (c) => {
+    const input = todoBody(await readBody(c));
+    if (!input) return failure(c, 400, 'invalid_input', '请求体需要 { domain, line, raw, hash, dryRun }');
+    try { return c.json({ ok: true, ...(await writer.dropTodo(input)) } satisfies PersonalOsDropResponse, 200, NO_STORE); }
+    catch (error) { return writeFailure(c, error); }
+  });
+
+  app.post('/personalos/inbox/resolve', async (c) => {
     const body = await readBody(c);
-    if (!body || typeof body.domain !== 'string' || !Number.isSafeInteger(body.line) || typeof body.raw !== 'string'
-      || typeof body.hash !== 'string' || !/^[0-9a-f]{64}$/.test(body.hash) || typeof body.dryRun !== 'boolean') {
-      return failure(c, 400, 'invalid_input', '请求体需要 { domain, line, raw, hash, dryRun }');
+    if (!body || !Number.isSafeInteger(body.line) || typeof body.raw !== 'string' || !isHash(body.hash) || (body.action !== 'done' && body.action !== 'drop')) {
+      return failure(c, 400, 'invalid_input', '请求体需要 { line, raw, hash, action: done | drop }');
     }
     try {
-      const result = await writer.completeTodo({ domain: body.domain, line: body.line as number, raw: body.raw, hash: body.hash, dryRun: body.dryRun });
-      return c.json({ ok: true, ...result } satisfies PersonalOsCompleteResponse, 200, NO_STORE);
+      const result = await writer.resolveInbox({ line: body.line as number, raw: body.raw, hash: body.hash, action: body.action });
+      return c.json({ ok: true, ...result } satisfies PersonalOsInboxResolveResponse, 200, NO_STORE);
+    } catch (error) { return writeFailure(c, error); }
+  });
+
+  app.post('/personalos/inbox/undo', async (c) => {
+    const body = await readBody(c);
+    if (!body || !Number.isSafeInteger(body.line) || typeof body.raw !== 'string' || typeof body.logLine !== 'string' || !isHash(body.hash) || !isHash(body.logHash)) {
+      return failure(c, 400, 'invalid_input', '请求体需要 { line, raw, logLine, hash, logHash }');
+    }
+    try {
+      const result = await writer.undoInbox({ line: body.line as number, raw: body.raw, logLine: body.logLine, hash: body.hash, logHash: body.logHash });
+      return c.json({ ok: true, ...result } satisfies PersonalOsInboxUndoResponse, 200, NO_STORE);
     } catch (error) { return writeFailure(c, error); }
   });
 
@@ -187,7 +216,7 @@ export function createPersonalOsApi(env: KnowledgeEnv, monitor: PersonalOsVersio
     } catch (error) { return readFailure(c, error); }
   });
 
-  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/about', '/personalos/sources', '/personalos/sources/tasks/:ref/log', '/personalos/inbox', '/personalos/todos/complete']) {
+  for (const path of ['/personalos', '/personalos/today', '/personalos/domains/:id', '/personalos/registry', '/personalos/log', '/personalos/files/*', '/personalos/git/commits', '/personalos/git/commits/:sha', '/personalos/about', '/personalos/sources', '/personalos/sources/tasks/:ref/log', '/personalos/inbox', '/personalos/inbox/resolve', '/personalos/inbox/undo', '/personalos/todos/complete', '/personalos/todos/drop']) {
     app.all(path, (c) => failure(c, 405, 'method_not_allowed', `不支持 ${c.req.method}`));
   }
   return app;

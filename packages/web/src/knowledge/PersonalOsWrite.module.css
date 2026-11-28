@@ -40,3 +40,41 @@
 }
 .quickInput:focus { outline: 2px solid var(--bm-accent); outline-offset: -1px; }
 .quickPreview { margin: var(--bm-sp-6) 0 0; color: var(--bm-text-3); overflow-wrap: anywhere; }
+
+/* Row actions (spec 16.4): hidden until the row is hovered or holds focus; always shown without hover. */
+.rowAction {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--bm-sp-24);
+  height: var(--bm-sp-24);
+  padding: 0;
+  border: 0;
+  border-radius: var(--bm-r-sm);
+  background: transparent;
+  color: var(--bm-text-3);
+  cursor: pointer;
+  opacity: 0;
+  align-self: center;
+}
+.rowAction svg { width: var(--bm-sp-16); height: var(--bm-sp-16); }
+.rowAction:hover { background: var(--bm-hover); color: var(--bm-text); }
+.rowAction:focus-visible { opacity: 1; outline: 2px solid var(--bm-accent); outline-offset: 1px; }
+:global(*):hover > .rowAction, :global(*):focus-within > .rowAction,
+.inboxRow:hover .rowAction, .inboxRow:focus-within .rowAction { opacity: 1; }
+@media (hover: none) { .rowAction { opacity: 1; } }
+
+.inboxRow {
+  display: flex;
+  gap: var(--bm-sp-12);
+  min-height: var(--bm-row);
+  align-items: baseline;
+  padding: var(--bm-sp-6) var(--bm-sp-4);
+  border-radius: var(--bm-r-sm);
+  outline: none;
+}
+.inboxRow:hover { background: var(--bm-hover); }
+.inboxRow:focus-visible { outline: 2px solid var(--bm-accent); outline-offset: -2px; }
+.inboxRow time { flex: none; color: var(--bm-text-3); font-size: var(--bm-fs-sm); font-variant-numeric: tabular-nums; }
+.inboxText { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.rowActions { flex: none; display: flex; gap: var(--bm-sp-4); align-self: center; }

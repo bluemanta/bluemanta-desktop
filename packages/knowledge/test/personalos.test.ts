@@ -279,7 +279,7 @@ describe('PersonalOS 宽容解析与日历边界', () => {
   });
 
   it('收件箱忽略说明与代码；二三级日志小节保留正文，缺日期归月份', () => {
-    expect(parseInbox('说明\n- 2026-11-20 一条\n```\n- 2026-11-21 假条目\n```\n- 2026-02-30 无效')).toEqual([{ date: '2026-11-20', text: '一条', line: 2 }]);
+    expect(parseInbox('说明\n- 2026-11-20 一条\n```\n- 2026-11-21 假条目\n```\n- 2026-02-30 无效')).toEqual([{ date: '2026-11-20', text: '一条', line: 2, raw: '- 2026-11-20 一条' }]);
     const log = parseLog('- 2026-11-21 无领域\n## 2026-11-20 [工作] 交付\n正文\n\n### 无日期回顾\n**备注**\n```md\n## 不分节\n```', '日志/2026-11.md', ['工作']);
     expect(log.map((entry) => [entry.kind, entry.date, entry.domain])).toEqual([['entry', '2026-11-21', null], ['section', '2026-11-20', '工作'], ['section', '2026-11', null]]);
     expect(log[2]?.markdown).toContain('## 不分节');

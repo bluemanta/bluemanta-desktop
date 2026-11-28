@@ -5,25 +5,37 @@ import { promisify } from 'node:util';
 import { KnowledgeError } from '../types.js';
 import { resolvePersonalOsPath } from './files.js';
 import { locateRepository } from './git.js';
-import { currentDate, parseStatus, validDate } from './parse.js';
+import { currentDate, parseInbox, parseStatus, validDate } from './parse.js';
 import { contentHash, PersonalOsReader } from './reader.js';
 import type { Warning } from './types.js';
 
 /**
- * The only two writes the board makes (spec 13, ADR 0011 decision 5): append a quick note to 收件箱.md,
- * and complete one todo the way 协议/更新.md describes. Paths are built here from fixed names and the
- * routing table, never taken from a request.
+ * The writes the board makes (spec 13 and 16, ADR 0011 decision 5 as amended by ADR 0015): append a quick
+ * note to 收件箱.md; resolve or undo one inbox entry; complete or drop one todo the way 协议/更新.md
+ * describes. Paths are built here from fixed names and the routing table, never taken from a request.
  */
 const exec = promisify(execFile);
 const MAX_NOTE = 500;
 const MAX_MESSAGE = 72;
+const INBOX = '收件箱.md';
 
 export interface WriteFileChange { path: string; lines: string[] }
 export interface QuickNoteResult { line: string; hash: string }
 export interface CompleteTodoInput { domain: string; line: number; raw: string; hash: string; dryRun: boolean }
-export interface CompleteTodoResult {
+export type CommitReason = 'dirty' | 'no_repo' | 'git_missing' | 'git_error';
+export interface CommitOutcome { committed?: boolean; reason?: CommitReason; sha?: string }
+export interface CompleteTodoResult extends CommitOutcome {
   dryRun: boolean; files: WriteFileChange[]; message: string; hash: string; warnings: Warning[];
-  committed?: boolean; reason?: 'dirty' | 'no_repo' | 'git_missing' | 'git_error'; sha?: string;
+}
+export type InboxAction = 'done' | 'drop';
+export interface ResolveInboxInput { line: number; raw: string; hash: string; action: InboxAction }
+export interface InboxUndo { line: number; raw: string; logLine: string }
+export interface ResolveInboxResult extends CommitOutcome {
+  files: WriteFileChange[]; message: string; hash: string; logHash: string; undo: InboxUndo; warnings: Warning[];
+}
+export interface UndoInboxInput extends InboxUndo { hash: string; logHash: string }
+export interface UndoInboxResult extends CommitOutcome {
+  files: WriteFileChange[]; message: string; hash: string; logHash: string | null; warnings: Warning[];
 }
 export interface PersonalOsWriterOptions { home: string; root?: string; today?: string; git?: string }
 
@@ -123,10 +135,25 @@ export class PersonalOsWriter {
   }
 
   completeTodo(input: CompleteTodoInput): Promise<CompleteTodoResult> {
-    return this.serial(() => this.complete(input));
+    return this.serial(() => this.changeTodo(input, 'complete'));
   }
 
-  private async complete(input: CompleteTodoInput): Promise<CompleteTodoResult> {
+  /** 不做了 (spec 16.3): delete the open todo line, touch 更新于, log it. */
+  dropTodo(input: CompleteTodoInput): Promise<CompleteTodoResult> {
+    return this.serial(() => this.changeTodo(input, 'drop'));
+  }
+
+  /** 完成 / 不跟踪 for one inbox entry (spec 16.1): delete the line and log the original text. */
+  resolveInbox(input: ResolveInboxInput): Promise<ResolveInboxResult> {
+    return this.serial(() => this.resolve(input));
+  }
+
+  /** Put a resolved inbox entry back and remove its log line when nothing else has touched them (spec 16.2). */
+  undoInbox(input: UndoInboxInput): Promise<UndoInboxResult> {
+    return this.serial(() => this.undo(input));
+  }
+
+  private async changeTodo(input: CompleteTodoInput, kind: 'complete' | 'drop'): Promise<CompleteTodoResult> {
     const route = this.reader.routing().domains.find((domain) => domain.id === input.domain);
     if (!route) throw new KnowledgeError('invalid_input', '没有这个领域');
     const statusRel = `${route.path}/状态.md`;
@@ -143,9 +170,10 @@ export class PersonalOsWriter {
     const today = this.today();
     const warnings: Warning[] = [];
     const statusLines = [...lines];
-    const statusDiff: string[] = [];
-    let logText = `完成：${todo.text}`;
-    if (todo.every) {
+    let logText = `${kind === 'drop' ? '不做了' : '完成'}：${todo.text}`;
+    if (kind === 'drop') {
+      // Deleted below, after 更新于 is located on the original numbering.
+    } else if (todo.every) {
       if (!todo.due || !validDate(todo.due)) throw new KnowledgeError('invalid_input', '周期事项缺少截止日期');
       const next = nextDue(todo.due, todo.every, today);
       statusLines[index] = lines[index]!.replace(`@due(${todo.due})`, `@due(${next})`);
@@ -156,35 +184,113 @@ export class PersonalOsWriter {
     const updatedIndex = statusLines.slice(0, 10).findIndex((line) => /更新于[：:]\s*\d{4}-\d{2}-\d{2}/.test(line));
     if (updatedIndex >= 0) statusLines[updatedIndex] = statusLines[updatedIndex]!.replace(/(更新于[：:]\s*)\d{4}-\d{2}-\d{2}/, `$1${today}`);
     else warnings.push({ code: 'no_updated_at', message: '这个文件没有「更新于」，没有改日期', file: statusRel });
+    const statusDiff: string[] = [];
+    let shift = 0;
     for (const i of [updatedIndex, index].filter((value) => value >= 0).sort((a, b) => a - b)) {
-      if (statusLines[i] !== lines[i]) statusDiff.push(...hunk(i + 1, lines[i]!, statusLines[i]!));
+      if (kind === 'drop' && i === index) { statusDiff.push(`@@ -${i + 1},1 +${i + shift},0 @@`, `-${lines[i]!}`); shift -= 1; continue; }
+      if (statusLines[i] !== lines[i]) statusDiff.push(...hunk(i + 1, lines[i]!, statusLines[i]!).map((line, n) => n === 0 && shift ? `@@ -${i + 1},1 +${i + 1 + shift},1 @@` : line));
     }
+    if (kind === 'drop') statusLines.splice(index, 1);
     const statusAfter = statusLines.join(eol);
 
-    const logRel = `日志/${today.slice(0, 7)}.md`;
-    const logPath = resolvePersonalOsPath(this.root, logRel);
-    const logExisted = existsSync(logPath);
-    const logBefore = logExisted ? this.read(logPath) : `# ${today.slice(0, 7)} 日志\n\n`;
-    const logLine = `- ${today} [${route.name}] ${logText}`;
-    const appended = appendLine(logBefore, logLine);
-    const logDiff = logExisted ? hunk(appended.lineNumber, null, logLine)
-      : ['@@ -0,0 +1,3 @@', `+# ${today.slice(0, 7)} 日志`, '+', `+${logLine}`];
-
-    const message = truncateMessage(`[${route.name}] 完成：${todo.text}`);
-    const files = [{ path: statusRel, lines: statusDiff }, { path: logRel, lines: logDiff }];
+    const log = this.logAppend(today, `- ${today} [${route.name}] ${logText}`);
+    const message = truncateMessage(`[${route.name}] ${kind === 'drop' ? '不做了' : '完成'}：${todo.text}`);
+    const files = [{ path: statusRel, lines: statusDiff }, { path: log.rel, lines: log.diff }];
     if (input.dryRun) return { dryRun: true, files, message, hash: input.hash, warnings };
 
-    const dirty = await this.dirty([statusRel, logRel]);
+    const dirty = await this.dirty([statusRel, log.rel]);
     atomicWrite(statusPath, statusAfter);
-    atomicWrite(logPath, appended.content);
+    atomicWrite(log.path, log.content);
     const result: CompleteTodoResult = { dryRun: false, files, message, hash: contentHash(statusAfter), warnings };
-    if (dirty !== false) return { ...result, committed: false, reason: dirty };
-    try {
-      const sha = await this.commit([statusRel, logRel], message);
-      return { ...result, committed: true, sha };
-    } catch (error) {
-      return { ...result, committed: false, reason: (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'git_missing' : 'git_error' };
+    return { ...result, ...(await this.commitIfClean(dirty, [statusRel, log.rel], message)) };
+  }
+
+  private async resolve(input: ResolveInboxInput): Promise<ResolveInboxResult> {
+    if (input.action !== 'done' && input.action !== 'drop') throw new KnowledgeError('invalid_input', '不认识的操作');
+    this.reader.routing();
+    const inboxPath = resolvePersonalOsPath(this.root, INBOX);
+    const before = this.read(inboxPath);
+    if (contentHash(before) !== input.hash) throw new KnowledgeError('conflict', '收件箱刚被改过');
+    const { lines, eol } = splitLines(before);
+    const index = input.line - 1;
+    if (!Number.isInteger(input.line) || index < 0 || index >= lines.length || lines[index] !== input.raw) throw new KnowledgeError('conflict', '这一行已经变了');
+    const entry = parseInbox(before).find((item) => item.line === input.line);
+    if (!entry) throw new KnowledgeError('invalid_input', '这一行不是收件箱条目');
+
+    const today = this.today();
+    const label = input.action === 'done' ? '完成' : '不跟踪';
+    const after = [...lines.slice(0, index), ...lines.slice(index + 1)].join(eol);
+    const logLine = `- ${today} ${label}：${entry.text}（收件箱 ${entry.date.slice(5)}）`;
+    const log = this.logAppend(today, logLine);
+    const message = truncateMessage(`[收件箱] ${label}：${entry.text}`);
+    const files = [{ path: INBOX, lines: [`@@ -${input.line},1 +${input.line - 1},0 @@`, `-${input.raw}`] }, { path: log.rel, lines: log.diff }];
+
+    // Lines the phone appended to the inbox may ride along (ADR 0014/0015); only the log must be clean.
+    const dirty = await this.dirty([log.rel]);
+    atomicWrite(inboxPath, after);
+    atomicWrite(log.path, log.content);
+    const commit = await this.commitIfClean(dirty, [INBOX, log.rel], message);
+    return { files, message, hash: contentHash(after), logHash: contentHash(log.content), undo: { line: input.line, raw: input.raw, logLine }, warnings: [], ...commit };
+  }
+
+  private async undo(input: UndoInboxInput): Promise<UndoInboxResult> {
+    const entry = /[\r\n]/.test(input.raw) ? undefined : parseInbox(input.raw)[0];
+    const logMonth = /^- (\d{4}-\d{2})-\d{2} /.exec(input.logLine)?.[1];
+    if (!entry || !logMonth || /[\r\n]/.test(input.logLine) || !Number.isSafeInteger(input.line) || input.line < 1) throw new KnowledgeError('invalid_input', '撤销内容不合法');
+    this.reader.routing();
+    const warnings: Warning[] = [];
+    const inboxPath = resolvePersonalOsPath(this.root, INBOX);
+    const before = this.read(inboxPath);
+    const { lines, eol } = splitLines(before);
+    let after: string; let inboxDiff: string[];
+    if (contentHash(before) === input.hash && input.line - 1 <= lines.length) {
+      after = [...lines.slice(0, input.line - 1), input.raw, ...lines.slice(input.line - 1)].join(eol);
+      inboxDiff = [`@@ -${input.line - 1},0 +${input.line},1 @@`, `+${input.raw}`];
+    } else {
+      const appended = appendLine(before, input.raw);
+      after = appended.content; inboxDiff = hunk(appended.lineNumber, null, input.raw);
+      warnings.push({ code: 'inbox_changed', message: '收件箱刚被改过，条目已加在最后', file: INBOX });
     }
+
+    const logRel = `日志/${logMonth}.md`;
+    const logPath = resolvePersonalOsPath(this.root, logRel);
+    let logAfter: string | null = null; let logDiff: string[] = [];
+    const logBefore = existsSync(logPath) ? this.read(logPath) : null;
+    if (logBefore !== null && contentHash(logBefore) === input.logHash) {
+      const split = splitLines(logBefore);
+      const last = split.lines.at(-1) === '' ? split.lines.length - 2 : split.lines.length - 1;
+      if (last >= 0 && split.lines[last] === input.logLine) {
+        logAfter = [...split.lines.slice(0, last), ...split.lines.slice(last + 1)].join(split.eol);
+        logDiff = [`@@ -${last + 1},1 +${last},0 @@`, `-${input.logLine}`];
+      }
+    }
+    if (logAfter === null) warnings.push({ code: 'log_changed', message: '日志刚被改过，那一行没有删', file: logRel });
+
+    const message = truncateMessage(`[收件箱] 撤销：${entry.text}`);
+    const paths = logAfter === null ? [INBOX] : [INBOX, logRel];
+    const files = [{ path: INBOX, lines: inboxDiff }, ...(logAfter === null ? [] : [{ path: logRel, lines: logDiff }])];
+    const dirty = logAfter === null ? await this.dirty([]) : await this.dirty([logRel]);
+    atomicWrite(inboxPath, after);
+    if (logAfter !== null) atomicWrite(logPath, logAfter);
+    const commit = await this.commitIfClean(dirty, paths, message);
+    return { files, message, hash: contentHash(after), logHash: logAfter === null ? (logBefore === null ? null : contentHash(logBefore)) : contentHash(logAfter), warnings, ...commit };
+  }
+
+  /** The line appended to this month's log, creating the file with its heading when needed. */
+  private logAppend(today: string, logLine: string): { rel: string; path: string; content: string; diff: string[] } {
+    const rel = `日志/${today.slice(0, 7)}.md`;
+    const path = resolvePersonalOsPath(this.root, rel);
+    const existed = existsSync(path);
+    const before = existed ? this.read(path) : `# ${today.slice(0, 7)} 日志\n\n`;
+    const appended = appendLine(before, logLine);
+    const diff = existed ? hunk(appended.lineNumber, null, logLine) : ['@@ -0,0 +1,3 @@', `+# ${today.slice(0, 7)} 日志`, '+', `+${logLine}`];
+    return { rel, path, content: appended.content, diff };
+  }
+
+  private async commitIfClean(dirty: false | CommitReason, paths: string[], message: string): Promise<Pick<CompleteTodoResult, 'committed' | 'reason' | 'sha'>> {
+    if (dirty !== false) return { committed: false, reason: dirty };
+    try { return { committed: true, sha: await this.commit(paths, message) }; }
+    catch (error) { return { committed: false, reason: (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'git_missing' : 'git_error' }; }
   }
 
   private async runGit(locks: boolean, ...args: string[]): Promise<string> {
@@ -199,9 +305,10 @@ export class PersonalOsWriter {
   }
 
   /** false when both files are clean; otherwise why we must not commit. */
-  private async dirty(paths: string[]): Promise<false | 'dirty' | 'no_repo' | 'git_missing' | 'git_error'> {
+  private async dirty(paths: string[]): Promise<false | CommitReason> {
     try {
       if (!locateRepository(this.root)) return 'no_repo';
+      if (paths.length === 0) return false;
       return (await this.runGit(false, 'status', '--porcelain=v1', '-z', '--', ...paths)) === '' ? false : 'dirty';
     } catch (error) {
       return (error as NodeJS.ErrnoException).code === 'ENOENT' ? 'git_missing' : 'git_error';

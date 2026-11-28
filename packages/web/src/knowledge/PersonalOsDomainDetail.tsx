@@ -16,7 +16,7 @@ type Section = Domain['sections'][number];
 type FileEntry = Domain['files'][number];
 type OpenFile = MarkdownProps['onOpen'];
 import { DomainCommits, useDomainCommits } from './PersonalOsGit';
-import { TodoCheck, useCompleteTodo } from './PersonalOsWrite';
+import { DropButton, TodoCheck, useCompleteTodo, useDropTodo } from './PersonalOsWrite';
 type Tab = 'status' | 'registry' | 'matters' | 'knowledge' | 'files' | 'commits';
 export const PERSONAL_OS_GAP_TERMS = ['待补充', '（推断）', '未核验'] as const;
 
@@ -31,7 +31,7 @@ function dueLabel(todo: Todo, today: string): string | null {
   return `${['周日', '周一', '周二', '周三', '周四', '周五', '周六'][day]} ${todo.due.slice(5)}`;
 }
 
-function TodoRow({ todo, today, onOpen, onAnchor, onComplete }: { todo: Todo; today: string; onOpen: OpenFile; onAnchor: (anchor: string) => void; onComplete: (todo: Todo) => void }) {
+function TodoRow({ todo, today, onOpen, onAnchor, onComplete, onDrop }: { todo: Todo; today: string; onOpen: OpenFile; onAnchor: (anchor: string) => void; onComplete: (todo: Todo) => void; onDrop: (todo: Todo) => void }) {
   return <div className={styles.todo} data-todo-id={todo.id} data-done={todo.done} tabIndex={-1}>
     {todo.done ? <span className={styles.circle} aria-label="已完成">✓</span> : <TodoCheck todo={todo} onComplete={onComplete} />}
     <span className={styles.todoText}><InlineMarkdown source={todo.text} basePath={todo.file} onOpen={onOpen} onAnchor={onAnchor} highlightTerms={PERSONAL_OS_GAP_TERMS} /></span>
@@ -43,6 +43,7 @@ function TodoRow({ todo, today, onOpen, onAnchor, onComplete }: { todo: Todo; to
       {todo.doneAt ? <time dateTime={todo.doneAt}>完成于 {todo.doneAt}</time> : null}
       {todo.warnings.map((warning, index) => <span key={index} className={styles.warning}>{warning.message}</span>)}
     </span>
+    {todo.done ? null : <DropButton todo={todo} onDrop={onDrop} />}
   </div>;
 }
 
@@ -123,7 +124,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
   const query = usePersonalOsDomain(id);
   const commits = useDomainCommits(id);
   const overview = usePersonalOsOverview();
-  const copyPath = useCopyPath(); const complete = useCompleteTodo();
+  const copyPath = useCopyPath(); const complete = useCompleteTodo(); const drop = useDropTodo();
   const root = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<{ id: string; tab: Tab }>({ id, tab: 'status' });
   const tab = selection.id === id ? selection.tab : 'status';
@@ -158,7 +159,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
     if (section.empty) return <p className={common.none}>{section.markdown.trim()}</p>;
     if (section.kind === 'todos') return structuredSection(data, index, (line) => {
       const todo = data.todos.find((item) => item.line === line);
-      return todo ? <TodoRow todo={todo} today={overview.data?.today ?? ''} onOpen={onOpen} onAnchor={onAnchor} onComplete={complete.start} /> : null;
+      return todo ? <TodoRow todo={todo} today={overview.data?.today ?? ''} onOpen={onOpen} onAnchor={onAnchor} onComplete={complete.start} onDrop={drop.start} /> : null;
     }, markdown);
     if (section.kind === 'changes') return structuredSection(data, index, (line) => {
       const change = data.changes.find((item) => item.line === line);
@@ -170,6 +171,7 @@ export function PersonalOsDomainDetail({ id, todoId = null, heading = null, onOp
 
   return <div ref={root} data-testid="personalos-domain-detail">
     {complete.dialog}
+    {drop.dialog}
     {error ? <div className={styles.alert}>{error}</div> : null}
     <h2 className={common.detailTitle}>{data.name}{!data.registered ? <span className={common.tag}>未登记</span> : null}</h2>
     <div className={common.meta}>

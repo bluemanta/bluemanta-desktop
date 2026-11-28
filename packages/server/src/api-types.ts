@@ -433,6 +433,12 @@ export type GitCommitsResponse = { ok: true } & Awaited<ReturnType<typeof import
 export type GitCommitResponse = { ok: true } & Awaited<ReturnType<typeof import('@bluemanta/knowledge').gitCommit>>;
 export type PersonalOsQuickNoteResponse = { ok: true } & import('@bluemanta/knowledge').QuickNoteResult;
 export type PersonalOsCompleteResponse = { ok: true } & import('@bluemanta/knowledge').CompleteTodoResult;
+/** `POST /personalos/todos/drop` (spec 16.3): same shape as completing a todo. */
+export type PersonalOsDropResponse = PersonalOsCompleteResponse;
+/** `POST /personalos/inbox/resolve` (spec 16.1). */
+export type PersonalOsInboxResolveResponse = { ok: true } & import('@bluemanta/knowledge').ResolveInboxResult;
+/** `POST /personalos/inbox/undo` (spec 16.2). */
+export type PersonalOsInboxUndoResponse = { ok: true } & import('@bluemanta/knowledge').UndoInboxResult;
 /** 关于页（规格 personalos-ui 第 15 节）。 */
 export type PersonalOsAboutResponse = { ok: true } & import('@bluemanta/knowledge').PersonalOsAbout;
 /** 接入页（ADR 0013，规格 personalos-sources 第 4 节）。 */

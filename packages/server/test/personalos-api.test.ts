@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
-import { chmodSync, cpSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openCore, type Core } from '@bluemanta/core';
@@ -9,7 +9,7 @@ import { defaultKnowledgeEnv, KnowledgeError, PersonalOsReader, type KnowledgeEn
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ApiFailure, PersonalOsVersionResponse, KnowledgeSearchResponse, PersonalOsCompleteResponse, PersonalOsQuickNoteResponse,
-  PersonalOsDomainResponse,
+  PersonalOsDomainResponse, PersonalOsDropResponse, PersonalOsInboxResolveResponse, PersonalOsInboxUndoResponse,
   PersonalOsFileResponse,
   PersonalOsLogResponse,
   PersonalOsOverviewResponse,
@@ -453,8 +453,9 @@ describe('PersonalOS 写入接口（迭代 3）', () => {
       method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body),
       headers: { host: HOST, 'content-type': 'application/json', ...(token === null ? {} : { authorization: `Bearer ${token}` }) },
     });
+    const get = (path: string) => app.request(`http://${HOST}${BASE}${path}`, { headers: { host: HOST, authorization: `Bearer ${TOKEN}` } });
     const todo = () => new PersonalOsReader({ home }).domain('工作').todos.find((t) => t.text === '整理试点访谈问题卡')!;
-    return { root, post, todo };
+    return { root, post, get, todo };
   }
 
   it('速记：口令、请求体校验、追加成功、GET 不允许', async () => {
@@ -482,5 +483,44 @@ describe('PersonalOS 写入接口（迭代 3）', () => {
     expect(done).toMatchObject({ ok: true, dryRun: false, committed: false, reason: 'no_repo' });
     expect(readFileSync(statusPath, 'utf8')).toContain('- [x] 整理试点访谈问题卡');
     await expectFailure(await post('/todos/complete', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: false }), 409, 'conflict');
+  });
+  it('收件箱完成与撤销（第 16 节）：today 带 inboxHash 和 raw；400、404、409；撤销还原文件', async () => {
+    const { root, post, get } = writable();
+    const inboxPath = join(root, '收件箱.md'); const logPath = join(root, '日志/2026-11.md');
+    const inboxBefore = readFileSync(inboxPath, 'utf8'); const logBefore = readFileSync(logPath, 'utf8');
+    const today = await json<PersonalOsTodayResponse>(await get('/today'));
+    const entry = today.inbox[0]!;
+    expect(today.inboxHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(entry.raw).toBe(`- ${entry.date} ${entry.text}`);
+    const body = { line: entry.line, raw: entry.raw, hash: today.inboxHash, action: 'done' };
+    await expectFailure(await post('/inbox/resolve', { ...body, action: 'archive' }), 400, 'invalid_input');
+    await expectFailure(await post('/inbox/resolve', { ...body, hash: 'abc' }), 400, 'invalid_input');
+    await expectFailure(await post('/inbox/resolve', body, null), 401, 'unauthorized');
+    const done = await json<PersonalOsInboxResolveResponse>(await post('/inbox/resolve', body));
+    expect(done).toMatchObject({ ok: true, committed: false, reason: 'no_repo', message: `[收件箱] 完成：${entry.text}` });
+    expect(readFileSync(inboxPath, 'utf8')).not.toContain(entry.raw);
+    await expectFailure(await post('/inbox/resolve', body), 409, 'conflict');
+    await expectFailure(await post('/inbox/undo', { ...done.undo }), 400, 'invalid_input');
+    const undone = await json<PersonalOsInboxUndoResponse>(await post('/inbox/undo', { ...done.undo, hash: done.hash, logHash: done.logHash }));
+    expect(undone).toMatchObject({ ok: true, warnings: [] });
+    expect(readFileSync(inboxPath, 'utf8')).toBe(inboxBefore);
+    expect(readFileSync(logPath, 'utf8')).toBe(logBefore);
+    rmSync(inboxPath);
+    await expectFailure(await post('/inbox/resolve', body), 404, 'not_found');
+    expect((await get('/inbox/resolve')).status).toBe(405);
+  });
+
+  it('待办不做了（第 16 节）：dry-run 不写；正式删除这一行；旧 hash 得到 409', async () => {
+    const { root, post, get, todo } = writable();
+    const t = todo(); const statusPath = join(root, '领域/工作/状态.md');
+    const before = readFileSync(statusPath, 'utf8');
+    await expectFailure(await post('/todos/drop', { domain: '工作', line: t.line }), 400, 'invalid_input');
+    const preview = await json<PersonalOsDropResponse>(await post('/todos/drop', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: true }));
+    expect(preview).toMatchObject({ ok: true, dryRun: true, message: '[工作] 不做了：整理试点访谈问题卡' });
+    expect(readFileSync(statusPath, 'utf8')).toBe(before);
+    await json<PersonalOsDropResponse>(await post('/todos/drop', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: false }));
+    expect(readFileSync(statusPath, 'utf8')).not.toContain('整理试点访谈问题卡');
+    await expectFailure(await post('/todos/drop', { domain: '工作', line: t.line, raw: t.raw, hash: t.hash, dryRun: false }), 409, 'conflict');
+    expect((await get('/todos/drop')).status).toBe(405);
   });
 });
